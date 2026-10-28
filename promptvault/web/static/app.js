@@ -380,10 +380,14 @@ function renderDetail(d) {
   };
 
   const addTags = async () => {
-    const tags = $("#dTagInput").value.split(",").map((s) => s.trim()).filter(Boolean);
+    const raw = $("#dTagInput").value;
+    const tags = raw.split(",").map((s) => s.trim()).filter(Boolean);
     if (!tags.length) return;
     d.tags = await api(`/api/images/${d.id}/tags`, { method: "POST", body: { tags } });
-    renderDetail(d); loadStats();
+    $("#dTagInput").value = "";
+    toast(`Etiket eklendi: ${tags.join(", ")}`);
+    renderDetail(d);
+    loadStats();
   };
   $("#dTagAdd").onclick = addTags;
   $("#dTagInput").onkeydown = (e) => { if (e.key === "Enter") addTags(); };
@@ -391,8 +395,12 @@ function renderDetail(d) {
   $("#dTags").onclick = async (e) => {
     const chip = e.target.closest(".chip"); if (!chip) return;
     if (e.target.classList.contains("x")) {
-      d.tags = await api(`/api/images/${d.id}/tags/${encodeURIComponent(chip.dataset.tag)}?kind=user`, { method: "DELETE" });
-      return renderDetail(d);
+      const removedName = chip.dataset.tag;
+      d.tags = await api(`/api/images/${d.id}/tags/${encodeURIComponent(removedName)}?kind=user`, { method: "DELETE" });
+      toast(`Etiket silindi: ${removedName}`);
+      renderDetail(d);
+      loadStats();
+      return;
     }
     const k = chip.dataset.kind, n = chip.dataset.tag;
     if (k === "generator") searchFor(`gen:${n}`); else if (k === "lora") searchFor(`lora:"${n}"`); else searchFor(quoteTag(n));

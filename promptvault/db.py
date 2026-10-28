@@ -560,23 +560,29 @@ class Library:
         where: list[str] = []
         args: list[Any] = []
         for term in q["text"]:
-            cond, a = self._fts_cond(term, "prompt notes")
-            where.append(cond)
-            args += a
+            cond_fts, a_fts = self._fts_cond(term, "prompt notes")
+            norm = normalize_tag(term)
+            cond_tag = "i.id IN (SELECT it.image_id FROM image_tags it JOIN tags t ON t.id=it.tag_id WHERE t.name=? OR t.name LIKE ?)"
+            where.append(f"({cond_fts} OR {cond_tag})")
+            args += a_fts + [norm, f"%{norm}%"]
         for term in q["not_text"]:
-            cond, a = self._fts_cond(term, "prompt notes")
-            where.append(f"NOT {cond}")
-            args += a
+            cond_fts, a_fts = self._fts_cond(term, "prompt notes")
+            norm = normalize_tag(term)
+            cond_tag = "i.id IN (SELECT it.image_id FROM image_tags it JOIN tags t ON t.id=it.tag_id WHERE t.name=? OR t.name LIKE ?)"
+            where.append(f"NOT ({cond_fts} OR {cond_tag})")
+            args += a_fts + [norm, f"%{norm}%"]
         for term in q["neg"]:
             cond, a = self._fts_cond(term, "negative")
             where.append(cond)
             args += a
         for tag in q["tags"]:
-            where.append("i.id IN (SELECT it.image_id FROM image_tags it JOIN tags t ON t.id=it.tag_id WHERE t.name=?)")
-            args.append(tag)
+            norm = normalize_tag(tag)
+            where.append("i.id IN (SELECT it.image_id FROM image_tags it JOIN tags t ON t.id=it.tag_id WHERE t.name=? OR t.name LIKE ?)")
+            args += [norm, f"%{norm}%"]
         for tag in q["not_tags"]:
-            where.append("i.id NOT IN (SELECT it.image_id FROM image_tags it JOIN tags t ON t.id=it.tag_id WHERE t.name=?)")
-            args.append(tag)
+            norm = normalize_tag(tag)
+            where.append("i.id NOT IN (SELECT it.image_id FROM image_tags it JOIN tags t ON t.id=it.tag_id WHERE t.name=? OR t.name LIKE ?)")
+            args += [norm, f"%{norm}%"]
         for lora in q["loras"]:
             where.append("i.id IN (SELECT it.image_id FROM image_tags it JOIN tags t ON t.id=it.tag_id "
                          "WHERE t.kind='lora' AND t.name LIKE ?)")
