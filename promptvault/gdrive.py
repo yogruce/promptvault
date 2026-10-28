@@ -91,6 +91,7 @@ class GDriveManager:
         authed = self.is_authenticated()
         user_info = None
         folder_info = None
+        api_error = None
         if authed:
             try:
                 service = self.build_service()
@@ -102,6 +103,8 @@ class GDriveManager:
                     "photo": u.get("photoLink", ""),
                 }
                 folder_id = self.get_saved_folder_id()
+                if not folder_id:
+                    folder_id = self.get_or_create_vault_folder()
                 if folder_id:
                     folder_info = {
                         "id": folder_id,
@@ -109,12 +112,14 @@ class GDriveManager:
                     }
             except Exception as e:
                 authed = False
+                api_error = str(e)
 
         return {
             "configured": self.is_configured(),
             "authenticated": authed,
             "user": user_info,
             "folder": folder_info,
+            "error": api_error,
             "sync": self._sync_progress,
         }
 

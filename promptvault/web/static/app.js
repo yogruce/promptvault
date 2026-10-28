@@ -810,6 +810,18 @@ async function loadGDriveStatus() {
         badge.textContent = "⚙ Yapılandırma Gerekli";
         badge.className = "kind";
       }
+
+      if (s.error) {
+        let errMsg = esc(s.error);
+        if (s.error.includes("Google Drive API has not been used") || s.error.includes("disabled") || s.error.includes("accessNotConfigured")) {
+          errMsg = `⚠️ <b>Google Drive API Henüz Etkinleştirilmemiş:</b><br>
+            Google Cloud projenizde Drive API servisi kapalı olduğu için klasör oluşturulamadı.<br>
+            👉 <a href="https://console.cloud.google.com/apis/library/drive.googleapis.com" target="_blank" style="color:var(--accent2); font-weight:bold; text-decoration:underline">Google Drive API'yi Etkinleştirmek İçin Tıklayın</a> (Açılan sayfada mavi <b>ETKİNLEŞTİR / ENABLE</b> butonuna basın, ardından buraya dönün).`;
+        }
+        $("#gdInfo").innerHTML = `<div style="background:#ff5c7a1a; border:1px solid var(--danger); padding:10px; border-radius:8px; margin-top:10px; line-height:1.6">${errMsg}</div>`;
+      } else {
+        $("#gdInfo").innerHTML = "";
+      }
     }
     return s;
   } catch (e) {
