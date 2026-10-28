@@ -48,6 +48,7 @@ async function loadStats() {
 
 /* ---------------------------------------------------------- gallery */
 const G = { items: [], total: 0, offset: 0, limit: 60, selecting: false, selected: new Set(), current: -1 };
+let lastSelectedIdx = null;
 
 function quoteTag(name) { return /\s/.test(name) ? `tag:"${name}"` : `tag:${name}`; }
 function searchFor(q) { $("#q").value = q; showTab("gallery"); closeModal(); loadGallery(); }
@@ -66,60 +67,175 @@ async function loadGallery(append = false) {
 
 function cardHTML(it, idx) {
   const cap = it.prompt ? esc(it.prompt.slice(0, 140)) : '<i>prompt yok</i>';
-  return `<div class="card ${G.selected.has(it.id) ? "selected" : ""}" data-idx="${idx}" data-id="${it.id}">
+  const isSel = G.selected.has(it.id);
+  return `<div class="card ${isSel ? "selected" : ""}" data-idx="${idx}" data-id="${it.id}">
     <img loading="lazy" src="/api/images/${it.id}/thumb" alt="">
     <span class="gen">${esc(it.generator || "?")}</span>${it.favorite ? '<span class="fav">★</span>' : ""}
-    <span class="chk"></span><div class="cap" title="${esc(it.prompt)}">${cap}</div></div>`;
+    <span class="chk" title="Seç (Shift ile aralık seçebilirsiniz)">${isSel ? "✓" : ""}</span>
+    <div class="cap" title="${esc(it.prompt)}">${cap}</div></div>`;
 }
+
 function renderGrid(items, append) {
   const grid = $("#grid");
   const start = append ? G.items.length - items.length : 0;
   const html = items.map((it, i) => cardHTML(it, start + i)).join("");
   if (append) grid.insertAdjacentHTML("beforeend", html); else grid.innerHTML = html;
 }
-$("#grid").addEventListener("click", (e) => {
-  const card = e.target.closest(".card"); if (!card) return;
-  const id = +card.dataset.id;
-  if (G.selecting) {
-    G.selected.has(id) ? G.selected.delete(id) : G.selected.add(id);
-    card.classList.toggle("selected"); updateBulk(); return;
+
+function toggleSelect(id, selectState = null) {
+  const card = $(`#grid .card[data-id="${id}"]`);
+  const shouldSelect = selectState !== null ? selectState : !G.selected.has(id);
+  if (shouldSelect) {
+    G.selected.add(id);
+    if (card) {
+      card.classList.add("selected");
+      const chk = card.querySelector(".chk");
+      if (chk) chk.textContent = "✓";
+    }
+  } else {
+    G.selected.delete(id);
+    if (card) {
+      card.classList.remove("selected");
+      const chk = card.querySelector(".chk");
+      if (chk) chk.textContent = "";
+    }
   }
-  openDetail(+card.dataset.idx);
+  updateBulk();
+}
+
+function updateBulk() {
+  const count = G.selected.size;
+  $("#bulkCount").textContent = `${count} seçili`;
+  $("#bulkbar").classList.toggle("hidden", count === 0 && !G.selecting);
+  $("#bulkDelete").textContent = count > 0 ? `🗑 Seçilen ${count} Görseli Sil` : "🗑 Seçilenleri Sil";
+}
+
+function removeImagesFromUI(deletedIds) {
+  const set = new Set(deletedIds);
+  G.items = G.items.filter((it) => !set.has(it.id));
+  G.total = Math.max(0, G.total - deletedIds.length);
+  G.offset = Math.max(0, G.offset - deletedIds.length);
+
+  // Kartları sayfayı veya yüklenenleri sıfırlamadan doğrudan DOM'dan sil
+  deletedIds.forEach((id) => {
+    G.selected.delete(id);
+    const card = document.querySelector(`#grid .card[data-id="${id}"]`);
+    if (card) card.remove();
+  });
+
+  // Kalan kartların indekslerini güncelle (modal yönlendirmesi için)
+  $$("#grid .card").forEach((card, i) => {
+    card.dataset.idx = i;
+  });
+
+  updateBulk();
+  $("#resultInfo").textContent = `${G.total} sonuç`;
+  $("#empty").classList.toggle("hidden", G.total > 0 || $("#q").value !== "");
+  $("#more").classList.toggle("hidden", G.items.length >= G.total);
+}
+
+$("#grid").addEventListener("click", (e) => {
+  const card = e.target.closest(".card");
+  if (!card) return;
+  const id = +card.dataset.id;
+  const idx = +card.dataset.idx;
+  const isChk = Boolean(e.target.closest(".chk"));
+
+  // Checkbox'a tıklandıysa veya seçim modu açıksa
+  if (isChk || G.selecting) {
+    // Shift + Tık ile toplu aralık seçimi
+    if (e.shiftKey && lastSelectedIdx !== null && lastSelectedIdx !== idx) {
+      const start = Math.min(lastSelectedIdx, idx);
+      const end = Math.max(lastSelectedIdx, idx);
+      for (let i = start; i <= end; i++) {
+        if (G.items[i]) toggleSelect(G.items[i].id, true);
+      }
+    } else {
+      toggleSelect(id);
+      lastSelectedIdx = idx;
+    }
+    return;
+  }
+
+  // Normal tıkta detay modalini aç
+  openDetail(idx);
 });
+
 $("#q").addEventListener("input", debounce(() => loadGallery(), 350));
 $("#sort").onchange = () => loadGallery();
 $("#more").onclick = () => loadGallery(true);
 
-function updateBulk() { $("#bulkCount").textContent = `${G.selected.size} seçili`; }
+// Otomatik sonsuz kaydırma (Infinite Scroll) - butona sürekli basma zorunluluğunu kaldırır
+if ("IntersectionObserver" in window) {
+  const moreObserver = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting && !$("#more").classList.contains("hidden")) {
+      loadGallery(true);
+    }
+  }, { rootMargin: "350px" });
+  moreObserver.observe($("#more"));
+}
+
 $("#selectMode").onclick = () => {
   G.selecting = !G.selecting;
   $("#grid").classList.toggle("selecting", G.selecting);
-  $("#bulkbar").classList.toggle("hidden", !G.selecting);
-  $("#selectMode").textContent = G.selecting ? "☑ Seçim açık" : "☐ Seç";
+  $("#bulkbar").classList.toggle("hidden", !G.selecting && G.selected.size === 0);
+  $("#selectMode").textContent = G.selecting ? "☑ Seçim açık" : "☐ Çoklu Seçim";
 };
-$("#bulkAll").onclick = () => { G.items.forEach((i) => G.selected.add(i.id)); $$(".card").forEach((c) => c.classList.add("selected")); updateBulk(); };
-$("#bulkClear").onclick = () => { G.selected.clear(); $$(".card").forEach((c) => c.classList.remove("selected")); updateBulk(); };
+
+$("#bulkAll").onclick = () => {
+  G.items.forEach((i) => G.selected.add(i.id));
+  $$(".card").forEach((c) => {
+    c.classList.add("selected");
+    const chk = c.querySelector(".chk");
+    if (chk) chk.textContent = "✓";
+  });
+  updateBulk();
+};
+
+$("#bulkClear").onclick = () => {
+  G.selected.clear();
+  $$(".card").forEach((c) => {
+    c.classList.remove("selected");
+    const chk = c.querySelector(".chk");
+    if (chk) chk.textContent = "";
+  });
+  updateBulk();
+};
+
 $("#bulkApply").onclick = async () => {
   const tags = $("#bulkTags").value.split(",").map((s) => s.trim()).filter(Boolean);
   if (!tags.length || !G.selected.size) return toast("Etiket ve görsel seçin");
   const r = await api("/api/bulk/tags", { method: "POST", body: { ids: [...G.selected], tags } });
-  toast(`${r.updated} görsel etiketlendi`); $("#bulkTags").value = ""; loadStats();
+  toast(`${r.updated} görsel etiketlendi`);
+  $("#bulkTags").value = "";
+  loadStats();
 };
+
 $("#bulkDelete").onclick = async () => {
   if (!G.selected.size) return toast("Lütfen silinecek görselleri seçin");
   const count = G.selected.size;
   if (!confirm(`${count} adet görseli kasadan silmek istediğinize emin misiniz?\n(Not: Orijinal dosyalarınız korunur, yalnızca kasa kayıtları ve kasa kopyaları silinir.)`)) return;
+  const idsToDelete = [...G.selected];
   try {
-    const r = await api("/api/bulk/delete", { method: "POST", body: { ids: [...G.selected] } });
+    const r = await api("/api/bulk/delete", { method: "POST", body: { ids: idsToDelete } });
     toast(`${r.deleted_count} görsel kasadan silindi`);
-    G.selected.clear();
-    updateBulk();
-    loadGallery();
+    removeImagesFromUI(idsToDelete);
     loadStats();
   } catch (err) {
     toast("Silme hatası: " + err.message);
   }
 };
+
+// Klavyeden Delete tuşuna basıldığında seçilenleri sil
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Delete" || e.key === "Backspace") {
+    if (/INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
+    if ($("#modal").classList.contains("hidden") && G.selected.size > 0) {
+      e.preventDefault();
+      $("#bulkDelete").click();
+    }
+  }
+});
 
 /* ----------------------------------------------------------- detail */
 let isEditingPrompt = false;
@@ -256,7 +372,7 @@ function renderDetail(d) {
       await api(`/api/images/${d.id}`, { method: "DELETE" });
       toast("Görsel kasadan silindi");
       closeModal();
-      loadGallery();
+      removeImagesFromUI([d.id]);
       loadStats();
     } catch (err) {
       toast("Silme hatası: " + err.message);

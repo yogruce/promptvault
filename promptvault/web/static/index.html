@@ -30,7 +30,7 @@
       </select>
       <button id="btnUpload" class="primary" title="Tek tek görsel yükle veya manuel prompt gir">⬆ Görsel Ekle</button>
       <button id="btnQuickGdSync" class="ghost" title="Yeni olan her şeyi Google Drive'a yedekle">☁ Drive'a Yedekle</button>
-      <button id="selectMode" class="ghost" title="Toplu etiketleme">☐ Seç</button>
+      <button id="selectMode" class="ghost" title="Çoklu seçim modu (Shift+Tık ile aralık seçebilirsiniz)">☐ Çoklu Seçim</button>
       <details class="help"><summary>?</summary>
         <div><b>Arama dili</b><br>
           <code>kelime</code> prompt/not içinde · <code>-kelime</code> hariç<br>
@@ -41,12 +41,13 @@
       </details>
     </div>
     <div id="bulkbar" class="bulkbar hidden">
-      <span id="bulkCount">0 seçili</span>
-      <input id="bulkTags" placeholder="etiket1, etiket2">
-      <button id="bulkApply">Etiketle</button>
-      <button id="bulkAll" class="ghost">Sayfadakileri seç</button>
-      <button id="bulkClear" class="ghost">Temizle</button>
-      <button id="bulkDelete" class="ghost danger" title="Seçilen görselleri kasadan sil">🗑 Seçilenleri Sil</button>
+      <span id="bulkCount" style="font-weight:600; min-width:85px">0 seçili</span>
+      <button id="bulkAll" class="ghost small">Tümünü seç</button>
+      <button id="bulkClear" class="ghost small">Seçimi temizle</button>
+      <button id="bulkDelete" class="ghost danger" style="background:#ff5c7a26; border-color:var(--danger); font-weight:600" title="Seçilen görselleri kasadan sil">🗑 Seçilenleri Sil</button>
+      <div style="flex:1"></div>
+      <input id="bulkTags" placeholder="Toplu etiketler (virgülle)" style="max-width:240px">
+      <button id="bulkApply" class="ghost">Etiketle</button>
     </div>
     <div id="resultInfo" class="muted small"></div>
     <div id="grid" class="grid"></div>

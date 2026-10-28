@@ -46,12 +46,21 @@ label.inline input[type=number] { width: 90px; }
 .card .gen { position: absolute; top: 6px; left: 6px; background: #000a; padding: 1px 7px; border-radius: 6px; font-size: 11px; }
 .card .fav { position: absolute; top: 4px; right: 8px; color: var(--gold); font-size: 16px; }
 .card.selected { outline: 3px solid var(--accent2); }
-.card .chk { position: absolute; bottom: 34px; right: 8px; width: 22px; height: 22px; border-radius: 6px; background: #000a;
-  border: 2px solid #fff8; display: none; }
-.selecting .card .chk { display: block; }
-.card.selected .chk { background: var(--accent2); border-color: var(--accent2); }
-.bulkbar { display: flex; gap: 8px; align-items: center; background: var(--panel); padding: 8px; border-radius: 10px; margin-bottom: 8px; }
-.bulkbar input { flex: 1; }
+.card .chk {
+  position: absolute; bottom: 34px; right: 8px; width: 24px; height: 24px; border-radius: 6px;
+  background: #000c; border: 2px solid #ffffffaa; color: #0b0d13; font-weight: 900; font-size: 14px;
+  display: none; place-items: center; user-select: none; transition: transform 0.1s, background 0.15s; z-index: 2;
+}
+.card:hover .chk, .selecting .card .chk, .card.selected .chk { display: grid; }
+.card.selected .chk { background: var(--accent2); border-color: var(--accent2); color: #0b0d13; }
+.card .chk:hover { transform: scale(1.12); border-color: #fff; }
+.bulkbar {
+  display: flex; gap: 10px; align-items: center; background: #171a23f5;
+  backdrop-filter: blur(8px); padding: 8px 14px; border-radius: 12px; margin-bottom: 10px;
+  border: 1px solid var(--accent); position: sticky; top: 58px; z-index: 9;
+  box-shadow: 0 8px 24px #0009;
+}
+.bulkbar input { flex: 1; min-width: 140px; }
 .empty { text-align: center; padding: 60px; color: var(--muted); }
 .taglist { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 6px; }
 .tagrow { display: flex; align-items: center; gap: 8px; background: var(--panel); padding: 6px 10px; border-radius: 8px;
