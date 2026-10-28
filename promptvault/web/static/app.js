@@ -1,0 +1,783 @@
+"use strict";
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+async function api(path, opts = {}) {
+  const o = { ...opts, headers: { ...(opts.headers || {}) } };
+  if (o.body && typeof o.body !== "string" && !(o.body instanceof FormData)) {
+    o.headers["Content-Type"] = "application/json";
+    o.body = JSON.stringify(o.body);
+  }
+  const r = await fetch(path, o);
+  if (!r.ok) {
+    let msg = r.statusText;
+    try { const j = await r.json(); msg = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail); } catch {}
+    throw new Error(msg);
+  }
+  const ct = r.headers.get("content-type") || "";
+  return ct.includes("json") ? r.json() : r.text();
+}
+let toastTimer;
+function toast(msg) {
+  const t = $("#toast"); t.textContent = msg; t.classList.remove("hidden");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add("hidden"), 2600);
+}
+const debounce = (fn, ms = 300) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+async function copy(text) { await navigator.clipboard.writeText(text); toast("Panoya kopyalandı"); }
+
+/* ------------------------------------------------------------ tabs */
+function showTab(name) {
+  $$("#tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
+  $$(".tab").forEach((t) => t.classList.toggle("active", t.id === "tab-" + name));
+  if (name === "tags") loadTags();
+  if (name === "matrix") loadMatrices();
+  if (name === "wildcards") loadWildcards();
+  if (name === "scan") { loadLibStats(); loadGDriveStatus(); }
+}
+$$("#tabs button").forEach((b) => (b.onclick = () => showTab(b.dataset.tab)));
+document.addEventListener("click", (e) => {
+  const g = e.target.closest("[data-goto]"); if (g) { e.preventDefault(); showTab(g.dataset.goto); }
+});
+
+async function loadStats() {
+  const s = await api("/api/stats");
+  $("#stats").textContent = `${s.images} görsel · ${s.tags} etiket · ${s.favorites} favori`;
+  return s;
+}
+
+/* ---------------------------------------------------------- gallery */
+const G = { items: [], total: 0, offset: 0, limit: 60, selecting: false, selected: new Set(), current: -1 };
+
+function quoteTag(name) { return /\s/.test(name) ? `tag:"${name}"` : `tag:${name}`; }
+function searchFor(q) { $("#q").value = q; showTab("gallery"); closeModal(); loadGallery(); }
+
+async function loadGallery(append = false) {
+  if (!append) { G.offset = 0; G.items = []; }
+  const params = new URLSearchParams({ q: $("#q").value, sort: $("#sort").value, limit: G.limit, offset: G.offset });
+  let res;
+  try { res = await api("/api/images?" + params); } catch (e) { $("#resultInfo").textContent = e.message; return; }
+  G.total = res.total; G.items.push(...res.items); G.offset += res.items.length;
+  renderGrid(append ? res.items : G.items, append);
+  $("#resultInfo").textContent = `${G.total} sonuç`;
+  $("#more").classList.toggle("hidden", G.items.length >= G.total);
+  $("#empty").classList.toggle("hidden", G.total > 0 || $("#q").value !== "");
+}
+
+function cardHTML(it, idx) {
+  const cap = it.prompt ? esc(it.prompt.slice(0, 140)) : '<i>prompt yok</i>';
+  return `<div class="card ${G.selected.has(it.id) ? "selected" : ""}" data-idx="${idx}" data-id="${it.id}">
+    <img loading="lazy" src="/api/images/${it.id}/thumb" alt="">
+    <span class="gen">${esc(it.generator || "?")}</span>${it.favorite ? '<span class="fav">★</span>' : ""}
+    <span class="chk"></span><div class="cap" title="${esc(it.prompt)}">${cap}</div></div>`;
+}
+function renderGrid(items, append) {
+  const grid = $("#grid");
+  const start = append ? G.items.length - items.length : 0;
+  const html = items.map((it, i) => cardHTML(it, start + i)).join("");
+  if (append) grid.insertAdjacentHTML("beforeend", html); else grid.innerHTML = html;
+}
+$("#grid").addEventListener("click", (e) => {
+  const card = e.target.closest(".card"); if (!card) return;
+  const id = +card.dataset.id;
+  if (G.selecting) {
+    G.selected.has(id) ? G.selected.delete(id) : G.selected.add(id);
+    card.classList.toggle("selected"); updateBulk(); return;
+  }
+  openDetail(+card.dataset.idx);
+});
+$("#q").addEventListener("input", debounce(() => loadGallery(), 350));
+$("#sort").onchange = () => loadGallery();
+$("#more").onclick = () => loadGallery(true);
+
+function updateBulk() { $("#bulkCount").textContent = `${G.selected.size} seçili`; }
+$("#selectMode").onclick = () => {
+  G.selecting = !G.selecting;
+  $("#grid").classList.toggle("selecting", G.selecting);
+  $("#bulkbar").classList.toggle("hidden", !G.selecting);
+  $("#selectMode").textContent = G.selecting ? "☑ Seçim açık" : "☐ Seç";
+};
+$("#bulkAll").onclick = () => { G.items.forEach((i) => G.selected.add(i.id)); $$(".card").forEach((c) => c.classList.add("selected")); updateBulk(); };
+$("#bulkClear").onclick = () => { G.selected.clear(); $$(".card").forEach((c) => c.classList.remove("selected")); updateBulk(); };
+$("#bulkApply").onclick = async () => {
+  const tags = $("#bulkTags").value.split(",").map((s) => s.trim()).filter(Boolean);
+  if (!tags.length || !G.selected.size) return toast("Etiket ve görsel seçin");
+  const r = await api("/api/bulk/tags", { method: "POST", body: { ids: [...G.selected], tags } });
+  toast(`${r.updated} görsel etiketlendi`); $("#bulkTags").value = ""; loadStats();
+};
+$("#bulkDelete").onclick = async () => {
+  if (!G.selected.size) return toast("Lütfen silinecek görselleri seçin");
+  const count = G.selected.size;
+  if (!confirm(`${count} adet görseli kasadan silmek istediğinize emin misiniz?\n(Not: Orijinal dosyalarınız korunur, yalnızca kasa kayıtları ve kasa kopyaları silinir.)`)) return;
+  try {
+    const r = await api("/api/bulk/delete", { method: "POST", body: { ids: [...G.selected] } });
+    toast(`${r.deleted_count} görsel kasadan silindi`);
+    G.selected.clear();
+    updateBulk();
+    loadGallery();
+    loadStats();
+  } catch (err) {
+    toast("Silme hatası: " + err.message);
+  }
+};
+
+/* ----------------------------------------------------------- detail */
+let isEditingPrompt = false;
+
+async function openDetail(idx) {
+  if (idx < 0 || idx >= G.items.length) return;
+  G.current = idx;
+  isEditingPrompt = false;
+  const id = G.items[idx].id;
+  const d = await api(`/api/images/${id}`);
+  $("#dImg").src = `/api/images/${id}/file`;
+  renderDetail(d);
+  $("#modal").classList.remove("hidden");
+}
+function closeModal() { $("#modal").classList.add("hidden"); isEditingPrompt = false; }
+$("#mClose").onclick = closeModal;
+$("#modal").addEventListener("click", (e) => { if (e.target.id === "modal") closeModal(); });
+$("#dPrev").onclick = () => openDetail(G.current - 1);
+$("#dNext").onclick = async () => {
+  if (G.current + 1 >= G.items.length && G.items.length < G.total) await loadGallery(true);
+  openDetail(G.current + 1);
+};
+document.addEventListener("keydown", (e) => {
+  if ($("#modal").classList.contains("hidden") || /INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
+  if (e.key === "Escape") closeModal();
+  if (e.key === "ArrowLeft") $("#dPrev").click();
+  if (e.key === "ArrowRight") $("#dNext").click();
+});
+
+function renderDetail(d) {
+  const p = d.params || {};
+  const order = ["model", "steps", "sampler", "scheduler", "cfg_scale", "seed", "width", "height", "denoise", "clip_skip"];
+  const keys = [...order.filter((k) => k in p), ...Object.keys(p).filter((k) => !order.includes(k))];
+  const rows = keys.map((k) => `<tr><td>${esc(k)}</td><td>${esc(typeof p[k] === "object" ? JSON.stringify(p[k]) : p[k])}</td></tr>`).join("");
+  const tagChip = (t) => `<span class="chip ${t.kind}" data-tag="${esc(t.name)}" data-kind="${t.kind}" data-source="${t.source}"
+      title="${t.kind}${t.weight !== 1 ? " · ağırlık " + t.weight : ""}">${esc(t.name)}${t.source === "user" ? '<span class="x">×</span>' : ""}</span>`;
+  const stars = [1, 2, 3, 4, 5].map((n) => `<span data-r="${n}" class="${n <= d.rating ? "on" : ""}">★</span>`).join("");
+
+  const vaultBadge = d.vault_exists
+    ? (d.original_exists
+        ? '<span class="vault-badge" title="Görsel ve prompt kasa deposunda korunuyor">🔒 Kasada Güvende</span>'
+        : '<span class="vault-badge unlinked" title="Kaynak dosya diskte silinmiş, ancak kasada korunuyor!">🔒 Kasada Korunuyor (Kaynak Silinmiş)</span>')
+    : '<span class="muted small">Diskte</span>';
+
+  $("#dInfo").innerHTML = `
+    <div class="row">
+      <span class="kind generator">${esc(d.generator)}</span>
+      ${vaultBadge}
+      <span class="muted small">${d.width}×${d.height}</span>
+      <span class="stars" id="dStars">${stars}</span>
+      <button class="favbtn" id="dFav">${d.favorite ? "★ Favori" : "☆ Favori"}</button>
+      <button class="ghost danger small" id="dDelete" title="Görseli kasadan sil" style="margin-left:auto">🗑 Kasadan Sil</button>
+    </div>
+    <div class="path">${esc(d.path)}</div>
+
+    <h4>Prompt
+      <button class="ghost" id="dEditPrompt">${isEditingPrompt ? "İptal" : "✏ Düzenle"}</button>
+      <button class="ghost" id="dCopyP">Kopyala</button>
+      <button class="ghost" id="dToMatrix">Matrise aktar</button>
+    </h4>
+
+    ${isEditingPrompt ? `
+      <div>
+        <div class="row" style="margin-bottom:8px">
+          <label style="margin:0; width:90px">Üretici Araç:</label>
+          <select id="dGenEdit" style="flex:1">
+            <option value="gemini" ${d.generator === "gemini" ? "selected" : ""}>Gemini</option>
+            <option value="imagen" ${d.generator === "imagen" ? "selected" : ""}>Imagen</option>
+            <option value="midjourney" ${d.generator === "midjourney" ? "selected" : ""}>Midjourney</option>
+            <option value="dall-e" ${d.generator === "dall-e" ? "selected" : ""}>DALL-E</option>
+            <option value="a1111" ${d.generator === "a1111" ? "selected" : ""}>Automatic1111 / WebUI</option>
+            <option value="comfyui" ${d.generator === "comfyui" ? "selected" : ""}>ComfyUI</option>
+            <option value="novelai" ${d.generator === "novelai" ? "selected" : ""}>NovelAI</option>
+            <option value="invokeai" ${d.generator === "invokeai" ? "selected" : ""}>InvokeAI</option>
+            <option value="fooocus" ${d.generator === "fooocus" ? "selected" : ""}>Fooocus</option>
+            <option value="forge" ${d.generator === "forge" ? "selected" : ""}>Forge</option>
+            <option value="generic" ${d.generator === "generic" || d.generator === "manual" ? "selected" : ""}>Diğer / Manuel</option>
+          </select>
+        </div>
+        <textarea id="dPromptEdit" class="ptext-edit" rows="5">${esc(d.prompt)}</textarea>
+        <h4>Negatif Prompt</h4>
+        <textarea id="dNegEdit" class="ptext-edit" rows="3">${esc(d.negative)}</textarea>
+        <div class="row" style="margin-top:8px">
+          <button id="dSavePrompt" class="primary">💾 Değişiklikleri Kaydet</button>
+        </div>
+      </div>
+    ` : `
+      <div class="ptext">${esc(d.prompt) || '<i class="muted">yok</i>'}</div>
+      ${d.negative ? `<h4>Negatif <button class="ghost" id="dCopyN">Kopyala</button></h4><div class="ptext neg">${esc(d.negative)}</div>` : ""}
+    `}
+
+    <h4>Parametreler <button class="ghost" id="dCopyAll">A1111 biçiminde kopyala</button></h4>
+    <table class="params">${rows || '<tr><td colspan="2" class="muted">yok</td></tr>'}</table>
+    <h4>Etiketler <span class="muted small" style="text-transform:none">(tıkla = ara)</span></h4>
+    <div class="chips" id="dTags">${d.tags.map(tagChip).join("")}</div>
+    <div class="row"><input id="dTagInput" placeholder="kullanıcı etiketi ekle (virgülle)" style="flex:1"><button id="dTagAdd" class="ghost">Ekle</button></div>
+    <h4>Notlar</h4><textarea id="dNotes" rows="3" placeholder="Bu görsel hakkında not...">${esc(d.notes)}</textarea>
+    <details><summary class="muted small">Ham metadata (${Object.keys(d.raw || {}).length} chunk)</summary><pre class="raw">${esc(JSON.stringify(d.raw, null, 2))}</pre></details>`;
+
+  const patch = async (body) => {
+    const nd = await api(`/api/images/${d.id}`, { method: "PATCH", body });
+    Object.assign(G.items[G.current], nd);
+    renderDetail(nd);
+  };
+
+  $("#dEditPrompt").onclick = () => {
+    isEditingPrompt = !isEditingPrompt;
+    renderDetail(d);
+  };
+
+  if (isEditingPrompt) {
+    $("#dSavePrompt").onclick = async () => {
+      const newPrompt = $("#dPromptEdit").value;
+      const newNeg = $("#dNegEdit").value;
+      const newGen = $("#dGenEdit") ? $("#dGenEdit").value : undefined;
+      await patch({ prompt: newPrompt, negative: newNeg, generator: newGen });
+      isEditingPrompt = false;
+      toast("Prompt ve üretici güncellendi");
+      renderGrid(G.items, false);
+      loadStats();
+    };
+  }
+
+  $("#dStars").onclick = (e) => { const r = +e.target.dataset.r; if (r) patch({ rating: r === d.rating ? 0 : r }); };
+  $("#dFav").onclick = () => patch({ favorite: !d.favorite }).then(() => { renderGrid(G.items, false); loadStats(); });
+  $("#dNotes").onchange = (e) => patch({ notes: e.target.value }).then(() => toast("Not kaydedildi"));
+  $("#dCopyP").onclick = () => copy(d.prompt);
+  if ($("#dCopyN")) $("#dCopyN").onclick = () => copy(d.negative);
+  $("#dCopyAll").onclick = () => copy(toA1111(d));
+  $("#dToMatrix").onclick = () => { closeModal(); sendToMatrix(d); };
+  $("#dDelete").onclick = async () => {
+    if (!confirm("Bu görseli kasadan silmek istediğinize emin misiniz?\n(Not: Bilgisayarınızdaki orijinal dosya korunur, yalnızca kasa kaydı silinir.)")) return;
+    try {
+      await api(`/api/images/${d.id}`, { method: "DELETE" });
+      toast("Görsel kasadan silindi");
+      closeModal();
+      loadGallery();
+      loadStats();
+    } catch (err) {
+      toast("Silme hatası: " + err.message);
+    }
+  };
+
+  const addTags = async () => {
+    const tags = $("#dTagInput").value.split(",").map((s) => s.trim()).filter(Boolean);
+    if (!tags.length) return;
+    d.tags = await api(`/api/images/${d.id}/tags`, { method: "POST", body: { tags } });
+    renderDetail(d); loadStats();
+  };
+  $("#dTagAdd").onclick = addTags;
+  $("#dTagInput").onkeydown = (e) => { if (e.key === "Enter") addTags(); };
+
+  $("#dTags").onclick = async (e) => {
+    const chip = e.target.closest(".chip"); if (!chip) return;
+    if (e.target.classList.contains("x")) {
+      d.tags = await api(`/api/images/${d.id}/tags/${encodeURIComponent(chip.dataset.tag)}?kind=user`, { method: "DELETE" });
+      return renderDetail(d);
+    }
+    const k = chip.dataset.kind, n = chip.dataset.tag;
+    if (k === "generator") searchFor(`gen:${n}`); else if (k === "lora") searchFor(`lora:"${n}"`); else searchFor(quoteTag(n));
+  };
+}
+
+function toA1111(d) {
+  const p = d.params || {};
+  const names = { steps: "Steps", sampler: "Sampler", scheduler: "Schedule type", cfg_scale: "CFG scale", seed: "Seed", model: "Model", denoise: "Denoising strength", clip_skip: "Clip skip" };
+  const parts = Object.entries(names).filter(([k]) => p[k] !== undefined).map(([k, n]) => `${n}: ${p[k]}`);
+  if (p.width && p.height) parts.splice(4, 0, `Size: ${p.width}x${p.height}`);
+  return `${d.prompt}\n${d.negative ? "Negative prompt: " + d.negative + "\n" : ""}${parts.join(", ")}`;
+}
+
+/* ------------------------------------------------------------- upload & manual add */
+let selectedUploadFile = null;
+
+function openUploadModal(file = null) {
+  selectedUploadFile = file;
+  $("#uploadModal").classList.remove("hidden");
+  if (file) {
+    handleFileSelected(file);
+  } else {
+    $("#uPreview").classList.add("hidden");
+    $("#dropPrompt").textContent = "📁 Görsel seçmek için tıklayın veya buraya sürükleyin";
+    $("#uPrompt").value = "";
+    $("#uNegative").value = "";
+    $("#uModel").value = "";
+    $("#uTags").value = "";
+    $("#uNotes").value = "";
+  }
+}
+function closeUploadModal() {
+  $("#uploadModal").classList.add("hidden");
+  selectedUploadFile = null;
+}
+
+$("#btnUpload").onclick = () => openUploadModal();
+$("#uClose").onclick = closeUploadModal;
+$("#uCancel").onclick = closeUploadModal;
+$("#uploadModal").addEventListener("click", (e) => { if (e.target.id === "uploadModal") closeUploadModal(); });
+
+const dropZone = $("#dropZone");
+dropZone.onclick = () => $("#uFileInput").click();
+$("#uFileInput").onchange = (e) => {
+  if (e.target.files.length) handleFileSelected(e.target.files[0]);
+};
+
+dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add("dragover"); };
+dropZone.ondragleave = () => dropZone.classList.remove("dragover");
+dropZone.ondrop = (e) => {
+  e.preventDefault();
+  dropZone.classList.remove("dragover");
+  if (e.dataTransfer.files.length) handleFileSelected(e.dataTransfer.files[0]);
+};
+
+// Global drag-and-drop onto page
+window.addEventListener("dragover", (e) => e.preventDefault());
+window.addEventListener("drop", (e) => {
+  e.preventDefault();
+  if (e.dataTransfer.files.length) {
+    const f = e.dataTransfer.files[0];
+    if (f.type.startsWith("image/") || f.name.endsWith(".png")) {
+      openUploadModal(f);
+    }
+  }
+});
+
+async function handleFileSelected(file) {
+  selectedUploadFile = file;
+  $("#dropPrompt").textContent = `Seçilen: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+  const url = URL.createObjectURL(file);
+  $("#uPreview").src = url;
+  $("#uPreview").classList.remove("hidden");
+
+  // Read PNG metadata directly in browser to pre-fill prompt inputs
+  try {
+    const buf = await file.arrayBuffer();
+    const textChunks = extractPngTextChunks(new Uint8Array(buf));
+    if (textChunks.parameters) {
+      const lines = textChunks.parameters.split("\n");
+      const pos = [];
+      const neg = [];
+      let inNeg = false;
+      for (const line of lines) {
+        if (line.startsWith("Negative prompt:")) {
+          inNeg = true;
+          neg.push(line.replace("Negative prompt:", "").trim());
+        } else if (line.includes("Steps:") && line.includes("Sampler:")) {
+          const mMatch = line.match(/Model:\s*([^,]+)/);
+          if (mMatch) $("#uModel").value = mMatch[1].trim();
+        } else {
+          (inNeg ? neg : pos).push(line);
+        }
+      }
+      if (pos.length && !$("#uPrompt").value) $("#uPrompt").value = pos.join("\n").trim();
+      if (neg.length && !$("#uNegative").value) $("#uNegative").value = neg.join("\n").trim();
+    } else if (textChunks.Description && !$("#uPrompt").value) {
+      $("#uPrompt").value = textChunks.Description.trim();
+    } else if (textChunks.prompt && !$("#uPrompt").value) {
+      // ComfyUI json or plain prompt
+      try {
+        const c = JSON.parse(textChunks.prompt);
+        for (const n of Object.values(c)) {
+          if (n.class_type === "CLIPTextEncode" && n.inputs && typeof n.inputs.text === "string") {
+            if (!$("#uPrompt").value) $("#uPrompt").value = n.inputs.text;
+            else if (!$("#uNegative").value) $("#uNegative").value = n.inputs.text;
+          }
+        }
+      } catch {}
+    }
+  } catch {}
+}
+
+function extractPngTextChunks(bytes) {
+  const chunks = {};
+  if (bytes.length < 8 || bytes[0] !== 0x89 || bytes[1] !== 0x50) return chunks;
+  let pos = 8;
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const dec = new TextDecoder("utf-8");
+  while (pos + 8 < bytes.length) {
+    const len = view.getUint32(pos);
+    const type = String.fromCharCode(bytes[pos+4], bytes[pos+5], bytes[pos+6], bytes[pos+7]);
+    if (type === "tEXt") {
+      const data = bytes.subarray(pos + 8, pos + 8 + len);
+      const nul = data.indexOf(0);
+      if (nul > 0) {
+        const key = dec.decode(data.subarray(0, nul));
+        const val = dec.decode(data.subarray(nul + 1));
+        chunks[key] = val;
+      }
+    }
+    pos += 12 + len;
+    if (type === "IEND") break;
+  }
+  return chunks;
+}
+
+$("#uSubmit").onclick = async () => {
+  const prompt = $("#uPrompt").value;
+  const negative = $("#uNegative").value;
+  const model = $("#uModel").value;
+  const generator = $("#uGenerator") ? $("#uGenerator").value : "";
+  const tags = $("#uTags").value;
+  const notes = $("#uNotes").value;
+
+  if (selectedUploadFile) {
+    const fd = new FormData();
+    fd.append("file", selectedUploadFile);
+    if (prompt) fd.append("prompt", prompt);
+    if (negative) fd.append("negative", negative);
+    if (model) fd.append("model", model);
+    if (generator) fd.append("generator", generator);
+    if (tags) fd.append("tags", tags);
+    if (notes) fd.append("notes", notes);
+
+    try {
+      const res = await api("/api/upload", { method: "POST", body: fd });
+      toast("Görsel ve prompt kasaya eklendi!");
+      closeUploadModal();
+      loadStats();
+      loadGallery();
+    } catch (e) {
+      toast("Hata: " + e.message);
+    }
+  } else {
+    // Manual add without an image file
+    if (!prompt.trim()) return toast("Lütfen en az bir prompt yazın veya bir görsel seçin");
+    try {
+      const tagList = tags.split(",").map((s) => s.trim()).filter(Boolean);
+      await api("/api/manual-add", {
+        method: "POST",
+        body: { prompt, negative, model, generator, tags: tagList, notes }
+      });
+      toast("Kayıt kasaya eklendi!");
+      closeUploadModal();
+      loadStats();
+      loadGallery();
+    } catch (e) {
+      toast("Hata: " + e.message);
+    }
+  }
+};
+
+/* ------------------------------------------------------------- tags */
+async function loadTags() {
+  const params = new URLSearchParams({ kind: $("#tagKind").value, prefix: $("#tagFilter").value, q: $("#tagQuery").value, limit: 500 });
+  const tags = await api("/api/tags?" + params);
+  const max = Math.max(1, ...tags.map((t) => t.count));
+  $("#tagList").innerHTML = tags.map((t) => `<div class="tagrow" data-tag="${esc(t.name)}" data-kind="${t.kind}">
+      <div class="bar" style="width:${(100 * t.count) / max}%"></div><span class="kind ${t.kind}">${t.kind}</span>
+      <span>${esc(t.name)}</span><span class="n">${t.count}</span></div>`).join("") || '<div class="muted">Etiket yok</div>';
+}
+$("#tagList").onclick = (e) => {
+  const r = e.target.closest(".tagrow"); if (!r) return;
+  const base = $("#tagQuery").value ? $("#tagQuery").value + " " : "";
+  const k = r.dataset.kind, n = r.dataset.tag;
+  searchFor(base + (k === "generator" ? `gen:${n}` : quoteTag(n)));
+};
+["#tagKind", "#tagFilter", "#tagQuery"].forEach((s) => $(s).addEventListener("input", debounce(loadTags, 300)));
+$("#tagToWildcard").onclick = async () => {
+  const name = prompt("Wildcard adı:", $("#tagKind").value || "tags"); if (!name) return;
+  const r = await api("/api/wildcards/from-tags", { method: "POST", body: { name, kind: $("#tagKind").value || "prompt", query: $("#tagQuery").value, limit: 50 } });
+  toast(`__${r.name}__ oluşturuldu (${r.items.length} satır)`);
+};
+
+/* ----------------------------------------------------------- matrix */
+function addParamRow(key = "", value = "") {
+  const row = document.createElement("div"); row.className = "prow";
+  row.innerHTML = `<input placeholder="steps" value="${esc(key)}"><input placeholder="20, 30  veya  {20-40:10}" value="${esc(value)}"><button class="ghost small">✕</button>`;
+  row.querySelector("button").onclick = () => { row.remove(); autoPreview(); };
+  row.addEventListener("input", autoPreview);
+  $("#mParams").appendChild(row);
+}
+function readSpec() {
+  const params = {};
+  $$("#mParams .prow").forEach((r) => {
+    const [k, v] = $$("input", r).map((i) => i.value.trim());
+    if (!k || !v) return;
+    params[k] = v.includes("{") ? v : v.split(",").map((s) => s.trim()).filter(Boolean);
+  });
+  const spec = { prompt: $("#mPrompt").value, negative: $("#mNegative").value, params, mode: $("#mMode").value, limit: +$("#mLimit").value || 10000 };
+  if (spec.mode === "random") { spec.count = +$("#mCount").value || 20; if ($("#mSeed").value !== "") spec.seed = +$("#mSeed").value; }
+  return spec;
+}
+function writeSpec(s) {
+  $("#mPrompt").value = s.prompt || ""; $("#mNegative").value = s.negative || "";
+  $("#mParams").innerHTML = "";
+  Object.entries(s.params || {}).forEach(([k, v]) => addParamRow(k, Array.isArray(v) ? v.join(", ") : v));
+  $("#mMode").value = s.mode || "product"; $("#mCount").value = s.count || 20; $("#mSeed").value = s.seed ?? "";
+  $("#mLimit").value = s.limit || 10000; syncMode(); preview();
+}
+function syncMode() { $$(".rnd").forEach((e) => (e.style.display = $("#mMode").value === "random" ? "" : "none")); }
+async function preview() {
+  $("#mErr").textContent = "";
+  try {
+    const r = await api("/api/matrix/preview", { method: "POST", body: { spec: readSpec(), limit: 300 } });
+    $("#mTotal").textContent = r.count.toLocaleString("tr-TR") + ($("#mMode").value === "random" ? " olası" : "");
+    $("#mRows").innerHTML = r.rows.map((row) => {
+      const ps = Object.entries(row.params).map(([k, v]) => `<span class="chip axis">${esc(k)}=${esc(v)}</span>`).join("");
+      return `<div class="mrow"><span class="i">#${row.index + 1}</span>${esc(row.prompt)}
+        ${row.negative ? `<div class="neg">− ${esc(row.negative)}</div>` : ""}${ps ? `<div class="chips">${ps}</div>` : ""}</div>`;
+    }).join("") + (r.rows.length < Math.min(r.count, readSpec().limit) ? `<div class="muted small center">…önizlemede ilk ${r.rows.length} satır</div>` : "");
+  } catch (e) { $("#mErr").textContent = e.message; $("#mTotal").textContent = "–"; }
+}
+const autoPreview = debounce(preview, 400);
+["#mPrompt", "#mNegative", "#mCount", "#mSeed", "#mLimit"].forEach((s) => $(s).addEventListener("input", autoPreview));
+$("#mMode").onchange = () => { syncMode(); preview(); };
+$("#mAddParam").onclick = () => addParamRow();
+$("#mPreview").onclick = preview;
+async function exportText() {
+  return api("/api/matrix/export", { method: "POST", body: { spec: readSpec(), format: $("#mFormat").value } });
+}
+$("#mExport").onclick = async () => {
+  try {
+    const fmt = $("#mFormat").value;
+    const r = await fetch("/api/matrix/export", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ spec: readSpec(), format: fmt }) });
+    if (!r.ok) throw new Error((await r.json()).detail);
+    const blob = await r.blob();
+    const name = (r.headers.get("content-disposition") || "").match(/filename="(.+)"/)?.[1] || "prompts.txt";
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (e) { toast("Hata: " + e.message); }
+};
+$("#mCopy").onclick = async () => { try { const t = await exportText(); copy(typeof t === "string" ? t : JSON.stringify(t, null, 2)); } catch (e) { toast(e.message); } };
+$("#mSave").onclick = async () => {
+  const name = $("#mName").value.trim(); if (!name) return toast("Matris adı girin");
+  renderSaved(await api("/api/matrices", { method: "POST", body: { name, spec: readSpec() } })); toast("Kaydedildi");
+};
+let savedMatrices = [];
+function renderSaved(list) {
+  savedMatrices = list;
+  $("#mSaved").innerHTML = list.map((m, i) => `<span class="chip" data-i="${i}">${esc(m.name)}<span class="x" data-del="${i}">×</span></span>`).join("");
+}
+$("#mSaved").onclick = async (e) => {
+  if (e.target.dataset.del !== undefined) {
+    const m = savedMatrices[+e.target.dataset.del];
+    if (confirm(`"${m.name}" silinsin mi?`)) renderSaved(await api(`/api/matrices/${encodeURIComponent(m.name)}`, { method: "DELETE" }));
+    return;
+  }
+  const c = e.target.closest(".chip"); if (!c) return;
+  const m = savedMatrices[+c.dataset.i]; $("#mName").value = m.name; writeSpec(m.spec);
+};
+async function loadMatrices() { renderSaved(await api("/api/matrices")); }
+function sendToMatrix(d) {
+  const p = d.params || {}; const params = {};
+  ["steps", "cfg_scale", "sampler", "seed", "width", "height"].forEach((k) => { if (p[k] !== undefined) params[k] = [String(p[k])]; });
+  showTab("matrix");
+  writeSpec({ prompt: d.prompt, negative: d.negative, params, mode: "product" });
+  toast("Prompt matrise aktarıldı – değişecek kısımları {a|b} ile işaretleyin");
+}
+
+/* -------------------------------------------------------- wildcards */
+let wildcards = {};
+async function loadWildcards(select) {
+  wildcards = await api("/api/wildcards");
+  const names = Object.keys(wildcards).sort();
+  $("#wList").innerHTML = names.map((n) => `<div class="wi ${n === select ? "active" : ""}" data-n="${esc(n)}"><span>__${esc(n)}__</span><span class="n">${wildcards[n].length}</span></div>`).join("")
+    || '<div class="muted small">Henüz wildcard yok</div>';
+}
+$("#wList").onclick = (e) => {
+  const w = e.target.closest(".wi"); if (!w) return;
+  $$("#wList .wi").forEach((x) => x.classList.toggle("active", x === w));
+  $("#wName").value = w.dataset.n; $("#wItems").value = wildcards[w.dataset.n].join("\n");
+};
+$("#wNew").onclick = () => { $("#wName").value = ""; $("#wItems").value = ""; $("#wName").focus(); };
+$("#wSave").onclick = async () => {
+  const name = $("#wName").value.trim().replace(/^__|__$/g, ""); if (!name) return toast("Ad girin");
+  await api(`/api/wildcards/${encodeURIComponent(name)}`, { method: "PUT", body: { items: $("#wItems").value.split("\n") } });
+  loadWildcards(name); toast(`__${name}__ kaydedildi`);
+};
+$("#wDelete").onclick = async () => {
+  const name = $("#wName").value.trim(); if (!name || !confirm(`__${name}__ silinsin mi?`)) return;
+  await api(`/api/wildcards/${encodeURIComponent(name)}`, { method: "DELETE" });
+  $("#wName").value = ""; $("#wItems").value = ""; loadWildcards();
+};
+
+/* ------------------------------------------------------------- scan */
+let scanTimer;
+
+$("#btnBrowseFolder").onclick = async () => {
+  try {
+    const res = await api("/api/dialog/pick-folder", { method: "POST" });
+    if (res && res.path) {
+      $("#scanPath").value = res.path;
+      localStorage.setItem("pv.scanPath", res.path);
+      toast(`Klasör seçildi: ${res.path}`);
+    }
+  } catch (e) {
+    toast("Klasör seçici hatası: " + e.message);
+  }
+};
+
+async function pollScan() {
+  const s = await api("/api/scan");
+  const st = s.stats;
+  if (st) {
+    $("#scanBar").style.width = (st.total ? (100 * st.done) / st.total : 100) + "%";
+    $("#scanInfo").textContent = `${st.done}/${st.total} · ${st.added} yeni · ${st.updated} güncellendi · ${st.moved || 0} taşındı · ${st.skipped} değişmedi · ${st.error} hata`;
+  }
+  if (s.error) $("#scanInfo").textContent = "Hata: " + s.error;
+  if (s.running) scanTimer = setTimeout(pollScan, 500);
+  else { $("#scanStart").disabled = false; loadStats(); loadLibStats(); loadGallery(); }
+}
+$("#scanStart").onclick = async () => {
+  const path = $("#scanPath").value.trim(); if (!path) return toast("Yol girin");
+  localStorage.setItem("pv.scanPath", path);
+  try {
+    await api("/api/scan", { method: "POST", body: { path, recursive: $("#scanRec").checked, force: $("#scanForce").checked } });
+    $("#scanStart").disabled = true; pollScan();
+  } catch (e) { toast(e.message); }
+};
+$("#prune").onclick = async () => {
+  const r = await api("/api/prune", { method: "POST" });
+  toast(`Kasa doğrulandı (${r.removed} geçersiz kayıt temizlendi)`);
+  loadStats();
+  loadLibStats();
+};
+async function loadLibStats() {
+  const s = await loadStats();
+  const list = (o) => Object.entries(o).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${v}</td></tr>`).join("");
+  $("#libStats").innerHTML = `<table class="params">
+    <tr><td>Kayıtlı Görsel</td><td>${s.images} (${s.with_prompt} promptlu)</td></tr>
+    <tr><td>Kasa Deposu</td><td><code>${esc(s.vault_dir || "~/.promptvault/vault")}</code></td></tr>
+    <tr><td>Veritabanı</td><td>${esc(s.db_path)} ${s.fts ? "· FTS5 ✓" : ""}</td></tr></table>
+    <h4 class="muted">Üreticiler</h4><table class="params">${list(s.generators)}</table>
+    <h4 class="muted">En çok kullanılan modeller</h4><table class="params">${list(s.models)}</table>`;
+}
+
+/* ------------------------------------------------------------- init */
+$("#scanPath").value = localStorage.getItem("pv.scanPath") || "";
+syncMode();
+addParamRow("steps", "");
+loadStats();
+loadGallery();
+api("/api/scan").then((s) => { if (s.running) { $("#scanStart").disabled = true; pollScan(); } });
+
+/* ------------------------------------------------------------- google drive */
+let gdPollTimer = null;
+let gdAuthPollTimer = null;
+
+async function loadGDriveStatus() {
+  try {
+    const s = await api("/api/gdrive/status");
+    const badge = $("#gdStatusBadge");
+    const userEl = $("#gdUserEmail");
+    const syncRow = $("#gdSyncRow");
+    const setup = $("#gdSetup");
+    const link = $("#gdFolderLink");
+
+    if (s.authenticated) {
+      badge.textContent = "✓ Google Drive Bağlı";
+      badge.className = "vault-badge";
+      userEl.textContent = s.user ? `${s.user.name} (${s.user.email})` : "";
+      syncRow.classList.remove("hidden");
+      setup.classList.add("hidden");
+      if (s.folder && s.folder.url) {
+        link.href = s.folder.url;
+        link.classList.remove("hidden");
+      } else {
+        link.classList.add("hidden");
+      }
+
+      if (s.sync && s.sync.running) {
+        pollGDriveSync();
+      }
+    } else {
+      syncRow.classList.add("hidden");
+      setup.classList.remove("hidden");
+      userEl.textContent = "";
+      if (s.configured) {
+        badge.textContent = "Giriş Yapılmadı";
+        badge.className = "kind user";
+      } else {
+        badge.textContent = "⚙ Yapılandırma Gerekli";
+        badge.className = "kind";
+      }
+    }
+    return s;
+  } catch (e) {
+    console.error("GDrive status error", e);
+  }
+}
+
+$("#btnGdSaveConfig").onclick = async () => {
+  const client_id = $("#gdClientId").value.trim();
+  const client_secret = $("#gdClientSecret").value.trim();
+  if (!client_id || !client_secret) return toast("Client ID ve Secret girin");
+  await api("/api/gdrive/config", { method: "POST", body: { client_id, client_secret } });
+  toast("Google Drive API kimlik bilgileri kaydedildi");
+  loadGDriveStatus();
+};
+
+$("#btnGdLogin").onclick = async () => {
+  try {
+    const res = await api("/api/gdrive/login", { method: "POST" });
+    toast(res.message || "Tarayıcıda Google giriş penceresi açıldı...");
+    clearInterval(gdAuthPollTimer);
+    gdAuthPollTimer = setInterval(async () => {
+      const s = await loadGDriveStatus();
+      if (s && s.authenticated) {
+        clearInterval(gdAuthPollTimer);
+        toast("Google Drive bağlantısı başarılı!");
+      }
+    }, 2000);
+  } catch (e) {
+    toast("Hata: " + e.message);
+  }
+};
+
+$("#btnGdLogout").onclick = async () => {
+  if (confirm("Google Drive oturumunu kapatmak istiyor musunuz?")) {
+    await api("/api/gdrive/logout", { method: "POST" });
+    toast("Oturum kapatıldı");
+    loadGDriveStatus();
+  }
+};
+
+async function startGDriveSync() {
+  const s = await loadGDriveStatus();
+  if (!s || !s.authenticated) {
+    showTab("scan");
+    toast("Lütfen önce Google Drive oturumu açın");
+    return;
+  }
+  try {
+    await api("/api/gdrive/sync", { method: "POST" });
+    pollGDriveSync();
+  } catch (e) {
+    toast("Hata: " + e.message);
+  }
+}
+
+async function pollGDriveSync() {
+  clearTimeout(gdPollTimer);
+  const s = await api("/api/gdrive/status");
+  const p = s.sync || {};
+  const bar = $("#gdBar");
+  const progBox = $("#gdProgress");
+  const info = $("#gdInfo");
+
+  if (p.running) {
+    progBox.classList.remove("hidden");
+    const pct = p.total ? Math.round((p.done * 100) / p.total) : 50;
+    bar.style.width = pct + "%";
+    info.textContent = `Yükleniyor: ${p.done} / ${p.total} görsel tamamlandı...`;
+    gdPollTimer = setTimeout(pollGDriveSync, 1200);
+  } else {
+    if (p.result) {
+      progBox.classList.remove("hidden");
+      bar.style.width = "100%";
+      info.textContent = `✓ Eşitleme tamamlandı: ${p.result.uploaded} yeni görsel "Prompt Vault" klasörüne yüklendi!`;
+      toast(`Google Drive: ${p.result.uploaded} yeni görsel yüklendi`);
+    } else if (p.error) {
+      info.textContent = "Hata: " + p.error;
+    }
+  }
+}
+
+$("#btnGdSync").onclick = startGDriveSync;
+$("#btnQuickGdSync").onclick = startGDriveSync;
+
+// Load GDrive status on init and tab switch
+loadGDriveStatus();
