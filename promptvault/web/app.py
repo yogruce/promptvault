@@ -15,6 +15,7 @@ from ..db import TAG_KINDS, Library
 from ..export import FORMATS, export_rows
 from ..gdrive import GDriveManager
 from ..matrix import Matrix, MatrixError, MatrixSpec
+from ..music import MusicLibrary, create_music_router
 from ..pngmeta import make_blank_png
 
 STATIC = Path(__file__).parent / "static"
@@ -117,12 +118,19 @@ def pick_folder_dialog(title: str = "Taranacak Klasörü Seçin") -> str | None:
         return out if out else None
 
 
-def create_app(library: Library | None = None, wildcard_dir: str | Path | None = None) -> FastAPI:
+def create_app(
+    library: Library | None = None,
+    wildcard_dir: str | Path | None = None,
+    music_library: MusicLibrary | None = None,
+) -> FastAPI:
     lib = library or Library()
+    music_lib = music_library or MusicLibrary(lib.db_path, lib.data_dir / "music_vault")
     gdrive = GDriveManager(lib.data_dir)
     app = FastAPI(title="PromptVault", version="1.0")
     app.state.library = lib
+    app.state.music_library = music_lib
     app.state.gdrive = gdrive
+    app.include_router(create_music_router(music_lib))
     scan_state: dict[str, Any] = {"running": False, "stats": None, "error": None, "path": None}
     scan_lock = threading.Lock()
     thumb_dir = lib.data_dir / "thumbs"

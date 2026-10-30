@@ -3,12 +3,24 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PromptVault ◈ AI Prompt ve Metadata Yöneticisi</title>
+<title>PromptVault ◈ AI Prompt, Metadata & Suno AI Müzik Yöneticisi</title>
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 <header>
   <div class="brand">◈ PromptVault</div>
+
+  <!-- DOMAIN SWITCHER (Görseller vs Müzik) -->
+  <div class="domain-switcher">
+    <button id="btnDomainImages" class="domain-btn active" title="Görsel Prompt ve PNG Metadata Kasası">
+      <span class="icon">🎨</span> Görseller
+    </button>
+    <button id="btnDomainMusic" class="domain-btn" title="Suno AI Şarkıları, Sözler, Tam Stil Promptları ve Workspaces">
+      <span class="icon">🎵</span> Müzik (Suno AI)
+    </button>
+  </div>
+
+  <!-- IMAGE TABS -->
   <nav id="tabs">
     <button data-tab="gallery" class="active">Galeri</button>
     <button data-tab="tags">Etiketler</button>
@@ -16,203 +28,326 @@
     <button data-tab="wildcards">Wildcard</button>
     <button data-tab="scan">Kasa & Tarama</button>
   </nav>
+
+  <!-- MUSIC TABS -->
+  <nav id="tabs-music" class="hidden">
+    <button id="tab-music-songs-btn" data-music-tab="songs" class="active">🎵 Şarkılar</button>
+    <button data-music-tab="workspaces">🏢 Workspaces & Sanatçılar</button>
+    <button data-music-tab="styles">🏷️ Müzik Stilleri</button>
+    <button data-music-tab="music-scan">📂 Müzik Tara & Ekle</button>
+  </nav>
+
   <div id="stats" class="muted"></div>
+  <div id="musicStatsText" class="muted hidden"></div>
 </header>
 
 <main>
-  <!-- GALLERY -->
-  <section id="tab-gallery" class="tab active">
-    <div class="toolbar">
-      <input id="q" type="search" placeholder='Ara: kedi "red hair" -blurry tag:portrait lora:detail gen:comfyui is:fav rating:>=3'>
-      <select id="sort">
-        <option value="added">En yeni</option><option value="oldest">En eski</option>
-        <option value="mtime">Dosya tarihi</option><option value="rating">Puan</option><option value="path">Yol</option>
-      </select>
-      <button id="btnUpload" class="primary" title="Tek tek görsel yükle veya manuel prompt gir">⬆ Görsel Ekle</button>
-      <button id="btnQuickGdSync" class="ghost" title="Yeni olan her şeyi Google Drive'a yedekle">☁ Drive'a Yedekle</button>
-      <button id="selectMode" class="ghost" title="Çoklu seçim modu (Shift+Tık ile aralık seçebilirsiniz)">☐ Çoklu Seçim</button>
-      <details class="help"><summary>?</summary>
-        <div><b>Arama dili</b><br>
-          <code>kelime</code> prompt/not içinde · <code>-kelime</code> hariç<br>
-          <code>tag:ad</code> / <code>-tag:ad</code> · <code>lora:ad</code> · <code>model:ad</code><br>
-          <code>gen:a1111|comfyui|novelai|invokeai|forge…</code> · <code>neg:kelime</code><br>
-          <code>is:fav</code> · <code>rating:>=3</code> · <code>seed:123</code> · <code>w:>=1024</code> <code>h:1536</code>
-        </div>
-      </details>
-    </div>
-    <div id="bulkbar" class="bulkbar hidden">
-      <span id="bulkCount" style="font-weight:600; min-width:85px">0 seçili</span>
-      <button id="bulkAll" class="ghost small">Tümünü seç</button>
-      <button id="bulkClear" class="ghost small">Seçimi temizle</button>
-      <button id="bulkDelete" class="ghost danger" style="background:#ff5c7a26; border-color:var(--danger); font-weight:600" title="Seçilen görselleri kasadan sil">🗑 Seçilenleri Sil</button>
-      <div style="flex:1"></div>
-      <input id="bulkTags" placeholder="Toplu etiketler (virgülle)" style="max-width:240px">
-      <button id="bulkApply" class="ghost">Etiketle</button>
-    </div>
-    <div id="resultInfo" class="muted small"></div>
-    <div id="grid" class="grid"></div>
-    <div class="center"><button id="more" class="ghost hidden">Daha fazla yükle</button></div>
-    <div id="empty" class="empty hidden">
-      Henüz görsel yok.<br>
-      <button class="primary" style="margin-top:12px" onclick="$('#btnUpload').click()">⬆ Görsel Yükle</button> veya
-      <a href="#" data-goto="scan">Klasör Tara</a>
-    </div>
-  </section>
-
-  <!-- TAGS -->
-  <section id="tab-tags" class="tab">
-    <div class="toolbar">
-      <select id="tagKind">
-        <option value="">Tüm türler</option><option value="prompt">Prompt</option><option value="lora">LoRA</option>
-        <option value="model">Model</option><option value="user">Kullanıcı</option><option value="generator">Üretici</option>
-      </select>
-      <input id="tagFilter" type="search" placeholder="Etiket filtrele">
-      <input id="tagQuery" type="search" placeholder="Sadece şu aramanın görsellerinde (ör. gen:comfyui)">
-      <button id="tagToWildcard" class="ghost" title="Listelenen ilk 50 etiketi wildcard yap">→ Wildcard</button>
-    </div>
-    <div id="tagList" class="taglist"></div>
-  </section>
-
-  <!-- MATRIX -->
-  <section id="tab-matrix" class="tab">
-    <div class="matrix">
-      <div class="panel">
-        <label>Prompt şablonu</label>
-        <textarea id="mPrompt" rows="5" spellcheck="false" placeholder="masterpiece, {@subject:a cat|a dog|an owl} in {a forest|the city|space}, {|detailed fur,} __style__"></textarea>
-        <label>Negatif şablon</label>
-        <textarea id="mNegative" rows="2" spellcheck="false" placeholder="blurry, {lowres|jpeg artifacts}"></textarea>
-        <label>Parametre eksenleri</label>
-        <div id="mParams"></div>
-        <button id="mAddParam" class="ghost small">+ Parametre</button>
-        <div class="row">
-          <label class="inline">Mod
-            <select id="mMode"><option value="product">Tüm kombinasyonlar</option><option value="random">Rastgele örnek</option></select>
-          </label>
-          <label class="inline rnd">Adet <input id="mCount" type="number" min="1" value="20"></label>
-          <label class="inline rnd">Seed <input id="mSeed" type="number" placeholder="rastgele"></label>
-          <label class="inline">Limit <input id="mLimit" type="number" min="1" value="10000"></label>
-        </div>
-        <div class="row">
-          <button id="mPreview">Önizle</button>
-          <select id="mFormat">
-            <option value="txt">TXT (satır başına prompt)</option>
-            <option value="a1111">A1111 "Prompts from file"</option>
-            <option value="csv">CSV</option><option value="json">JSON</option><option value="jsonl">JSONL</option>
-          </select>
-          <button id="mExport" class="ghost">⬇ Dışa aktar</button>
-          <button id="mCopy" class="ghost">⧉ Kopyala</button>
-        </div>
-        <div class="row">
-          <input id="mName" placeholder="Matris adı">
-          <button id="mSave" class="ghost">Kaydet</button>
-        </div>
-        <div id="mSaved" class="saved"></div>
-        <details class="syntax"><summary>Sözdizimi</summary>
-          <table>
-            <tr><td><code>{a|b|c}</code></td><td>Alternatifler (kartezyen çarpım)</td></tr>
-            <tr><td><code>{kırmızı {kedi|köpek}|x}</code></td><td>İç içe gruplar</td></tr>
-            <tr><td><code>{|detailed}</code></td><td>Boş seçenek = isteğe bağlı parça</td></tr>
-            <tr><td><code>{1-5}</code> <code>{5-9:2}</code> <code>{0.5-1:0.25}</code></td><td>Sayı aralığı (adımlı)</td></tr>
-            <tr><td><code>{2$$a|b|c}</code> <code>{1-2$$ and $$a|b}</code></td><td>N tanesini birlikte seç (ayraçlı)</td></tr>
-            <tr><td><code>{@renk:red|blue} hair, {@renk} eyes</code></td><td>Adlı eksen – aynı seçimi tekrar kullan</td></tr>
-            <tr><td><code>{3::a|1::b}</code></td><td>Ağırlık (rastgele modda)</td></tr>
-            <tr><td><code>__style__</code></td><td>Wildcard listesi</td></tr>
-            <tr><td><code>\{ \} \|</code></td><td>Kaçış karakteri</td></tr>
-          </table>
-          Parametre değerleri virgüllü liste (<code>20, 30</code>) veya şablon (<code>{20-40:10}</code>) olabilir.
+  <!-- ================================================================= -->
+  <!-- 🎨 GÖRSEL KASASI GÖRÜNÜMÜ                                         -->
+  <!-- ================================================================= -->
+  <div id="view-images">
+    <!-- GALLERY -->
+    <section id="tab-gallery" class="tab active">
+      <div class="toolbar">
+        <input id="q" type="search" placeholder='Ara: kedi "red hair" -blurry tag:portrait lora:detail gen:comfyui is:fav rating:>=3'>
+        <select id="sort">
+          <option value="added">En yeni</option><option value="oldest">En eski</option>
+          <option value="mtime">Dosya tarihi</option><option value="rating">Puan</option><option value="path">Yol</option>
+        </select>
+        <button id="btnUpload" class="primary" title="Tek tek görsel yükle veya manuel prompt gir">⬆ Görsel Ekle</button>
+        <button id="btnQuickGdSync" class="ghost" title="Yeni olan her şeyi Google Drive'a yedekle">☁ Drive'a Yedekle</button>
+        <button id="selectMode" class="ghost" title="Çoklu seçim modu (Shift+Tık ile aralık seçebilirsiniz)">☐ Çoklu Seçim</button>
+        <details class="help"><summary>?</summary>
+          <div><b>Arama dili</b><br>
+            <code>kelime</code> prompt/not içinde · <code>-kelime</code> hariç<br>
+            <code>tag:ad</code> / <code>-tag:ad</code> · <code>lora:ad</code> · <code>model:ad</code><br>
+            <code>gen:a1111|comfyui|novelai|invokeai|forge…</code> · <code>neg:kelime</code><br>
+            <code>is:fav</code> · <code>rating:>=3</code> · <code>seed:123</code> · <code>w:>=1024</code> <code>h:1536</code>
+          </div>
         </details>
       </div>
-      <div class="panel">
-        <div class="row"><b>Kombinasyon:</b> <span id="mTotal" class="badge">–</span> <span id="mErr" class="err"></span></div>
-        <div id="mRows" class="mrows"></div>
+      <div id="bulkbar" class="bulkbar hidden">
+        <span id="bulkCount" style="font-weight:600; min-width:85px">0 seçili</span>
+        <button id="bulkAll" class="ghost small">Tümünü seç</button>
+        <button id="bulkClear" class="ghost small">Seçimi temizle</button>
+        <button id="bulkDelete" class="ghost danger" style="background:#ff5c7a26; border-color:var(--danger); font-weight:600" title="Seçilen görselleri kasadan sil">🗑 Seçilenleri Sil</button>
+        <div style="flex:1"></div>
+        <input id="bulkTags" placeholder="Toplu etiketler (virgülle)" style="max-width:240px">
+        <button id="bulkApply" class="ghost">Etiketle</button>
       </div>
-    </div>
-  </section>
+      <div id="resultInfo" class="muted small"></div>
+      <div id="grid" class="grid"></div>
+      <div class="center"><button id="more" class="ghost hidden">Daha fazla yükle</button></div>
+      <div id="empty" class="empty hidden">
+        Henüz görsel yok.<br>
+        <button class="primary" style="margin-top:12px" onclick="$('#btnUpload').click()">⬆ Görsel Yükle</button> veya
+        <a href="#" data-goto="scan">Klasör Tara</a>
+      </div>
+    </section>
 
-  <!-- WILDCARDS -->
-  <section id="tab-wildcards" class="tab">
-    <div class="matrix">
-      <div class="panel">
-        <div class="row"><button id="wNew" class="ghost">+ Yeni wildcard</button></div>
-        <div id="wList" class="wlist"></div>
+    <!-- TAGS -->
+    <section id="tab-tags" class="tab">
+      <div class="toolbar">
+        <select id="tagKind">
+          <option value="">Tüm türler</option><option value="prompt">Prompt</option><option value="lora">LoRA</option>
+          <option value="model">Model</option><option value="user">Kullanıcı</option><option value="generator">Üretici</option>
+        </select>
+        <input id="tagFilter" type="search" placeholder="Etiket filtrele">
+        <input id="tagQuery" type="search" placeholder="Sadece şu aramanın görsellerinde (ör. gen:comfyui)">
+        <button id="tagToWildcard" class="ghost" title="Listelenen ilk 50 etiketi wildcard yap">→ Wildcard</button>
       </div>
-      <div class="panel">
-        <label>Ad (şablonda <code>__ad__</code>)</label>
-        <input id="wName" placeholder="ör. style veya hair/colors">
-        <label>Satırlar (her satır bir seçenek; şablon sözdizimi kullanılabilir, # yorum)</label>
-        <textarea id="wItems" rows="16" spellcheck="false"></textarea>
-        <div class="row"><button id="wSave">Kaydet</button><button id="wDelete" class="ghost danger">Sil</button></div>
-      </div>
-    </div>
-  </section>
+      <div id="tagList" class="taglist"></div>
+    </section>
 
-  <!-- SCAN & VAULT -->
-  <section id="tab-scan" class="tab">
-    <div class="panel narrow">
-      <h3>🔒 PromptVault Kasası</h3>
-      <p class="muted">Taranan veya yüklenen tüm görseller ve metadata'ları kasa deposunda (<code>~/.promptvault/vault</code>) kopyalanarak saklanır. Bilgisayarınızdaki kaynak klasörü silseniz veya taşısanız bile promptlar ve görseller <b>asla kaybolmaz</b>.</p>
-      
-      <label>Toplu Klasör veya PNG Dosyası Tara</label>
-      <div class="row">
-        <input id="scanPath" placeholder="C:\stable-diffusion\outputs" style="flex:1">
-        <button id="btnBrowseFolder" type="button" class="ghost" title="Bilgisayardan klasör seç">📁 Gözat / Klasör Seç</button>
-      </div>
-      <div class="row">
-        <label class="inline"><input type="checkbox" id="scanRec" checked> Alt klasörler</label>
-        <label class="inline"><input type="checkbox" id="scanForce"> Değişmeyenleri de yeniden tara</label>
-      </div>
-      <div class="row">
-        <button id="scanStart">Klasörü Tara ve Kasaya Al</button>
-        <button id="prune" class="ghost" title="Yalnızca kasada da kopyası bulunmayan geçersiz kayıtları temizler">Kasayı Doğrula</button>
-      </div>
-      <div class="progress"><div id="scanBar"></div></div>
-      <div id="scanInfo" class="muted small"></div>
-      
-      <h3>☁ Google Drive Yedekleme (Prompt Vault Klasörü)</h3>
-      <div id="gdBox" class="gdrive-box">
-        <div id="gdStatusRow" class="row">
-          <span id="gdStatusBadge" class="badge ghost">Kontrol ediliyor...</span>
-          <span id="gdUserEmail" class="muted small"></span>
+    <!-- MATRIX -->
+    <section id="tab-matrix" class="tab">
+      <div class="matrix">
+        <div class="panel">
+          <label>Prompt şablonu</label>
+          <textarea id="mPrompt" rows="5" spellcheck="false" placeholder="masterpiece, {@subject:a cat|a dog|an owl} in {a forest|the city|space}, {|detailed fur,} __style__"></textarea>
+          <label>Negatif şablon</label>
+          <textarea id="mNegative" rows="2" spellcheck="false" placeholder="blurry, {lowres|jpeg artifacts}"></textarea>
+          <label>Parametre eksenleri</label>
+          <div id="mParams"></div>
+          <button id="mAddParam" class="ghost small">+ Parametre</button>
+          <div class="row">
+            <label class="inline">Mod
+              <select id="mMode"><option value="product">Tüm kombinasyonlar</option><option value="random">Rastgele örnek</option></select>
+            </label>
+            <label class="inline rnd">Adet <input id="mCount" type="number" min="1" value="20"></label>
+            <label class="inline rnd">Seed <input id="mSeed" type="number" placeholder="rastgele"></label>
+            <label class="inline">Limit <input id="mLimit" type="number" min="1" value="10000"></label>
+          </div>
+          <div class="row">
+            <button id="mPreview">Önizle</button>
+            <select id="mFormat">
+              <option value="txt">TXT (satır başına prompt)</option>
+              <option value="a1111">A1111 "Prompts from file"</option>
+              <option value="csv">CSV</option><option value="json">JSON</option><option value="jsonl">JSONL</option>
+            </select>
+            <button id="mExport" class="ghost">Dışa Aktar</button>
+            <div style="flex:1"></div>
+            <button id="mSave" class="ghost">Kaydet</button>
+          </div>
+          <div id="mSavedList" class="saved" style="margin-top:10px"></div>
         </div>
-        <div id="gdSyncRow" class="row hidden">
-          <button id="btnGdSync" class="primary">☁ Yeni Olanları Google Drive'a Yükle</button>
-          <a id="gdFolderLink" href="#" target="_blank" class="ghost" style="text-decoration:none; display:inline-flex; align-items:center; padding:8px 14px; border-radius:8px">📁 "Prompt Vault" Klasörünü Aç ↗</a>
-          <button id="btnGdLogout" class="ghost danger">Oturumu Kapat</button>
+        <div class="panel">
+          <div class="row" style="margin:0 0 8px">
+            <b>Önizleme</b> <span id="mCountBadge" class="badge">0</span>
+            <div style="flex:1"></div>
+            <button id="mCopySample" class="ghost small">İlk promptu kopyala</button>
+          </div>
+          <div id="mRows" class="mrows"></div>
         </div>
-        <div id="gdProgress" class="progress hidden"><div id="gdBar"></div></div>
-        <div id="gdInfo" class="muted small"></div>
+      </div>
+    </section>
 
-        <div id="gdSetup" class="hidden" style="margin-top:12px; border-top:1px solid var(--line); padding-top:12px">
-          <details><summary class="muted small" style="cursor:pointer; margin-bottom:8px">⚙ Google Cloud API Kurulumu (İlk Seferlik)</summary>
-            <div class="muted small" style="line-height:1.6; margin-bottom:8px">
-              1. <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console</a>'da proje açıp <b>Google Drive API</b>'yi etkinleştirin.<br>
-              2. <b>OAuth İstemci Kimliği</b> (Masaüstü Uygulaması) oluşturup Client ID ve Secret'ı buraya yapıştırın:
-            </div>
-            <div class="row">
-              <input id="gdClientId" placeholder="Client ID (ör. ...apps.googleusercontent.com)" style="flex:1">
-              <input id="gdClientSecret" placeholder="Client Secret" type="password" style="flex:1">
-              <button id="btnGdSaveConfig" class="ghost">Kaydet</button>
-            </div>
-          </details>
-          <div style="margin-top:10px">
-            <button id="btnGdLogin" class="primary">🔑 Google ile Giriş Yap</button>
+    <!-- WILDCARDS -->
+    <section id="tab-wildcards" class="tab">
+      <div class="matrix">
+        <div class="panel" style="max-width:340px">
+          <div class="row">
+            <b>Wildcard Listeleri</b>
+            <div style="flex:1"></div>
+            <button id="wNew" class="ghost small">+ Yeni</button>
+          </div>
+          <div id="wList" class="wlist"></div>
+        </div>
+        <div class="panel">
+          <div class="row">
+            <input id="wName" placeholder="__ad__" style="font-weight:600">
+            <button id="wSave">Kaydet</button>
+            <button id="wDelete" class="ghost danger">Sil</button>
+            <div style="flex:1"></div>
+            <span id="wCount" class="muted small"></span>
+          </div>
+          <label>Satır başına bir öğe (boş satırlar yok sayılır)</label>
+          <textarea id="wItems" rows="18" spellcheck="false"></textarea>
+        </div>
+      </div>
+    </section>
+
+    <!-- SCAN & VAULT -->
+    <section id="tab-scan" class="tab">
+      <div class="panel narrow">
+        <h3>Klasör Tara ve Kasaya Aktar</h3>
+        <p class="muted small">Seçtiğiniz klasördeki tüm PNG/JPEG görseller taranır, içlerindeki prompt ve parametreler ayrıştırılarak yerel kasaya kopyalanır. Orijinal dosyaları silseniz bile kasadakiler güvende kalır.</p>
+        <div class="row">
+          <input id="scanPath" placeholder="Örnek: C:\stable-diffusion\outputs veya D:\AI_Images" style="flex:1">
+          <button id="scanBrowse" class="ghost" type="button" title="Masaüstü Klasör Seçim Penceresini Aç">📁 Gözat / Klasör Seç</button>
+        </div>
+        <div class="row">
+          <label class="inline"><input type="checkbox" id="scanRec" checked> Alt klasörleri de tara</label>
+          <label class="inline"><input type="checkbox" id="scanForce"> Zaten taranmış dosyaları zorla yeniden oku</label>
+          <div style="flex:1"></div>
+          <button id="scanStart" class="primary">Taramayı Başlat</button>
+        </div>
+        <div class="progress"><div id="scanBar"></div></div>
+        <div id="scanStatus" class="small muted"></div>
+
+        <hr style="border:0; border-top:1px solid var(--line); margin:24px 0">
+
+        <h3>☁ Google Drive Yedekleme & Senkronizasyon</h3>
+        <p class="muted small">Tüm kasayı ve prompt veritabanını Google Drive'daki <b>"Prompt Vault"</b> klasörüne otomatik olarak yükleyin. Daha önce yüklenmiş dosyalar tekrar yüklenmez, sadece yeniler eşitlenir.</p>
+        
+        <div id="gdStatusBox" class="gdrive-box">
+          <div class="row" style="margin:0 0 8px">
+            <b>Google Drive Durumu:</b>
+            <span id="gdStatusBadge" class="vault-badge unlinked">Bağlı Değil</span>
+            <div style="flex:1"></div>
+            <button id="btnGdSync" class="primary small" disabled>☁ Kasayı Drive'a Eşitle</button>
+          </div>
+          <div id="gdStatusMsg" class="small muted" style="margin-bottom:8px">Google Cloud API Client bilgisi bekleniyor...</div>
+          
+          <div id="gdConfigSection">
+            <details style="margin-top:8px">
+              <summary class="small" style="cursor:pointer; color:var(--accent2)">⚙ Google Cloud Client ID ve Secret Yapılandırması</summary>
+              <div style="padding-top:10px">
+                <label>Client ID</label>
+                <input id="gdClientId" placeholder="xxxx.apps.googleusercontent.com" style="width:100%">
+                <label>Client Secret</label>
+                <input id="gdClientSecret" type="password" placeholder="GOCSPX-xxxx" style="width:100%">
+                <div class="row" style="margin-top:10px">
+                  <button id="btnGdSaveConfig" class="ghost small">Bilgileri Kaydet</button>
+                  <button id="btnGdLogin" class="primary small" style="margin-left:8px">🔑 Google ile Giriş Yap</button>
+                  <button id="btnGdLogout" class="ghost danger small" style="margin-left:auto">Çıkış Yap</button>
+                </div>
+              </div>
+            </details>
           </div>
         </div>
+
+        <hr style="border:0; border-top:1px solid var(--line); margin:24px 0">
+
+        <h3>Kasa Temizliği & Bakım</h3>
+        <p class="muted small">Eğer orijinal diskteki dosya silinmişse veritabanındaki disk yolunu temizler; kasa kopyanız silinmez.</p>
+        <div class="row">
+          <button id="prune" class="ghost">Eksik Orijinal Yolları Temizle (Prune)</button>
+        </div>
+
+        <h3>Kütüphane Durumu</h3>
+        <div id="libStats"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- 🎵 MÜZİK KASASI (SUNO AI) GÖRÜNÜMÜ                                -->
+  <!-- ================================================================= -->
+  <div id="view-music" class="hidden">
+    <!-- SONGS TAB -->
+    <section id="tab-music-songs" class="music-tab active">
+      <div class="toolbar">
+        <input id="musicQ" type="search" placeholder='Şarkı, söz veya stil ara: "neon night" ws:Synthwave artist:Nova style:80s lyrics:yıldızlar rating:>=4 is:fav'>
+        <select id="musicWsFilter" style="max-width:240px">
+          <option value="">🏢 Tüm Workspaces (Hepsi)</option>
+        </select>
+        <input id="musicArtistFilter" type="search" placeholder="Sanatçı/Grup filtrele..." style="max-width:180px">
+        <select id="musicSort" style="max-width:140px">
+          <option value="added">En yeni</option>
+          <option value="oldest">En eski</option>
+          <option value="rating">Puan</option>
+          <option value="title">Şarkı Adı</option>
+          <option value="artist">Sanatçı</option>
+        </select>
+        <button id="btnAddSong" class="primary">➕ Şarkı Ekle</button>
+        <details class="help"><summary>?</summary>
+          <div><b>Müzik Arama Dili</b><br>
+            <code>kelime</code> başlık, söz veya stil içinde<br>
+            <code>artist:ad</code> sanatçıya göre filtrele<br>
+            <code>ws:ad</code> workspace / çalışma alanına göre filtrele<br>
+            <code>style:synthwave</code> stildeki anahtar kelimeler<br>
+            <code>lyrics:nakarat</code> şarkı sözlerinde arama<br>
+            <code>model:v4</code> model versiyonu<br>
+            <code>is:fav</code> favoriler · <code>is:audio</code> ses dosyası olanlar<br>
+            <code>rating:>=4</code> yıldız puanı
+          </div>
+        </details>
       </div>
 
-      <h3>Kütüphane Durumu</h3>
-      <div id="libStats"></div>
-    </div>
-  </section>
+      <!-- Bulk Actions Bar -->
+      <div id="musicBulkBar" class="bulkbar hidden">
+        <span id="musicBulkCount" style="font-weight:600; min-width:85px">0 seçili</span>
+        <button id="musicBulkAll" class="ghost small">Tümünü seç</button>
+        <button id="musicBulkClear" class="ghost small">Seçimi temizle</button>
+        <button id="musicBulkDelete" class="ghost danger small" style="background:#ff5c7a26; border-color:var(--danger); font-weight:600">🗑 Seçilenleri Sil</button>
+        <div style="flex:1"></div>
+        <select id="musicBulkWs" style="max-width:220px"></select>
+        <button id="musicBulkApplyWs" class="ghost small">Alana Taşı</button>
+      </div>
+
+      <div id="musicResultInfo" class="muted small"></div>
+      <div id="musicSongGrid" class="music-grid"></div>
+
+      <div id="musicEmpty" class="empty hidden">
+        Henüz kayıtlı Suno AI şarkısı yok.<br>
+        <button class="primary" style="margin-top:12px" onclick="$('#btnAddSong').click()">➕ Şarkı Ekle (.txt / .mp3)</button> veya
+        <a href="#" onclick="$('#tabs-music button[data-music-tab=music-scan]').click()">Müzik Klasörünü Tara</a>
+      </div>
+    </section>
+
+    <!-- WORKSPACES & ARTISTS TAB -->
+    <section id="tab-music-workspaces" class="music-tab">
+      <div class="toolbar">
+        <button id="btnNewWorkspace" class="primary">➕ Yeni Çalışma Alanı / Proje Oluştur</button>
+        <div style="flex:1"></div>
+        <span class="muted small">Suno AI sanatçıları, grupları ve projeleri için segmentasyon</span>
+      </div>
+      <div id="workspacesGrid" class="workspaces-grid"></div>
+    </section>
+
+    <!-- STYLES & GENRES TAB -->
+    <section id="tab-music-styles" class="music-tab">
+      <div class="toolbar">
+        <b>Suno AI Stil & Prompt Etiketleri</b>
+        <div style="flex:1"></div>
+        <span class="muted small">Herhangi bir stile tıklayarak o stildeki şarkıları listeleyin</span>
+      </div>
+      <div id="musicTagsCloud" class="music-tags-cloud"></div>
+    </section>
+
+    <!-- SCAN & IMPORT TAB -->
+    <section id="tab-music-music-scan" class="music-tab">
+      <div class="panel narrow">
+        <h3>📂 Suno Müzik Klasörü Tara ve Eşitle</h3>
+        <p class="muted small">Bilgisayarınızdaki Suno şarkıları klasörünü seçin. Tampermonkey scripti ile indirdiğiniz <code>*_metadata.txt</code> dosyaları okunur ve varsa aynı isimdeki <code>.mp3</code> / <code>.wav</code> ses dosyaları ile otomatik olarak eşleştirilip kasaya aktarılır.</p>
+        
+        <div class="row">
+          <input id="mScanPath" placeholder="Örnek: C:\Users\Kullanici\Downloads\SunoMusic" style="flex:1">
+          <button id="mScanBrowse" class="ghost" type="button" title="Klasör Seç">📁 Gözat / Klasör Seç</button>
+        </div>
+
+        <div class="row">
+          <div style="flex:1">
+            <label>Varsayılan Çalışma Alanı (Workspace)</label>
+            <select id="mScanWorkspace" style="width:100%"></select>
+          </div>
+          <div style="flex:1">
+            <label>Varsayılan Sanatçı / Grup</label>
+            <input id="mScanArtist" placeholder="ör. Nova, CyberVibe" style="width:100%">
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:14px">
+          <button id="mScanStart" class="primary">🎵 Taramayı Başlat ve Kasaya Eşitle</button>
+        </div>
+
+        <div id="mScanLog" class="small muted" style="margin-top:10px"></div>
+      </div>
+    </section>
+  </div>
 </main>
 
+<!-- =================================================================== -->
+<!-- GÖRSEL MODALLARI                                                    -->
+<!-- =================================================================== -->
 <!-- UPLOAD & MANUEL EKLEME MODALI -->
 <div id="uploadModal" class="modal hidden">
   <div class="modal-box modal-small">
     <button class="close" id="uClose">✕</button>
     <div class="ucontent">
       <h3>⬆ Görsel Ekle / Manuel Prompt Girişi</h3>
-      <p class="muted small">PNG görselinizi sürükleyip bırakabilir veya seçebilirsiniz. Metadata varsa otomatik okunur, isterseniz promptları kendiniz değiştirebilir veya sıfırdan yazabilirsiniz.</p>
+      <p class="muted small">PNG görselinizi sürükleyip bırakabilir veya seçebilirsiniz. Metadata varsa otomatik okunur.</p>
       
       <div id="dropZone" class="dropzone">
         <input type="file" id="uFileInput" accept="image/png,image/jpeg,image/webp" style="display:none">
@@ -279,7 +414,139 @@
   </div>
 </div>
 
+<!-- =================================================================== -->
+<!-- 🎵 MÜZİK (SUNO AI) MODALLARI                                        -->
+<!-- =================================================================== -->
+<!-- ŞARKI YÜKLEME MODALI -->
+<div id="musicUploadModal" class="modal hidden">
+  <div class="modal-box modal-small">
+    <button class="close" id="muClose">✕</button>
+    <div class="ucontent">
+      <h3>➕ Suno AI Şarkısı Ekle</h3>
+      <p class="muted small">Tampermonkey ile indirdiğiniz <code>_metadata.txt</code> dosyasını ve/veya <code>.mp3</code> ses dosyasını yükleyin.</p>
+      
+      <label>Suno Metadata Dosyası (.txt)</label>
+      <input type="file" id="muTxtFile" accept=".txt" style="width:100%">
+
+      <label>Ses Dosyası (.mp3, .wav, .m4a - İsteğe Bağlı)</label>
+      <input type="file" id="muAudioFile" accept="audio/*" style="width:100%">
+
+      <div class="row">
+        <div style="flex:1">
+          <label>Çalışma Alanı (Workspace / Proje)</label>
+          <select id="muWorkspace" style="width:100%"></select>
+        </div>
+        <div style="flex:1">
+          <label>Sanatçı / Grup</label>
+          <input id="muArtist" placeholder="ör. Nova, Lumina" style="width:100%">
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:16px; justify-content:flex-end">
+        <button id="muCancel" class="ghost">İptal</button>
+        <button id="muSubmit" class="primary">🔒 Kasaya Kaydet</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ŞARKI SÖZLERİ (LYRICS) TAM EKRAN MODALI -->
+<div id="musicLyricsModal" class="modal hidden">
+  <div class="modal-box modal-lyrics">
+    <button class="close" id="mlClose">✕</button>
+    <div class="lyrics-header">
+      <h2 id="mlTitle" style="margin:0">Şarkı Sözleri</h2>
+      <span id="mlArtist" class="muted small" style="margin-left:10px"></span>
+      <div style="flex:1"></div>
+      <button id="mlCopyStyleBtn" class="ghost small">📋 Stili Kopyala</button>
+      <button id="mlCopyBtn" class="ghost small" style="margin-left:6px">📋 Sözleri Kopyala</button>
+    </div>
+    
+    <div class="lyrics-style-banner">
+      <b>Stil / Prompt:</b> <span id="mlStyle"></span>
+    </div>
+
+    <div id="mlContent" class="lyrics-content-full"></div>
+  </div>
+</div>
+
+<!-- ŞARKI DÜZENLEME MODALI -->
+<div id="musicEditModal" class="modal hidden">
+  <div class="modal-box modal-small">
+    <button class="close" id="meClose">✕</button>
+    <div class="ucontent">
+      <h3>✏ Şarkı Bilgilerini Düzenle</h3>
+      <input type="hidden" id="meSongId">
+      
+      <label>Şarkı Başlığı</label>
+      <input id="meTitle" style="width:100%">
+
+      <div class="row">
+        <div style="flex:1">
+          <label>Sanatçı / Grup</label>
+          <input id="meArtist" style="width:100%">
+        </div>
+        <div style="flex:1">
+          <label>Çalışma Alanı (Workspace)</label>
+          <select id="meWorkspace" style="width:100%"></select>
+        </div>
+      </div>
+
+      <label>Suno Tam Stil / Prompt</label>
+      <textarea id="meStyle" rows="3"></textarea>
+
+      <label>Şarkı Sözleri & Meta Etiketler</label>
+      <textarea id="meLyrics" rows="6"></textarea>
+
+      <label>Suno Bağlantısı (URL)</label>
+      <input id="meUrl" placeholder="https://suno.com/song/..." style="width:100%">
+
+      <label>Notlar</label>
+      <input id="meNotes" placeholder="Bu şarkı hakkında notlar..." style="width:100%">
+
+      <div class="row" style="margin-top:16px; justify-content:flex-end">
+        <button id="meCancel" class="ghost">İptal</button>
+        <button id="meSubmit" class="primary">Kaydet</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- WORKSPACE EKLE / DÜZENLE MODALI -->
+<div id="workspaceModal" class="modal hidden">
+  <div class="modal-box modal-small">
+    <button class="close" id="wsClose">✕</button>
+    <div class="ucontent">
+      <h3 id="wsModalTitle">➕ Yeni Çalışma Alanı / Proje</h3>
+      <input type="hidden" id="wsModalId">
+
+      <label>Çalışma Alanı Adı</label>
+      <input id="wsName" placeholder="ör. Synthwave Koleksiyonu, Metal Grubu, Reklam Müzikleri" style="width:100%">
+
+      <label>Açıklama</label>
+      <input id="wsDesc" placeholder="Bu alanın amacı veya müzik tarzı..." style="width:100%">
+
+      <div class="row">
+        <div style="flex:1">
+          <label>Simge / Emoji</label>
+          <input id="wsIcon" value="🎵" style="width:100%">
+        </div>
+        <div style="flex:1">
+          <label>Tema Rengi</label>
+          <input id="wsColor" type="color" value="#8b5cf6" style="width:100%; height:38px; padding:2px">
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:16px; justify-content:flex-end">
+        <button id="wsCancel" class="ghost">İptal</button>
+        <button id="wsSubmit" class="primary">Kaydet</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast hidden"></div>
 <script src="/static/app.js"></script>
+<script src="/static/music.js"></script>
 </body>
 </html>

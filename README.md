@@ -1,6 +1,25 @@
 # PromptVault ◈
 
-Yapay zeka modelleriyle üretilen görsellerin (Stable Diffusion, Midjourney, NovelAI, ComfyUI, Fooocus, InvokeAI, vb.) PNG metadata'larını okuyan, parametre ve prompt'larını ayrıştırıp yerel SQLite veritabanında FTS5 tam metin araması ve otomatik ağırlıklı etiketlerle indeksleyen, aynı zamanda yeni üretimler için esnek kombinasyonlu **Prompt Matrisi** motoru ve modern web arayüzü sunan kütüphane ve yazılım.
+Yapay zeka modelleriyle üretilen görsellerin (Stable Diffusion, Midjourney, NovelAI, ComfyUI, Fooocus, InvokeAI, vb.) PNG metadata'larını okuyan, parametre ve prompt'larını ayrıştırıp yerel SQLite veritabanında FTS5 tam metin araması ve otomatik ağırlıklı etiketlerle indeksleyen, aynı zamanda **Suno AI müzik/şarkı koleksiyonlarını** sözler, tam stil promptları, sanatçılar ve workspace segmentasyonu ile yöneten, esnek kombinasyonlu **Prompt Matrisi** motoru ve modern web arayüzü sunan kütüphane ve yazılım.
+
+---
+
+## 🎵 Suno AI Müzik Kasası & Workspace Segmentasyonu
+
+PromptVault, görsel kasasının yanı sıra tamamen izole edilmiş bir **Müzik Kasası** modülüne (`promptvault/music/`) sahiptir:
+- **Tampermonkey Metadata Ayrıştırıcı**:
+  - Suno AI üzerinden indirilen `*_metadata.txt` dosyalarını otomatik ayrıştırır (Şarkı Adı, ID, Model, Tarih, Link, Tam Stil/Prompt, Şarkı Sözleri ve yapısal etiketler `[Verse]`, `[Chorus]`, `[Drop]`).
+  - Varsa aynı isimdeki `.mp3` / `.wav` ses dosyalarını otomatik eşleştirir.
+- **Workspace & Sanatçı Segmentasyonu**:
+  - Gruplarınız, sanatçılarınız ve projeleriniz için özel renkli ve simgeli **Workspaces (Çalışma Alanları)** oluşturabilirsiniz.
+  - Şarkıları çalışma alanlarına göre anında filtreleyebilir veya toplu olarak taşıyabilirsiniz.
+- **İki Ayrı Dünya (Görseller vs Müzik)**:
+  - Görseller ve müzikler kesinlikle birbirine karışmaz; arayüzün en üstündeki **"🎨 Görseller"** ve **"🎵 Müzik"** seçicisiyle iki alan arasında anında geçiş yapabilirsiniz.
+- **Şarkı Sözleri & FTS5 Arama**:
+  - Şarkı sözleri içindeki herhangi bir kelimeye, sanatçıya, modele veya müzik stiline göre anında tam metin araması yapabilirsiniz.
+  - Şarkı sözlerini yapılandırılmış formatta okuma modalı ve tek tıkla Suno stil promptunu kopyalama butonları sunar.
+
+---
 
 - **Toplu Klasör Tarama & Gözat Butonu**:
   - `Kasa & Tarama` sekmesinde bulunan **"📁 Gözat / Klasör Seç"** butonuna basarak bilgisayarınızdaki herhangi bir klasörü görsel arayüzden seçebilirsiniz; dosya yolunu elle yazmak zorunda kalmazsınız.

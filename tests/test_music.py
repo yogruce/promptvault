@@ -1,0 +1,190 @@
+"""Tests for Suno AI music module, parser, workspaces, and music API."""
+from pathlib import Path
+from fastapi.testclient import TestClient
+
+from promptvault.music import (
+    MusicLibrary,
+    ParsedSong,
+    extract_lyric_sections,
+    extract_style_tags,
+    parse_suno_txt,
+)
+from promptvault.web.app import create_app
+
+SAMPLE_SUNO_TXT = """=========================================
+ŞARKI ADI   : Gece Yolculuğu
+ŞARKI ID    : 8d1b2c34-5678-90ab-cdef-1234567890ab
+MODEL       : Suno v4.0
+TARİH       : 30.10.2026 14:00
+LİNK        : https://suno.com/song/8d1b2c34-5678-90ab-cdef-1234567890ab
+=========================================
+
+[TAM STİL / PROMPT]
+synthwave, 80s analog synth, driving bassline, punchy electronic drums, ethereal female vocals, 124 bpm, emotional, nostalgic
+
+[ŞARKI SÖZLERİ & META ETİKETLER]
+[Intro]
+(Neon ışıklar parıldıyor)
+
+[Verse 1]
+Yıldızlar kayarken gecenin kalbinde
+Rüzgar fısıldar eski bir ezgide
+Sonsuz yollar önümde uzanır
+Karanlık içinde umut parıldar
+
+[Chorus]
+Uzak diyarlara doğru sür arabayı
+Unut dertleri geride bırak zamanı
+Gecenin ritmi sarsın ruhumuzu
+Yıldızlara uzansın sonsuz şarkımız
+
+[Outro]
+(Sessizlik ve synth yankısı)
+=========================================
+"""
+
+
+def test_parse_suno_txt():
+    parsed = parse_suno_txt(SAMPLE_SUNO_TXT, filename="Gece Yolculuğu [8d1b2c34]_metadata.txt")
+    assert parsed.title == "Gece Yolculuğu"
+    assert parsed.suno_id == "8d1b2c34-5678-90ab-cdef-1234567890ab"
+    assert "v4.0" in parsed.model
+    assert "https://suno.com/song/" in parsed.suno_url
+    assert "synthwave" in parsed.style
+    assert "[Chorus]" in parsed.lyrics
+    assert "Uzak diyarlara" in parsed.lyrics
+
+    # Verify extracted tags
+    assert "synthwave" in [t.lower() for t in parsed.tags]
+    assert "124 bpm" in [t.lower() for t in parsed.tags]
+
+    # Verify extracted lyric sections
+    lower_sections = [s.lower() for s in parsed.lyric_sections]
+    assert "intro" in lower_sections
+    assert "verse 1" in lower_sections
+    assert "chorus" in lower_sections
+    assert "outro" in lower_sections
+
+
+def test_workspaces_crud(tmp_path: Path):
+    db_file = tmp_path / "music_test.db"
+    lib = MusicLibrary(db_file, tmp_path / "vault")
+
+    # Default workspace exists
+    ws_list = lib.list_workspaces()
+    assert len(ws_list) >= 1
+    assert any(w["name"] == "Genel" for w in ws_list)
+
+    # Create workspace
+    new_ws = lib.create_workspace("Synthwave Artists", "80s electronic projects", "#ec4899", "⚡")
+    assert new_ws["name"] == "Synthwave Artists"
+    assert new_ws["color"] == "#ec4899"
+
+    # Update workspace
+    updated = lib.update_workspace(new_ws["id"], name="Synthwave Lab", description="Updated description")
+    assert updated is not None
+    assert updated["name"] == "Synthwave Lab"
+
+    # Delete workspace
+    ok = lib.delete_workspace(new_ws["id"])
+    assert ok is True
+    assert lib.get_workspace(new_ws["id"]) is None
+
+
+def test_song_operations_and_fts_search(tmp_path: Path):
+    db_file = tmp_path / "music_test2.db"
+    lib = MusicLibrary(db_file, tmp_path / "vault")
+
+    ws = lib.create_workspace("Rock & Metal", "Hard rock workspace", "#ef4444", "🎸")
+
+    # Add song from sample text
+    txt_file = tmp_path / "sample [12345678]_metadata.txt"
+    txt_file.write_text(SAMPLE_SUNO_TXT, encoding="utf-8")
+
+    song = lib.add_from_txt_file(txt_file, workspace_id=ws["id"], artist="Lumina")
+    assert song["title"] == "Gece Yolculuğu"
+    assert song["artist"] == "Lumina"
+    assert song["workspace_id"] == ws["id"]
+    assert song["workspace_name"] == "Rock & Metal"
+
+    # Search by title/lyrics word in FTS
+    total, items = lib.search("araba")
+    assert total >= 1
+    assert items[0]["id"] == song["id"]
+
+    # Search with filters
+    total, items = lib.search("artist:Lumina style:synthwave")
+    assert total >= 1
+    assert items[0]["title"] == "Gece Yolculuğu"
+
+    # Update song
+    up = lib.update_song(song["id"], rating=5, favorite=True, notes="Great bridge section")
+    assert up is not None
+    assert up["rating"] == 5
+    assert up["favorite"] == 1
+
+    # Search with rating filter
+    total, items = lib.search("rating:>=4 is:fav")
+    assert total >= 1
+
+    # Bulk assign workspace
+    ws2 = lib.create_workspace("Chillout", "Chill lounge", "#06b6d4", "☕")
+    lib.bulk_assign_workspace([song["id"]], ws2["id"])
+    song_refreshed = lib.get_song(song["id"])
+    assert song_refreshed["workspace_id"] == ws2["id"]
+
+    # Stats
+    stats = lib.get_stats()
+    assert stats["total_songs"] == 1
+    assert stats["favorites"] == 1
+
+    # Delete
+    assert lib.delete_song(song["id"]) is True
+    assert lib.get_song(song["id"]) is None
+
+
+def test_music_api_client(tmp_path: Path):
+    db_file = tmp_path / "web_music.db"
+    music_lib = MusicLibrary(db_file, tmp_path / "vault")
+    app = create_app(music_library=music_lib)
+    client = TestClient(app)
+
+    # 1. Stats
+    r = client.get("/api/music/stats")
+    assert r.status_code == 200
+    assert "total_songs" in r.json()
+
+    # 2. Create Workspace
+    r = client.post("/api/music/workspaces", json={"name": "Pop Hits", "description": "Chart pop", "color": "#f59e0b", "icon": "⭐"})
+    assert r.status_code == 200
+    ws_id = r.json()["id"]
+
+    # 3. Manual Add Song
+    r = client.post("/api/music/manual-add", json={
+        "title": "Neon Sunset",
+        "style": "retrowave, chill synth, female vocal",
+        "lyrics": "[Verse 1]\nDriving along the coast\n[Chorus]\nNeon sunset in your eyes",
+        "suno_id": "9999-aaaa",
+        "workspace_id": ws_id,
+        "artist": "Echo Bay",
+        "rating": 4,
+        "favorite": True,
+    })
+    assert r.status_code == 200
+    song_id = r.json()["id"]
+
+    # 4. Search Songs
+    r = client.get("/api/music/songs?q=sunset")
+    assert r.status_code == 200
+    assert r.json()["total"] == 1
+    assert r.json()["items"][0]["artist"] == "Echo Bay"
+
+    # 5. Patch Song
+    r = client.patch(f"/api/music/songs/{song_id}", json={"rating": 5, "notes": "Super track"})
+    assert r.status_code == 200
+    assert r.json()["rating"] == 5
+
+    # 6. Delete Song
+    r = client.delete(f"/api/music/songs/{song_id}")
+    assert r.status_code == 200
+    assert r.json()["deleted"] is True
