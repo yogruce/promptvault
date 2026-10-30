@@ -210,7 +210,14 @@ def cmd_serve(args, lib: Library) -> int:
     if args.open:
         import webbrowser
         webbrowser.open(url)
-    uvicorn.run(create_app(lib, args.wildcards), host=args.host, port=args.port, log_level="warning")
+    try:
+        uvicorn.run(create_app(lib, args.wildcards), host=args.host, port=args.port, log_level="warning")
+    except OSError as e:
+        if "10048" in str(e) or getattr(e, "winerror", None) == 10048 or getattr(e, "errno", None) == 98:
+            print(f"\n[BİLGİ] Port {args.port} zaten kullanımda (PromptVault arka planda açık olabilir).")
+            print(f"Tarayıcınızdan doğrudan erişebilirsiniz: {url}\n")
+            return 0
+        raise
     return 0
 
 
