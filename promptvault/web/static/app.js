@@ -33,7 +33,7 @@ function showTab(name) {
   if (name === "tags") loadTags();
   if (name === "matrix") loadMatrices();
   if (name === "wildcards") loadWildcards();
-  if (name === "scan") { loadLibStats(); loadGDriveStatus(); }
+  if (name === "scan") { loadLibStats(); loadGDriveStatus(); loadQuickImportStatus(); }
 }
 $$("#tabs button").forEach((b) => (b.onclick = () => showTab(b.dataset.tab)));
 document.addEventListener("click", (e) => {
@@ -917,3 +917,43 @@ $("#btnQuickGdSync").onclick = startGDriveSync;
 
 // Load GDrive status on init and tab switch
 loadGDriveStatus();
+
+/* ------------------------------------------------------------- quick import */
+async function loadQuickImportStatus() {
+  try {
+    const s = await api("/api/quick-import/status");
+    const badge = $("#qiStatusBadge");
+    const btn = $("#btnToggleQuickImport");
+    if (!badge || !btn) return;
+    if (s.enabled) {
+      badge.textContent = "Aktif (Açık)";
+      badge.style.background = "#10b98122";
+      badge.style.color = "#34d399";
+      badge.style.borderColor = "#10b98155";
+      btn.textContent = "Durdur / Kapat";
+    } else {
+      badge.textContent = "Devre Dışı (Kapalı)";
+      badge.style.background = "#ef444422";
+      badge.style.color = "#f87171";
+      badge.style.borderColor = "#ef444455";
+      btn.textContent = "Etkinleştir / Aç";
+    }
+  } catch {}
+}
+
+$("#btnToggleQuickImport")?.addEventListener("click", async () => {
+  try {
+    const cur = await api("/api/quick-import/status");
+    const res = await api("/api/quick-import/toggle", {
+      method: "POST",
+      body: { enabled: !cur.enabled }
+    });
+    toast(res.enabled ? "⚡ Tarayıcıdan Hızlı Aktarım (Quick Import) açıldı!" : "Hızlı Aktarım kapatıldı.");
+    loadQuickImportStatus();
+  } catch (e) {
+    toast("Hata: " + e.message);
+  }
+});
+
+loadQuickImportStatus();
+

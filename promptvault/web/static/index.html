@@ -219,6 +219,29 @@
 
         <hr style="border:0; border-top:1px solid var(--line); margin:24px 0">
 
+        <!-- QUICK IMPORT CLIPPER SECTION -->
+        <div id="quickImportSection">
+          <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+            <div>
+              <h3 style="margin:0 0 4px 0;">⚡ Tarayıcıdan Tek Tuşla Aktarım (Quick Import Clipper)</h3>
+              <p class="muted small" style="margin:0;">Gemini, ChatGPT, Flow/ImageFX ve Suno AI web sitelerinden tek tuşla görsel ve şarkıları yerel kasaya gönderin.</p>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span id="qiStatusBadge" class="vault-badge" style="background:#10b98122; color:#34d399; border:1px solid #10b98155;">Aktif (Açık)</span>
+              <button id="btnToggleQuickImport" class="ghost small">Durdur / Kapat</button>
+            </div>
+          </div>
+          
+          <div style="margin-top:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <a href="/static/promptvault_clipper.user.js" target="_blank" class="button small" id="btnInstallClipper">
+              ⚡ Tampermonkey Clipper Kur (.user.js)
+            </a>
+            <span class="muted small">Kurulduğunda Gemini, ChatGPT ve Suno sayfalarında otomatik "⚡ Vault'a Aktar" butonu görünür.</span>
+          </div>
+        </div>
+
+        <hr style="border:0; border-top:1px solid var(--line); margin:24px 0">
+
         <h3>Kasa Temizliği & Bakım</h3>
         <p class="muted small">Eğer orijinal diskteki dosya silinmişse veritabanındaki disk yolunu temizler; kasa kopyanız silinmez.</p>
         <div class="row">
@@ -251,12 +274,6 @@
           <option value="artist">Sanatçı</option>
         </select>
         <button id="btnAddSong" class="primary">➕ Şarkı Ekle</button>
-        <div class="view-mode-group" style="display:inline-flex; gap:2px; background:var(--panel2); padding:2px; border-radius:8px; border:1px solid var(--line);">
-          <button id="btnViewCompact" type="button" class="ghost small active" title="Standart Izgara Görünümü">▦ Izgara</button>
-          <button id="btnViewComfortable" type="button" class="ghost small" title="Ferah 2-Kolon Geniş Görünüm">▤ Geniş</button>
-          <button id="btnViewList" type="button" class="ghost small" title="Tam Genişlik Liste / Stüdyo Modu">📄 Liste</button>
-        </div>
-        <button id="btnExpandAll" type="button" class="ghost small" title="Tüm şarkıların prompt ve söz kutularını genişlet/daralt">↕ Tümünü Genişlet</button>
         <details class="help"><summary>?</summary>
           <div><b>Müzik Arama Dili</b><br>
             <code>kelime</code> başlık, söz veya stil içinde<br>

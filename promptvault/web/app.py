@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -14,6 +15,7 @@ from pydantic import BaseModel
 from ..db import TAG_KINDS, Library
 from ..export import FORMATS, export_rows
 from ..gdrive import GDriveManager
+from ..integrations import create_quick_import_router
 from ..matrix import Matrix, MatrixError, MatrixSpec
 from ..music import MusicLibrary, create_music_router
 from ..pngmeta import make_blank_png
@@ -130,7 +132,18 @@ def create_app(
     app.state.library = lib
     app.state.music_library = music_lib
     app.state.gdrive = gdrive
+
+    # Enable CORS for browser extension and userscript quick import
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
     app.include_router(create_music_router(music_lib))
+    app.include_router(create_quick_import_router(lib, music_lib))
     scan_state: dict[str, Any] = {"running": False, "stats": None, "error": None, "path": None}
     scan_lock = threading.Lock()
     thumb_dir = lib.data_dir / "thumbs"
