@@ -251,6 +251,12 @@
           <option value="artist">Sanatçı</option>
         </select>
         <button id="btnAddSong" class="primary">➕ Şarkı Ekle</button>
+        <div class="view-mode-group" style="display:inline-flex; gap:2px; background:var(--panel2); padding:2px; border-radius:8px; border:1px solid var(--line);">
+          <button id="btnViewCompact" type="button" class="ghost small active" title="Standart Izgara Görünümü">▦ Izgara</button>
+          <button id="btnViewComfortable" type="button" class="ghost small" title="Ferah 2-Kolon Geniş Görünüm">▤ Geniş</button>
+          <button id="btnViewList" type="button" class="ghost small" title="Tam Genişlik Liste / Stüdyo Modu">📄 Liste</button>
+        </div>
+        <button id="btnExpandAll" type="button" class="ghost small" title="Tüm şarkıların prompt ve söz kutularını genişlet/daralt">↕ Tümünü Genişlet</button>
         <details class="help"><summary>?</summary>
           <div><b>Müzik Arama Dili</b><br>
             <code>kelime</code> başlık, söz veya stil içinde<br>
@@ -469,8 +475,14 @@
   <div class="modal-box modal-lyrics">
     <button class="close" id="mlClose">✕</button>
     <div class="lyrics-header">
-      <h2 id="mlTitle" style="margin:0">Şarkı Sözleri</h2>
-      <span id="mlArtist" class="muted small" style="margin-left:10px"></span>
+      <div>
+        <h2 id="mlTitle" style="margin:0">Şarkı Sözleri</h2>
+        <span id="mlArtist" class="muted small"></span>
+      </div>
+      <div style="display:inline-flex; gap:3px; margin-left:14px; background:var(--panel2); padding:3px; border-radius:8px; border:1px solid var(--line);">
+        <button id="mlTabClean" type="button" class="ghost small active" title="Suno etiketleri olmadan saf sözler">🎙️ Saf Sözler (Tagsız)</button>
+        <button id="mlTabRaw" type="button" class="ghost small" title="Orijinal Suno etiketleriyle göster">📝 Orijinal (Etiketli)</button>
+      </div>
       <div style="flex:1"></div>
       <div id="mlDownloads" style="display:inline-flex; gap:6px; margin-right:8px">
         <a id="mlDlLrc" class="ghost small hidden" download title="LRC formatında indir">📥 .LRC</a>
@@ -478,8 +490,9 @@
         <a id="mlDlTxt" class="ghost small" download title="Düz TXT indir">📥 .TXT</a>
       </div>
       <button id="mlOpenSyncBtn" class="primary small" style="margin-right:8px">🎙️ Senkronlayıcı</button>
-      <button id="mlCopyStyleBtn" class="ghost small">📋 Stili Kopyala</button>
-      <button id="mlCopyBtn" class="ghost small" style="margin-left:6px">📋 Sözleri Kopyala</button>
+      <button id="mlCopyCleanBtn" class="primary small" style="margin-right:6px" title="Suno etiketleri olmadan saf şarkı sözlerini kopyala">📋 Tagsız Kopyala</button>
+      <button id="mlCopyBtn" class="ghost small" style="margin-right:6px" title="Orijinal sözleri etiketlerle kopyala">📄 Orijinal Kopyala</button>
+      <button id="mlCopyStyleBtn" class="ghost small">🎯 Stili Kopyala</button>
     </div>
     
     <div class="lyrics-style-banner">

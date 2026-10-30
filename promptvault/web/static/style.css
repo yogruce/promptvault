@@ -368,38 +368,120 @@ h3 { margin: 18px 0 8px; }
   font-weight: 700;
   color: var(--muted);
   letter-spacing: .5px;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+  gap: 6px;
 }
 .song-style-box {
   background: var(--panel2);
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 8px 10px;
+  padding: 10px 12px;
   font-size: 12px;
+  transition: all .15s ease;
 }
 .song-style-content {
   color: #c4ccde;
-  line-height: 1.4;
-  max-height: 48px;
+  line-height: 1.45;
+  max-height: 64px;
   overflow: hidden;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
+}
+.song-style-box.expanded .song-style-content {
+  max-height: none !important;
+  -webkit-line-clamp: unset !important;
+  display: block !important;
+  overflow: visible !important;
 }
 .song-lyrics-box {
   background: var(--panel2);
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 8px 10px;
+  padding: 10px 12px;
   font-size: 12px;
+  transition: all .15s ease;
 }
 .song-lyrics-preview {
-  color: #94a3b8;
-  font-family: Consolas, monospace;
-  max-height: 60px;
+  color: #cbd5e1;
+  font-family: Consolas, "Cascadia Code", monospace;
+  font-size: 12.5px;
+  max-height: 105px;
   overflow: hidden;
   white-space: pre-line;
-  line-height: 1.4;
+  line-height: 1.5;
+}
+.song-lyrics-box.expanded .song-lyrics-preview {
+  max-height: 480px !important;
+  overflow-y: auto !important;
+}
+.lyrics-mode-pills {
+  display: inline-flex;
+  gap: 2px;
+  background: var(--bg);
+  padding: 2px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+}
+.lyrics-mode-pills button {
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.lyrics-mode-pills button.active {
+  background: var(--panel2);
+  color: var(--accent2);
+  font-weight: 700;
+}
+.view-mode-group button.active {
+  background: var(--accent) !important;
+  color: #fff !important;
+  font-weight: 600;
+}
+
+/* MUSIC VIEW MODES (RESPONSIVE WIDE & LIST) */
+.music-grid.view-comfortable {
+  grid-template-columns: repeat(auto-fill, minmax(560px, 1fr));
+  gap: 20px;
+}
+.music-grid.view-comfortable .song-style-content {
+  max-height: 110px;
+  -webkit-line-clamp: 5;
+}
+.music-grid.view-comfortable .song-lyrics-preview {
+  max-height: 160px;
+}
+
+.music-grid.view-list {
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+.music-grid.view-list .song-card {
+  padding: 16px 20px;
+}
+.music-grid.view-list .song-content-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 6px;
+}
+@media (max-width: 900px) {
+  .music-grid.view-list .song-content-cols {
+    grid-template-columns: 1fr;
+  }
+}
+.music-grid.view-list .song-style-content {
+  max-height: 180px;
+  -webkit-line-clamp: 8;
+  overflow-y: auto;
+}
+.music-grid.view-list .song-lyrics-preview {
+  max-height: 220px;
+  overflow-y: auto;
 }
 .lyric-block-header {
   margin: 6px 0 2px 0;

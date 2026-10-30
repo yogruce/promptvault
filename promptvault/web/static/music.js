@@ -22,6 +22,8 @@
     workspaces: [],
     songs: [],
     audioPlayer: null,
+    viewMode: localStorage.getItem('pv.musicViewMode') || 'grid',
+    expandAll: localStorage.getItem('pv.musicExpandAll') === 'true',
   };
 
   // Toast helper
@@ -58,6 +60,17 @@
       }
       return `<div class="lyric-block-header"><span class="lyric-tag">[${content}]</span></div>`;
     });
+  }
+
+  // Render song card lyrics preview (either pure clean lyrics or tagged)
+  function renderLyricsPreview(song, mode = 'clean') {
+    if (!song || !song.lyrics) return '<span class="muted">Şarkı sözü bulunamadı</span>';
+    if (mode === 'clean') {
+      const cleanLines = cleanLyricsForSync(song.lyrics);
+      if (!cleanLines.length) return '<span class="muted">Şarkı sözü bulunamadı</span>';
+      return cleanLines.map(escapeHtml).join('\n');
+    }
+    return formatLyrics(song.lyrics);
   }
 
   // API Client Helper
@@ -244,6 +257,8 @@
       }
 
       if (emptyEl) emptyEl.classList.add('hidden');
+      listEl.classList.toggle('view-comfortable', state.viewMode === 'comfortable');
+      listEl.classList.toggle('view-list', state.viewMode === 'list');
       renderSongCards(data.items, listEl);
     } catch (e) {
       toast('Şarkılar yüklenirken hata: ' + e.message, true);
@@ -291,22 +306,37 @@
             <div class="song-no-audio">📄 Sadece Söz ve Stil Promptu</div>
           `}
 
-          <!-- STYLE PROMPT BOX -->
-          <div class="song-style-box">
-            <div class="song-section-label">
-              <span>🎯 TAM STİL / PROMPT</span>
-              <button class="btn-copy-style ghost small" data-style="${escapeHtml(song.style)}" title="Promptu kopyala">📋 Kopyala</button>
+          <div class="song-content-cols">
+            <!-- STYLE PROMPT BOX -->
+            <div class="song-style-box ${state.expandAll ? 'expanded' : ''}">
+              <div class="song-section-label">
+                <span>🎯 TAM STİL / PROMPT</span>
+                <div style="display:inline-flex; gap:4px;">
+                  <button type="button" class="btn-copy-style ghost small" data-style="${escapeHtml(song.style)}" title="Promptu kopyala">📋 Kopyala</button>
+                  <button type="button" class="btn-toggle-style ghost small" title="Prompt metnini genişlet/daralt">${state.expandAll ? '↕ Daralt' : '↕ Genişlet'}</button>
+                </div>
+              </div>
+              <div class="song-style-content">${escapeHtml(song.style || 'Stil belirtilmemiş')}</div>
             </div>
-            <div class="song-style-content">${escapeHtml(song.style || 'Stil belirtilmemiş')}</div>
-          </div>
 
-          <!-- LYRICS PREVIEW -->
-          <div class="song-lyrics-box">
-            <div class="song-section-label">
-              <span>📝 ŞARKI SÖZLERİ</span>
-              <button class="btn-view-lyrics ghost small" data-id="${song.id}" title="Tam sözleri aç">📖 Genişlet</button>
+            <!-- LYRICS PREVIEW -->
+            <div class="song-lyrics-box ${state.expandAll ? 'expanded' : ''}">
+              <div class="song-section-label">
+                <div style="display:inline-flex; align-items:center; gap:6px;">
+                  <span>📝 ŞARKI SÖZLERİ</span>
+                  <div class="lyrics-mode-pills">
+                    <button type="button" class="pill-clean-lyrics active" data-id="${song.id}" title="Suno etiketleri olmadan saf sözler">Saf Sözler</button>
+                    <button type="button" class="pill-raw-lyrics" data-id="${song.id}" title="Orijinal Suno etiketleriyle göster">Etiketli</button>
+                  </div>
+                </div>
+                <div style="display:inline-flex; gap:4px;">
+                  <button type="button" class="btn-copy-clean-lyrics ghost small" data-id="${song.id}" title="Suno AI etiketleri olmadan saf şarkı sözlerini kopyala">📋 Tagsız Kopyala</button>
+                  <button type="button" class="btn-toggle-lyrics ghost small" title="Sözleri genişlet/daralt">${state.expandAll ? '↕ Daralt' : '↕ Genişlet'}</button>
+                  <button type="button" class="btn-view-lyrics ghost small" data-id="${song.id}" title="Tam ekran modalda aç">📖 Tam Ekran</button>
+                </div>
+              </div>
+              <div class="song-lyrics-preview" data-id="${song.id}">${renderLyricsPreview(song, 'clean')}</div>
             </div>
-            <div class="song-lyrics-preview">${formatLyrics(song.lyrics)}</div>
           </div>
         </div>
 
@@ -374,15 +404,62 @@
 
       // 4. Copy style
       const btnCopy = card.querySelector('.btn-copy-style');
-      btnCopy.addEventListener('click', (e) => {
+      btnCopy?.addEventListener('click', (e) => {
         e.stopPropagation();
         navigator.clipboard.writeText(song.style || '');
         toast('Suno Stil Promptu panoya kopyalandı! 📋');
       });
 
-      // 5. View Full Lyrics
+      // 4.1 Toggle style expand
+      const btnToggleStyle = card.querySelector('.btn-toggle-style');
+      btnToggleStyle?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const box = card.querySelector('.song-style-box');
+        box.classList.toggle('expanded');
+        btnToggleStyle.textContent = box.classList.contains('expanded') ? '↕ Daralt' : '↕ Genişlet';
+      });
+
+      // 5. Copy clean lyrics (tagless)
+      const btnCopyClean = card.querySelector('.btn-copy-clean-lyrics');
+      btnCopyClean?.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const cleanLines = cleanLyricsForSync(song.lyrics || '');
+        if (!cleanLines.length) return toast('Kopyalanacak şarkı sözü bulunamadı!', true);
+        await navigator.clipboard.writeText(cleanLines.join('\n'));
+        toast('✓ Saf şarkı sözleri (tagsız) panoya kopyalandı! 📋');
+      });
+
+      // 5.1 Toggle lyrics expand
+      const btnToggleLyrics = card.querySelector('.btn-toggle-lyrics');
+      btnToggleLyrics?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const box = card.querySelector('.song-lyrics-box');
+        box.classList.toggle('expanded');
+        btnToggleLyrics.textContent = box.classList.contains('expanded') ? '↕ Daralt' : '↕ Genişlet';
+      });
+
+      // 5.2 Toggle clean vs raw preview pills
+      const pillClean = card.querySelector('.pill-clean-lyrics');
+      const pillRaw = card.querySelector('.pill-raw-lyrics');
+      const prevEl = card.querySelector('.song-lyrics-preview');
+      if (pillClean && pillRaw && prevEl) {
+        pillClean.addEventListener('click', (e) => {
+          e.stopPropagation();
+          pillClean.classList.add('active');
+          pillRaw.classList.remove('active');
+          prevEl.innerHTML = renderLyricsPreview(song, 'clean');
+        });
+        pillRaw.addEventListener('click', (e) => {
+          e.stopPropagation();
+          pillRaw.classList.add('active');
+          pillClean.classList.remove('active');
+          prevEl.innerHTML = renderLyricsPreview(song, 'raw');
+        });
+      }
+
+      // 5.3 View Full Lyrics
       const btnLyrics = card.querySelector('.btn-view-lyrics');
-      btnLyrics.addEventListener('click', (e) => {
+      btnLyrics?.addEventListener('click', (e) => {
         e.stopPropagation();
         openLyricsModal(song);
       });
@@ -586,10 +663,43 @@
     $('#mlTitle').textContent = song.title;
     $('#mlArtist').textContent = (song.persona ? `🎭 ${song.persona}` : (song.artist ? `👤 ${song.artist}` : ''));
     $('#mlStyle').textContent = song.style || 'Belirtilmemiş';
-    $('#mlContent').innerHTML = formatLyrics(song.lyrics);
+
+    let currentModalMode = 'clean';
+    const updateModalLyricsView = () => {
+      const cleanLines = cleanLyricsForSync(song.lyrics || '');
+      if (currentModalMode === 'clean') {
+        $('#mlTabClean')?.classList.add('active');
+        $('#mlTabRaw')?.classList.remove('active');
+        $('#mlContent').innerHTML = cleanLines.length
+          ? cleanLines.map(l => `<div style="margin-bottom:6px">${escapeHtml(l)}</div>`).join('')
+          : '<span class="muted">Şarkı sözü bulunamadı</span>';
+      } else {
+        $('#mlTabRaw')?.classList.add('active');
+        $('#mlTabClean')?.classList.remove('active');
+        $('#mlContent').innerHTML = formatLyrics(song.lyrics);
+      }
+    };
+    updateModalLyricsView();
+
+    $('#mlTabClean').onclick = () => {
+      currentModalMode = 'clean';
+      updateModalLyricsView();
+    };
+    $('#mlTabRaw').onclick = () => {
+      currentModalMode = 'raw';
+      updateModalLyricsView();
+    };
+
+    $('#mlCopyCleanBtn').onclick = async () => {
+      const cleanText = cleanLyricsForSync(song.lyrics || '').join('\n');
+      if (!cleanText) return toast('Kopyalanacak şarkı sözü bulunamadı!', true);
+      await navigator.clipboard.writeText(cleanText);
+      toast('✓ Saf şarkı sözleri (tagsız) panoya kopyalandı! 📋');
+    };
+
     $('#mlCopyBtn').onclick = () => {
       navigator.clipboard.writeText(song.lyrics || '');
-      toast('Şarkı sözleri panoya kopyalandı! 📋');
+      toast('Orijinal şarkı sözleri (etiketli) panoya kopyalandı! 📋');
     };
     $('#mlCopyStyleBtn').onclick = () => {
       navigator.clipboard.writeText(song.style || '');
@@ -1053,6 +1163,44 @@
         state.sort = selSort.value;
         loadSongs();
       });
+    }
+
+    // View modes (Compact Grid, Comfortable 2-col, List 1-col)
+    function applyViewMode(mode) {
+      state.viewMode = mode;
+      localStorage.setItem('pv.musicViewMode', mode);
+      const grid = $('#musicSongGrid');
+      if (grid) {
+        grid.classList.remove('view-comfortable', 'view-list');
+        if (mode === 'comfortable') grid.classList.add('view-comfortable');
+        if (mode === 'list') grid.classList.add('view-list');
+      }
+      $('#btnViewCompact')?.classList.toggle('active', mode === 'grid');
+      $('#btnViewComfortable')?.classList.toggle('active', mode === 'comfortable');
+      $('#btnViewList')?.classList.toggle('active', mode === 'list');
+    }
+
+    $('#btnViewCompact')?.addEventListener('click', () => applyViewMode('grid'));
+    $('#btnViewComfortable')?.addEventListener('click', () => applyViewMode('comfortable'));
+    $('#btnViewList')?.addEventListener('click', () => applyViewMode('list'));
+
+    // Expand all toggle
+    $('#btnExpandAll')?.addEventListener('click', () => {
+      state.expandAll = !state.expandAll;
+      localStorage.setItem('pv.musicExpandAll', state.expandAll);
+      $('#btnExpandAll').textContent = state.expandAll ? '↕ Tümünü Daralt' : '↕ Tümünü Genişlet';
+      $('#btnExpandAll').classList.toggle('active', state.expandAll);
+      $$('.song-style-box').forEach(b => b.classList.toggle('expanded', state.expandAll));
+      $$('.song-lyrics-box').forEach(b => b.classList.toggle('expanded', state.expandAll));
+      $$('.btn-toggle-style').forEach(b => b.textContent = state.expandAll ? '↕ Daralt' : '↕ Genişlet');
+      $$('.btn-toggle-lyrics').forEach(b => b.textContent = state.expandAll ? '↕ Daralt' : '↕ Genişlet');
+    });
+
+    // Apply saved view mode on init
+    applyViewMode(state.viewMode || 'grid');
+    if (state.expandAll) {
+      $('#btnExpandAll')?.classList.add('active');
+      if ($('#btnExpandAll')) $('#btnExpandAll').textContent = '↕ Tümünü Daralt';
     }
 
     // Bulk bar buttons
