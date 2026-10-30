@@ -105,3 +105,26 @@ Gecenin ritmi akar
     assert song["title"] == "Hızlı Tren"
     assert song["persona"] == "Gece Kuşu"
     assert "synthwave" in song["style"]
+
+
+def test_quick_import_music_placeholder_sanitization(client_with_quick_import):
+    c, _, music_lib = client_with_quick_import
+    payload = {
+        "title": "Gece Yolculuğu",
+        "style": "Stil belirtilmemiş",
+        "lyrics": "Şarkı sözü bulunamadı",
+        "persona": "Yok",
+        "artist": "Bilinmeyen Sanatçı",
+        "suno_id": "test-clean-1234",
+    }
+    r = c.post("/api/quick-import/music", json=payload)
+    assert r.status_code == 200
+    res = r.json()
+    assert res["ok"] is True
+    song = music_lib.get_song(res["song_id"])
+    assert song["title"] == "Gece Yolculuğu"
+    assert song["persona"] == ""
+    assert song["artist"] == ""
+    assert song["style"] == ""
+    assert song["lyrics"] == ""
+

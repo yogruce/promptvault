@@ -184,6 +184,16 @@ def create_quick_import_router(lib: Library, music_lib: MusicLibrary) -> APIRout
         suno_url = (parsed.suno_url if parsed and parsed.suno_url else req.suno_url) or ""
         artist = req.artist or persona
 
+        # Clean fallback placeholders
+        if persona in ("Yok", "None", "null", "-"):
+            persona = ""
+        if artist in ("Yok", "None", "null", "-", "Bilinmeyen Sanatçı"):
+            artist = persona or ""
+        if style in ("Bulunamadı", "None", "Stil belirtilmemiş"):
+            style = ""
+        if lyrics in ("Bulunamadı", "None", "Şarkı sözü bulunamadı"):
+            lyrics = ""
+
         # Handle Audio file if url or b64 provided
         audio_path = None
         if req.audio_b64:
