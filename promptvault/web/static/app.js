@@ -128,6 +128,7 @@ async function loadStats() {
 }
 
 /* ---------------------------------------------------------- gallery */
+let imageWorkspaces = [];
 const G = { items: [], total: 0, offset: 0, limit: 60, selecting: false, selected: new Set(), current: -1, workspaceId: null };
 let lastSelectedIdx = null;
 
@@ -745,10 +746,6 @@ async function handleFilesSelected(fileOrFiles) {
     $("#uPreview").classList.remove("hidden");
   }
 }
-      } catch {}
-    }
-  } catch {}
-}
 
 function extractPngTextChunks(bytes) {
   const chunks = {};
@@ -977,8 +974,6 @@ function sendToMatrix(d) {
 }
 
 /* -------------------------------------------------------- workspaces */
-let imageWorkspaces = [];
-
 async function loadImageWorkspaces() {
   try {
     const list = await api("/api/workspaces");
