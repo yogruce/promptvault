@@ -40,10 +40,10 @@
 
   <!-- GLOBAL SETTINGS, QUICK IMPORT & LANGUAGE SWITCHER -->
   <div style="display:inline-flex; align-items:center; gap:8px;">
-    <button id="btnQuickImportModal" class="primary" type="button" title="Tek Tuşla Aktar (Quick Import)" data-i18n-title="btn_quick_import" style="background: linear-gradient(135deg, #7c3aed, #4f46e5); font-weight:600; display:inline-flex; align-items:center; gap:6px; box-shadow: 0 2px 10px rgba(124,58,237,0.35);">
+    <button id="btnQuickImportModal" class="primary" type="button" title="Tek Tuşla Aktar (Quick Import)" data-i18n-title="btn_quick_import_title" style="background: linear-gradient(135deg, #7c3aed, #4f46e5); font-weight:600; display:inline-flex; align-items:center; gap:6px; box-shadow: 0 2px 10px rgba(124,58,237,0.35);">
       <span>⚡</span> <span data-i18n="btn_quick_import">Tek Tuşla Aktar</span>
     </button>
-    <button id="btnGlobalSettings" class="ghost" type="button" title="Ayarlar" data-i18n-title="btn_settings" style="display:inline-flex; align-items:center; gap:6px;">
+    <button id="btnGlobalSettings" class="ghost" type="button" title="Ayarlar" data-i18n-title="btn_settings_title" style="display:inline-flex; align-items:center; gap:6px;">
       <span>⚙️</span> <span data-i18n="btn_settings">Ayarlar</span>
     </button>
     <div class="lang-switcher">
@@ -64,14 +64,14 @@
     <!-- GALLERY -->
     <section id="tab-gallery" class="tab active">
       <div class="toolbar">
-        <input id="q" type="search" autocomplete="off" spellcheck="false" placeholder='Ara: kedi "red hair" -blurry tag:portrait lora:detail gen:comfyui is:fav rating:>=3'>
+        <input id="q" type="search" autocomplete="off" spellcheck="false" placeholder='Ara: kedi "red hair" -blurry tag:portrait lora:detail gen:comfyui is:fav rating:>=3' data-i18n-ph="search_images_ph">
         <select id="sort">
-          <option value="added">En yeni</option><option value="oldest">En eski</option>
-          <option value="mtime">Dosya tarihi</option><option value="rating">Puan</option><option value="path">Yol</option>
+          <option value="added" data-i18n="sort_added">En yeni</option><option value="oldest" data-i18n="sort_oldest">En eski</option>
+          <option value="mtime" data-i18n="sort_mtime">Dosya tarihi</option><option value="rating" data-i18n="sort_rating">Puan</option><option value="path" data-i18n="sort_path">Yol</option>
         </select>
-        <button id="btnUpload" class="primary" title="Tek tek görsel yükle veya manuel prompt gir">⬆ Görsel Ekle</button>
-        <button id="btnQuickGdSync" class="ghost" title="Yeni olan her şeyi Google Drive'a yedekle">☁ Drive'a Yedekle</button>
-        <button id="selectMode" class="ghost" title="Çoklu seçim modu (Shift+Tık ile aralık seçebilirsiniz)">☐ Çoklu Seçim</button>
+        <button id="btnUpload" class="primary" title="Tek tek görsel yükle veya manuel prompt gir" data-i18n="btn_upload">⬆ Görsel Ekle</button>
+        <button id="btnQuickGdSync" class="ghost" title="Yeni olan her şeyi Google Drive'a yedekle" data-i18n="btn_drive_sync">☁ Drive'a Yedekle</button>
+        <button id="selectMode" class="ghost" title="Çoklu seçim modu (Shift+Tık ile aralık seçebilirsiniz)" data-i18n="btn_select_mode">☐ Çoklu Seçim</button>
         <details class="help"><summary>?</summary>
           <div><b>Arama dili</b><br>
             <code>kelime</code> prompt/not içinde · <code>-kelime</code> hariç<br>
@@ -627,7 +627,7 @@
           ⚡ Tampermonkey Clipper Kur (.user.js)
         </a>
         <button type="button" id="btnCopyClipperScriptModal" class="ghost" style="padding:10px 18px; font-size:14px; display:inline-flex; align-items:center; gap:8px;" title="Tampermonkey script kodunu panoya kopyala">
-          📋 Scripti Kopyala
+          <span>📋</span> <span data-i18n="qi_copy_script">Scripti Kopyala</span>
         </button>
       </div>
       <div class="chip-group" style="justify-content:center;">

@@ -3,10 +3,12 @@ const TRANSLATIONS = {
   tr: {
     // Header & Domain
     brand_sub: "AI Prompt, Metadata & Suno AI Yöneticisi",
-    domain_images: "🎨 Görseller",
-    domain_music: "🎵 Müzik (Suno AI)",
-    btn_settings: "⚙️ Ayarlar",
-    btn_quick_import: "⚡ Tek Tuşla Aktar",
+    domain_images: "Görseller",
+    domain_music: "Müzik (Suno AI)",
+    btn_settings: "Ayarlar",
+    btn_settings_title: "Sistem ve Entegrasyon Ayarları",
+    btn_quick_import: "Tek Tuşla Aktar",
+    btn_quick_import_title: "Tek Tuşla Aktar (Quick Import)",
     qi_modal_title: "Tek Tuşla Kasaya Aktar (Quick Import)",
     qi_modal_desc: "Suno AI şarkılarını veya Gemini/ChatGPT görsellerini tek tuşla anında yerel kasaya kaydedin.",
 
@@ -66,7 +68,7 @@ const TRANSLATIONS = {
     qi_btn_disable: "Durdur / Kapat",
     qi_btn_enable: "Etkinleştir / Aç",
     qi_install_btn: "⚡ Tampermonkey Clipper Kur (.user.js)",
-    qi_copy_script: "📋 Scripti Kopyala",
+    qi_copy_script: "Scripti Kopyala",
     qi_install_hint: "Kurulduğunda Gemini, ChatGPT, Flow ve Suno sayfalarında otomatik '⚡ Vault'a Aktar' butonu görünür.",
 
     // Google Drive Box
@@ -114,10 +116,12 @@ const TRANSLATIONS = {
   en: {
     // Header & Domain
     brand_sub: "AI Prompt, Metadata & Suno AI Manager",
-    domain_images: "🎨 Images",
-    domain_music: "🎵 Music (Suno AI)",
-    btn_settings: "⚙️ Settings",
-    btn_quick_import: "⚡ 1-Click Import",
+    domain_images: "Images",
+    domain_music: "Music (Suno AI)",
+    btn_settings: "Settings",
+    btn_settings_title: "System & Integration Settings",
+    btn_quick_import: "1-Click Import",
+    btn_quick_import_title: "1-Click Send to Vault (Quick Import)",
     qi_modal_title: "1-Click Send to Vault (Quick Import)",
     qi_modal_desc: "Send Suno AI songs or Gemini/ChatGPT images directly to your local vault in 1 click.",
 
@@ -177,7 +181,7 @@ const TRANSLATIONS = {
     qi_btn_disable: "Disable",
     qi_btn_enable: "Enable",
     qi_install_btn: "⚡ Install Tampermonkey Clipper (.user.js)",
-    qi_copy_script: "📋 Copy Script",
+    qi_copy_script: "Copy Script",
     qi_install_hint: "When installed, an automatic '⚡ Send to Vault' button appears on Gemini, ChatGPT, Flow, and Suno pages.",
 
     // Google Drive Box
@@ -268,8 +272,11 @@ function applyI18n() {
 // Export for usage in window
 window.t = t;
 window.setLanguage = setLanguage;
-window.currentLang = () => currentLang;
 window.applyI18n = applyI18n;
+Object.defineProperty(window, 'currentLang', {
+  get: () => currentLang,
+  set: (v) => setLanguage(v)
+});
 
 // Auto-bind language buttons on DOM ready
 if (typeof document !== 'undefined') {

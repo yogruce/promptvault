@@ -233,7 +233,9 @@ $("#selectMode").onclick = () => {
   G.selecting = !G.selecting;
   $("#grid").classList.toggle("selecting", G.selecting);
   $("#bulkbar").classList.toggle("hidden", !G.selecting && G.selected.size === 0);
-  $("#selectMode").textContent = G.selecting ? "☑ Seçim açık" : "☐ Çoklu Seçim";
+  $("#selectMode").textContent = G.selecting
+    ? (window.t ? "☑ " + (window.currentLang === "en" ? "Selection Active" : "Seçim Açık") : "☑ Seçim Açık")
+    : (window.t ? window.t("btn_select_mode") : "☐ Çoklu Seçim");
 };
 
 $("#bulkAll").onclick = () => {
