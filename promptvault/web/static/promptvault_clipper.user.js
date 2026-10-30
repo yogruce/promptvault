@@ -1,14 +1,19 @@
 // ==UserScript==
 // @name         PromptVault Universal Clipper (1-Click Send to Vault)
 // @namespace    http://tampermonkey.net/
-// @version      1.0.0
+// @version      1.1.0
 // @description  Gemini, ChatGPT, Flow/ImageFX ve Suno AI'dan tek tuşla görsel, prompt, şarkı ve üst verileri yerel PromptVault kasasına aktarır.
 // @author       PromptVault
-// @match        https://gemini.google.com/*
-// @match        https://chatgpt.com/*
-// @match        https://suno.com/*
-// @match        https://labs.google/fx/*
-// @match        https://aitestkitchen.withgoogle.com/*
+// @match        *://gemini.google.com/*
+// @match        *://*.gemini.google.com/*
+// @match        *://chatgpt.com/*
+// @match        *://*.chatgpt.com/*
+// @match        *://suno.com/*
+// @match        *://*.suno.com/*
+// @match        *://app.suno.ai/*
+// @match        *://labs.google/*
+// @match        *://*.labs.google/*
+// @match        *://aitestkitchen.withgoogle.com/*
 // @grant        GM_xmlhttpRequest
 // @connect      127.0.0.1
 // @connect      localhost
@@ -199,39 +204,47 @@
         container.parentNode.insertBefore(btn, container.nextSibling);
       });
 
-      // Floating button for song detail page (/song/...)
-      if (window.location.pathname.includes('/song/') && !document.getElementById('pv-suno-floating-btn')) {
-        const floatBtn = createVaultButton('⚡ Bu Şarkıyı Vault\'a Aktar');
+      // Persistent floating button on Suno
+      if (!document.getElementById('pv-suno-floating-btn')) {
+        const floatBtn = createVaultButton('⚡ Suno\'yu Vault\'a Aktar');
         floatBtn.id = 'pv-suno-floating-btn';
         floatBtn.style.position = 'fixed';
         floatBtn.style.bottom = '24px';
         floatBtn.style.left = '24px';
-        floatBtn.style.zIndex = '99999';
-        floatBtn.style.padding = '10px 16px';
-        floatBtn.style.fontSize = '14px';
-        floatBtn.style.boxShadow = '0 6px 20px rgba(0,0,0,0.6)';
+        floatBtn.style.zIndex = '2147483647';
+        floatBtn.style.padding = '10px 18px';
+        floatBtn.style.fontSize = '13.5px';
+        floatBtn.style.fontWeight = 'bold';
+        floatBtn.style.boxShadow = '0 6px 25px rgba(0,0,0,0.7)';
         floatBtn.onclick = () => {
           const url = window.location.href;
           const idMatch = url.match(/song\/([a-f0-9\-]+)/);
           const songId = idMatch ? idMatch[1] : '';
-          const titleEl = document.querySelector('h1, h2, [data-testid="song-title"]');
-          const title = titleEl ? titleEl.textContent.trim() : 'Suno Şarkısı';
-          const lyricsEl = document.querySelector('.lyrics, [data-testid="lyrics-content"], pre');
-          const lyrics = lyricsEl ? lyricsEl.textContent.trim() : '';
-          const styleEl = document.querySelector('[data-testid="style-tags"], .style-prompt');
-          const style = styleEl ? styleEl.textContent.trim() : '';
+
+          let title = '';
+          const titleEl = document.querySelector('h1, h2, [data-testid="song-title"], .song-title, [class*="songTitle"]');
+          if (titleEl) title = titleEl.textContent.trim();
+
+          let lyrics = '';
+          const lyricsEl = document.querySelector('.lyrics, [data-testid="lyrics-content"], pre, [class*="lyricsContent"]');
+          if (lyricsEl) lyrics = lyricsEl.textContent.trim();
+
+          let style = '';
+          const styleEl = document.querySelector('[data-testid="style-tags"], .style-prompt, [class*="styleTags"]');
+          if (styleEl) style = styleEl.textContent.trim();
+
           floatBtn.textContent = '⏳ Aktarılıyor...';
           floatBtn.disabled = true;
           sendToVault('music', {
-            title, lyrics, style, suno_id: songId, suno_url: url, generator: 'suno'
+            title: title || 'Suno Şarkısı', lyrics, style, suno_id: songId, suno_url: url, generator: 'suno'
           }, (data) => {
             floatBtn.innerHTML = '✓ Aktarıldı!';
             showToast(`"${data.title || title}" müzik kasasına aktarıldı! 🎵`);
-            setTimeout(() => { floatBtn.innerHTML = '⚡ Bu Şarkıyı Vault\'a Aktar'; floatBtn.disabled = false; }, 3000);
+            setTimeout(() => { floatBtn.innerHTML = '⚡ Suno\'yu Vault\'a Aktar'; floatBtn.disabled = false; }, 3000);
           }, (err) => {
             floatBtn.innerHTML = '❌ Hata';
             showToast(err, false);
-            setTimeout(() => { floatBtn.innerHTML = '⚡ Bu Şarkıyı Vault\'a Aktar'; floatBtn.disabled = false; }, 3000);
+            setTimeout(() => { floatBtn.innerHTML = '⚡ Suno\'yu Vault\'a Aktar'; floatBtn.disabled = false; }, 3000);
           });
         };
         document.body.appendChild(floatBtn);
@@ -308,6 +321,52 @@
 
         wrap.appendChild(btn);
       });
+
+      // Persistent floating button on Gemini
+      if (!document.getElementById('pv-gemini-floating-btn')) {
+        const floatBtn = createVaultButton('⚡ Gemini\'yi Vault\'a Gönder');
+        floatBtn.id = 'pv-gemini-floating-btn';
+        floatBtn.style.position = 'fixed';
+        floatBtn.style.bottom = '24px';
+        floatBtn.style.left = '24px';
+        floatBtn.style.zIndex = '2147483647';
+        floatBtn.style.padding = '10px 18px';
+        floatBtn.style.fontSize = '13.5px';
+        floatBtn.style.fontWeight = 'bold';
+        floatBtn.style.boxShadow = '0 6px 25px rgba(0,0,0,0.7)';
+        floatBtn.onclick = async () => {
+          const allImgs = [...document.querySelectorAll('img')].filter(i => (i.naturalWidth > 120 || i.width > 120));
+          const lastImg = allImgs[allImgs.length - 1];
+          if (!lastImg) {
+            showToast('Sayfada aktarılacak Gemini görseli bulunamadı!', false);
+            return;
+          }
+          floatBtn.textContent = '⏳ Gönderiliyor...';
+          floatBtn.disabled = true;
+          const b64 = await imgToBase64(lastImg);
+          const turn = lastImg.closest('.turn-container, .response-container, conversation-turn') || lastImg.parentElement;
+          let promptText = '';
+          if (turn) {
+            const prevUserTurn = turn.previousElementSibling || turn.closest('.conversation-container')?.querySelector('.user-query-container');
+            if (prevUserTurn) promptText = prevUserTurn.textContent.trim();
+          }
+          sendToVault('image', {
+            prompt: promptText || 'Gemini Generated Image',
+            generator: 'gemini',
+            image_b64: b64,
+            source_url: window.location.href,
+          }, () => {
+            floatBtn.innerHTML = '✓ Aktarıldı!';
+            showToast('Gemini görseli ve promptu kasaya kaydedildi! 🎨');
+            setTimeout(() => { floatBtn.innerHTML = '⚡ Gemini\'yi Vault\'a Gönder'; floatBtn.disabled = false; }, 3000);
+          }, (err) => {
+            floatBtn.innerHTML = '❌ Hata';
+            showToast(err, false);
+            setTimeout(() => { floatBtn.innerHTML = '⚡ Gemini\'yi Vault\'a Gönder'; floatBtn.disabled = false; }, 3000);
+          });
+        };
+        document.body.appendChild(floatBtn);
+      }
     }
 
     setInterval(attachGeminiButtons, 2000);
@@ -372,6 +431,47 @@
 
         wrap.appendChild(btn);
       });
+
+      // Persistent floating button on ChatGPT
+      if (!document.getElementById('pv-chatgpt-floating-btn')) {
+        const floatBtn = createVaultButton('⚡ ChatGPT\'yi Vault\'a Gönder');
+        floatBtn.id = 'pv-chatgpt-floating-btn';
+        floatBtn.style.position = 'fixed';
+        floatBtn.style.bottom = '24px';
+        floatBtn.style.left = '24px';
+        floatBtn.style.zIndex = '2147483647';
+        floatBtn.style.padding = '10px 18px';
+        floatBtn.style.fontSize = '13.5px';
+        floatBtn.style.fontWeight = 'bold';
+        floatBtn.style.boxShadow = '0 6px 25px rgba(0,0,0,0.7)';
+        floatBtn.onclick = async () => {
+          const allImgs = [...document.querySelectorAll('img')].filter(i => (i.naturalWidth > 150 || i.width > 150) && !i.src.startsWith('data:image/svg'));
+          const lastImg = allImgs[allImgs.length - 1];
+          if (!lastImg) {
+            showToast('Sayfada aktarılacak ChatGPT görseli bulunamadı!', false);
+            return;
+          }
+          floatBtn.textContent = '⏳ Gönderiliyor...';
+          floatBtn.disabled = true;
+          const b64 = await imgToBase64(lastImg);
+          const promptText = lastImg.alt || 'ChatGPT Generated Image';
+          sendToVault('image', {
+            prompt: promptText,
+            generator: 'chatgpt',
+            image_b64: b64,
+            source_url: window.location.href,
+          }, () => {
+            floatBtn.innerHTML = '✓ Aktarıldı!';
+            showToast('ChatGPT görseli ve promptu kasaya kaydedildi! 🎨');
+            setTimeout(() => { floatBtn.innerHTML = '⚡ ChatGPT\'yi Vault\'a Gönder'; floatBtn.disabled = false; }, 3000);
+          }, (err) => {
+            floatBtn.innerHTML = '❌ Hata';
+            showToast(err, false);
+            setTimeout(() => { floatBtn.innerHTML = '⚡ ChatGPT\'yi Vault\'a Gönder'; floatBtn.disabled = false; }, 3000);
+          });
+        };
+        document.body.appendChild(floatBtn);
+      }
     }
 
     setInterval(attachChatGPTButtons, 2000);

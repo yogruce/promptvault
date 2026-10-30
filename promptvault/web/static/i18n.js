@@ -6,6 +6,9 @@ const TRANSLATIONS = {
     domain_images: "🎨 Görseller",
     domain_music: "🎵 Müzik (Suno AI)",
     btn_settings: "⚙️ Ayarlar",
+    btn_quick_import: "⚡ Tek Tuşla Aktar",
+    qi_modal_title: "Tek Tuşla Kasaya Aktar (Quick Import)",
+    qi_modal_desc: "Suno AI şarkılarını veya Gemini/ChatGPT görsellerini tek tuşla anında yerel kasaya kaydedin.",
 
     // Image Tabs
     tab_gallery: "Galeri",
@@ -113,6 +116,9 @@ const TRANSLATIONS = {
     domain_images: "🎨 Images",
     domain_music: "🎵 Music (Suno AI)",
     btn_settings: "⚙️ Settings",
+    btn_quick_import: "⚡ 1-Click Import",
+    qi_modal_title: "1-Click Send to Vault (Quick Import)",
+    qi_modal_desc: "Send Suno AI songs or Gemini/ChatGPT images directly to your local vault in 1 click.",
 
     // Image Tabs
     tab_gallery: "Gallery",

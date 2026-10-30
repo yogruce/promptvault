@@ -1102,3 +1102,130 @@ if (window.applyI18n) {
   window.applyI18n();
 }
 
+/* -------------------------------------------------------- quick import modal */
+function openQuickImportModal() {
+  $("#quickImportModal")?.classList.remove("hidden");
+}
+function closeQuickImportModal() {
+  $("#quickImportModal")?.classList.add("hidden");
+}
+$("#btnQuickImportModal")?.addEventListener("click", openQuickImportModal);
+$("#qiClose")?.addEventListener("click", closeQuickImportModal);
+$("#qiMusicCancel")?.addEventListener("click", closeQuickImportModal);
+$("#qiImageCancel")?.addEventListener("click", closeQuickImportModal);
+
+// Modal tabs
+$("#qiTabMusic")?.addEventListener("click", () => {
+  $("#qiTabMusic").classList.add("active");
+  $("#qiTabImage").classList.remove("active");
+  $("#qiTabExt").classList.remove("active");
+  $("#qiPanelMusic").classList.remove("hidden");
+  $("#qiPanelImage").classList.add("hidden");
+  $("#qiPanelExt").classList.add("hidden");
+});
+$("#qiTabImage")?.addEventListener("click", () => {
+  $("#qiTabImage").classList.add("active");
+  $("#qiTabMusic").classList.remove("active");
+  $("#qiTabExt").classList.remove("active");
+  $("#qiPanelImage").classList.remove("hidden");
+  $("#qiPanelMusic").classList.add("hidden");
+  $("#qiPanelExt").classList.add("hidden");
+});
+$("#qiTabExt")?.addEventListener("click", () => {
+  $("#qiTabExt").classList.add("active");
+  $("#qiTabMusic").classList.remove("active");
+  $("#qiTabImage").classList.remove("active");
+  $("#qiPanelExt").classList.remove("hidden");
+  $("#qiPanelMusic").classList.add("hidden");
+  $("#qiPanelImage").classList.add("hidden");
+});
+
+// Submit music
+$("#qiMusicSubmit")?.addEventListener("click", async () => {
+  const url = $("#qiMusicUrl").value.trim();
+  const title = $("#qiMusicTitle").value.trim();
+  const artist = $("#qiMusicArtist").value.trim();
+  const style = $("#qiMusicStyle").value.trim();
+  const lyrics = $("#qiMusicLyrics").value.trim();
+
+  if (!url && !title && !style && !lyrics) {
+    return toast("Lütfen bir şarkı linki, başlık veya söz/stil girin!");
+  }
+
+  const btn = $("#qiMusicSubmit");
+  btn.textContent = "⏳ Kaydediliyor...";
+  btn.disabled = true;
+
+  try {
+    const res = await api("/api/quick-import/music", {
+      method: "POST",
+      body: {
+        suno_url: url,
+        title: title || (url ? "Suno Şarkısı" : "İsimsiz Şarkı"),
+        style,
+        lyrics,
+        artist,
+        generator: "suno"
+      }
+    });
+    toast(`✓ "${res.title || title}" şarkısı kasaya aktarıldı! 🎵`);
+    closeQuickImportModal();
+    $("#qiMusicUrl").value = "";
+    $("#qiMusicTitle").value = "";
+    $("#qiMusicArtist").value = "";
+    $("#qiMusicStyle").value = "";
+    $("#qiMusicLyrics").value = "";
+    if (window.loadSongs) window.loadSongs();
+  } catch (e) {
+    toast("Hata: " + e.message);
+  } finally {
+    btn.textContent = "⚡ Şarkıyı Kasaya Aktar";
+    btn.disabled = false;
+  }
+});
+
+// Submit image
+$("#qiImageSubmit")?.addEventListener("click", async () => {
+  const prompt = $("#qiImagePrompt").value.trim();
+  const image_url = $("#qiImageUrl").value.trim();
+  const generator = $("#qiImageGen").value;
+  const model = $("#qiImageModel").value.trim();
+
+  if (!prompt && !image_url) {
+    return toast("Lütfen en azından bir prompt veya görsel linki girin!");
+  }
+
+  const btn = $("#qiImageSubmit");
+  btn.textContent = "⏳ Kaydediliyor...";
+  btn.disabled = true;
+
+  try {
+    const payload = {
+      prompt: prompt || `${generator} generated image`,
+      generator,
+      model: model || generator
+    };
+    if (image_url.startsWith("data:image")) {
+      payload.image_b64 = image_url;
+    } else if (image_url) {
+      payload.image_url = image_url;
+    }
+    await api("/api/quick-import/image", {
+      method: "POST",
+      body: payload
+    });
+    toast(`✓ Görsel ve prompt kasaya eklendi! 🎨`);
+    closeQuickImportModal();
+    $("#qiImagePrompt").value = "";
+    $("#qiImageUrl").value = "";
+    $("#qiImageModel").value = "";
+    loadImages(true);
+    loadStats();
+  } catch (e) {
+    toast("Hata: " + e.message);
+  } finally {
+    btn.textContent = "⚡ Görseli Kasaya Aktar";
+    btn.disabled = false;
+  }
+});
+
