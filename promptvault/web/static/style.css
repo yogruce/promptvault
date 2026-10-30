@@ -550,39 +550,195 @@ h3 { margin: 18px 0 8px; }
   border-radius: 10px;
 }
 
-/* LYRICS FULL MODAL */
-.modal-box.modal-lyrics {
-  width: min(850px, 94vw);
-  height: 85vh;
-  padding: 24px;
+/* =====================================================================
+   SONG DETAIL & EXPANSION MODAL (MIRRORS IMAGE DETAIL MODAL)
+   ===================================================================== */
+.modal-box.modal-song-detail {
+  position: relative;
+  width: min(1320px, 96vw);
+  height: 92vh;
+  background: var(--panel);
+  border-radius: 14px;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7);
+  border: 1px solid var(--line);
 }
-.lyrics-header {
+.modal-song-detail .nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  font-size: 26px;
+  transition: all 0.15s ease;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+.modal-song-detail .nav.prev {
+  left: 12px;
+}
+.modal-song-detail .nav.next {
+  right: 12px;
+}
+.modal-song-detail .nav:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  transform: translateY(-50%) scale(1.1);
+}
+.modal-song-detail .nav:disabled,
+.modal-song-detail .nav.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.song-detail-grid {
+  display: grid;
+  grid-template-columns: 46% 54%;
+  height: 100%;
+  overflow: hidden;
+}
+@media (max-width: 900px) {
+  .song-detail-grid {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+}
+.song-detail-left {
+  padding: 24px 28px;
+  overflow-y: auto;
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--panel);
+}
+.song-detail-title {
+  margin: 0 0 6px 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.3;
+}
+.song-detail-badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.song-detail-player {
+  background: var(--panel2);
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+}
+.song-detail-action-bar {
   display: flex;
   align-items: center;
+  gap: 10px;
+  background: var(--panel2);
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+}
+.song-detail-downloads-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+.song-detail-style-box {
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+.song-detail-style-text {
+  color: #c4ccde;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  max-height: 250px;
+  overflow-y: auto;
+  padding: 10px 12px;
+  background: #07090e;
+  border-radius: 6px;
+  border: 1px solid #ffffff0d;
+}
+.song-detail-right {
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  background: #090c15;
+  height: 100%;
+  overflow: hidden;
+}
+.song-detail-lyrics-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--line);
 }
-.lyrics-style-banner {
+.song-lyrics-tabs {
+  display: inline-flex;
+  gap: 4px;
   background: var(--panel2);
-  border-left: 3px solid #8b5cf6;
-  padding: 10px 14px;
-  font-size: 13px;
-  margin: 14px 0;
-  border-radius: 0 8px 8px 0;
-}
-.lyrics-content-full {
-  flex: 1;
-  overflow-y: auto;
-  font-family: Consolas, "Cascadia Code", monospace;
-  font-size: 14px;
-  line-height: 1.7;
-  white-space: pre-wrap;
-  padding: 14px;
-  background: #090b10;
+  padding: 3px;
   border-radius: 8px;
   border: 1px solid var(--line);
+}
+.song-lyrics-tabs .tab-btn {
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  padding: 5px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+.song-lyrics-tabs .tab-btn.active {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+.song-lyrics-actions {
+  display: inline-flex;
+  gap: 6px;
+}
+.song-detail-lyrics-scroll {
+  flex: 1;
+  overflow-y: auto;
+  font-size: 14.5px;
+  line-height: 1.8;
+  padding: 18px 22px;
+  background: var(--panel2);
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  color: #f1f5f9;
+  font-family: inherit;
+  white-space: pre-line;
+}
+.song-detail-lyrics-scroll.tagged-mode {
+  font-family: Consolas, "Cascadia Code", monospace;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 /* =====================================================================

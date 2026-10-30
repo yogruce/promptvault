@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PromptVault ◈ AI Prompt, Metadata & Suno AI Müzik Yöneticisi</title>
-<link rel="stylesheet" href="/static/style.css">
-<script src="/static/i18n.js"></script>
+<link rel="stylesheet" href="/static/style.css?v=2.2">
+<script src="/static/i18n.js?v=2.2"></script>
 </head>
 <body>
 <header>
@@ -683,36 +683,74 @@
   </div>
 </div>
 
-<!-- ŞARKI SÖZLERİ (LYRICS) TAM EKRAN MODALI -->
+<!-- ŞARKI DETAY & GENİŞLETME MODALI (GÖRSEL DETAY MODALİ İLE BİREBİR AYNI MANTIK) -->
 <div id="musicLyricsModal" class="modal hidden">
-  <div class="modal-box modal-lyrics">
+  <div class="modal-box modal-song-detail">
     <button class="close" id="mlClose">✕</button>
-    <div class="lyrics-header">
-      <div>
-        <h2 id="mlTitle" style="margin:0">Şarkı Sözleri</h2>
-        <span id="mlArtist" class="muted small"></span>
-      </div>
-      <div style="display:inline-flex; gap:3px; margin-left:14px; background:var(--panel2); padding:3px; border-radius:8px; border:1px solid var(--line);">
-        <button id="mlTabClean" type="button" class="ghost small active" title="Suno etiketleri olmadan saf sözler">🎙️ Saf Sözler (Tagsız)</button>
-        <button id="mlTabRaw" type="button" class="ghost small" title="Orijinal Suno etiketleriyle göster">📝 Orijinal (Etiketli)</button>
-      </div>
-      <div style="flex:1"></div>
-      <div id="mlDownloads" style="display:inline-flex; gap:6px; margin-right:8px">
-        <a id="mlDlLrc" class="ghost small hidden" download title="LRC formatında indir">📥 .LRC</a>
-        <a id="mlDlSrt" class="ghost small hidden" download title="SRT altyazı indir">📥 .SRT</a>
-        <a id="mlDlTxt" class="ghost small" download title="Düz TXT indir">📥 .TXT</a>
-      </div>
-      <button id="mlOpenSyncBtn" class="primary small" style="margin-right:8px">🎙️ Senkronlayıcı</button>
-      <button id="mlCopyCleanBtn" class="primary small" style="margin-right:6px" title="Suno etiketleri olmadan saf şarkı sözlerini kopyala">📋 Tagsız Kopyala</button>
-      <button id="mlCopyBtn" class="ghost small" style="margin-right:6px" title="Orijinal sözleri etiketlerle kopyala">📄 Orijinal Kopyala</button>
-      <button id="mlCopyStyleBtn" class="ghost small">🎯 Stili Kopyala</button>
-    </div>
-    
-    <div class="lyrics-style-banner">
-      <b>Stil / Prompt:</b> <span id="mlStyle"></span>
-    </div>
+    <button class="nav prev" id="mlPrev" title="Önceki Şarkı (Sol Ok)">‹</button>
+    <button class="nav next" id="mlNext" title="Sonraki Şarkı (Sağ Ok)">›</button>
 
-    <div id="mlContent" class="lyrics-content-full"></div>
+    <div class="song-detail-grid">
+      <!-- SOL PANEL: BİLGİLER, OYNATICI, PUAN, PROMPT & İŞLEMLER -->
+      <div class="song-detail-left">
+        <div>
+          <h2 id="mlTitle" class="song-detail-title">Şarkı Başlığı</h2>
+          <div class="song-detail-badges" id="mlBadges"></div>
+        </div>
+
+        <!-- AUDIO PLAYER -->
+        <div class="song-detail-player" id="mlPlayerBox">
+          <audio id="mlAudio" controls preload="none" style="width:100%; height:40px;"></audio>
+        </div>
+
+        <!-- ACTION BAR: STARS, FAV, SUNO LINK, SYNC -->
+        <div class="song-detail-action-bar">
+          <div class="stars" id="mlStars"></div>
+          <button id="mlFavBtn" class="favbtn">★ Favori</button>
+          <div style="flex:1"></div>
+          <a id="mlSunoLink" href="#" target="_blank" class="ghost small" title="Suno sayfasında aç">🔗 Suno</a>
+          <button id="mlOpenSyncBtn" class="primary small" title="DistroKid tarzı senkronlayıcıyı aç">🎙️ Senkronla</button>
+        </div>
+
+        <!-- DOWNLOADS & EDIT -->
+        <div class="song-detail-downloads-row">
+          <span class="muted small">İndir:</span>
+          <a id="mlDlTxt" class="ghost small" download title="Şarkı sözlerini .txt olarak indir">📄 TXT</a>
+          <a id="mlDlLrc" class="ghost small hidden" download title="Senkronlu .lrc indir">🎙️ LRC</a>
+          <a id="mlDlSrt" class="ghost small hidden" download title="Altyazı .srt indir">🎬 SRT</a>
+          <a id="mlDlAudio" class="ghost small hidden" download title="Ses dosyasını (.mp3) indir">🎵 Ses İndir</a>
+          <div style="flex:1"></div>
+          <button id="mlEditBtn" class="ghost small" title="Şarkıyı düzenle">✏️ Düzenle</button>
+          <button id="mlDeleteBtn" class="ghost small danger" title="Şarkıyı kasadan sil">🗑️ Sil</button>
+        </div>
+
+        <!-- STYLE PROMPT SECTION -->
+        <div class="song-detail-style-box">
+          <div class="song-section-label">
+            <span>🎯 TAM STİL / PROMPT</span>
+            <button id="mlCopyStyleBtn" type="button" class="ghost small" title="Suno stil promptunu kopyala">📋 Promptu Kopyala</button>
+          </div>
+          <div id="mlStyle" class="song-detail-style-text"></div>
+        </div>
+      </div>
+
+      <!-- SAĞ PANEL: ŞARKI SÖZLERİ (GENİŞ, FERAH OKUMA MODU) -->
+      <div class="song-detail-right">
+        <div class="song-detail-lyrics-header">
+          <div class="song-lyrics-tabs">
+            <button id="mlTabClean" type="button" class="tab-btn active" title="Suno etiketleri olmadan saf sözler">🎙️ Saf Sözler (Tagsız)</button>
+            <button id="mlTabRaw" type="button" class="tab-btn" title="Orijinal Suno etiketleriyle göster">📝 Orijinal (Etiketli)</button>
+          </div>
+          <div style="flex:1"></div>
+          <div class="song-lyrics-actions">
+            <button id="mlCopyCleanBtn" type="button" class="primary small" title="Suno AI etiketleri olmadan saf şarkı sözlerini kopyala">📋 Tagsız Kopyala</button>
+            <button id="mlCopyBtn" type="button" class="ghost small" title="Orijinal sözleri etiketlerle kopyala">📄 Orijinal Kopyala</button>
+          </div>
+        </div>
+
+        <div id="mlContent" class="song-detail-lyrics-scroll"></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -906,7 +944,7 @@
 </div>
 
 <div id="toast" class="toast hidden"></div>
-<script src="/static/app.js"></script>
-<script src="/static/music.js"></script>
+<script src="/static/app.js?v=2.2"></script>
+<script src="/static/music.js?v=2.2"></script>
 </body>
 </html>

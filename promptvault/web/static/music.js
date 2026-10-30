@@ -404,12 +404,11 @@
         toast('Suno Stil Promptu panoya kopyalandı! 📋');
       });
 
-      // 4.1 Toggle style expand on click
+      // 4.1 Click style prompt to open detail
       const styleContent = card.querySelector('.song-style-content');
       styleContent?.addEventListener('click', (e) => {
         e.stopPropagation();
-        const box = card.querySelector('.song-style-box');
-        box.classList.toggle('expanded');
+        openSongDetail(idx);
       });
 
       // 5. Copy clean lyrics (tagless)
@@ -422,20 +421,21 @@
         toast('✓ Saf şarkı sözleri (tagsız) panoya kopyalandı! 📋');
       });
 
-      // 5.1 Expand / collapse lyrics inside card (accordion style)
+      // 5.1 Open Song Detail Modal on "Genişlet" button (just like Image Gallery detail)
       const btnToggleLyrics = card.querySelector('.btn-toggle-lyrics');
       btnToggleLyrics?.addEventListener('click', (e) => {
         e.stopPropagation();
-        const box = card.querySelector('.song-lyrics-box');
-        const isExp = box.classList.toggle('expanded');
-        btnToggleLyrics.textContent = isExp ? (window.t ? window.t('btn_collapse') : '📕 Daralt') : (window.t ? window.t('btn_expand') : '📖 Genişlet');
+        openSongDetail(idx);
       });
 
-      // 5.3 View Full Lyrics
-      const btnLyrics = card.querySelector('.btn-view-lyrics');
-      btnLyrics?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        openLyricsModal(song);
+      // 5.2 Stop propagation on audio clicks so card click doesn't fire
+      const cardAudio = card.querySelector('audio');
+      cardAudio?.addEventListener('click', (e) => e.stopPropagation());
+
+      // 5.3 Clicking anywhere on card (except buttons, links, audio, chk, stars) opens Song Detail
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('button, a, audio, .chk, .star, .song-fav-btn')) return;
+        openSongDetail(idx);
       });
 
       // 5.1 Open Lyrics Synchronizer
@@ -630,27 +630,205 @@
   // ===================================================================
   // MODALS
   // ===================================================================
-  // 1. Lyrics Modal
-  function openLyricsModal(song) {
+  // 1. Song Detail & Expansion Modal (Mirrors Gallery Detail Modal)
+  function openSongDetail(target) {
+    let idx = -1;
+    if (typeof target === 'number') {
+      idx = target;
+    } else if (target && target.id) {
+      idx = state.songs.findIndex(s => s.id === target.id);
+    }
+    if (idx < 0 || idx >= state.songs.length) return;
+    state.currentSongIdx = idx;
+    const song = state.songs[idx];
     const modal = $('#musicLyricsModal');
     if (!modal) return;
-    $('#mlTitle').textContent = song.title;
-    $('#mlArtist').textContent = (song.persona ? `🎭 ${song.persona}` : (song.artist ? `👤 ${song.artist}` : ''));
-    $('#mlStyle').textContent = song.style || 'Belirtilmemiş';
 
+    // Title
+    $('#mlTitle').textContent = song.title || 'İsimsiz Şarkı';
+
+    // Badges
+    const wsColor = song.workspace_color || '#8b5cf6';
+    const wsName = song.workspace_name || 'Genel';
+    const artist = song.artist || 'Bilinmeyen Sanatçı';
+    const badgesHtml = `
+      <span class="song-ws-badge" style="background:${wsColor}22; color:${wsColor}; border:1px solid ${wsColor}66">
+        📁 ${escapeHtml(wsName)}
+      </span>
+      ${song.persona ? `<span class="song-persona-badge" title="Suno Persona">🎭 ${escapeHtml(song.persona)}</span>` : ''}
+      <span class="song-artist" style="font-size:13px; font-weight:600; color:var(--accent2); margin:0 4px;">👤 ${escapeHtml(artist)}</span>
+      <span class="song-model-badge">${escapeHtml(song.model || 'Suno AI')}</span>
+      ${song.has_synced_lyrics ? `<span class="song-synced-badge" title="Senkronize LRC ve SRT hazır">🎙️ LRC/SRT</span>` : ''}
+    `;
+    const badgesEl = $('#mlBadges');
+    if (badgesEl) badgesEl.innerHTML = badgesHtml;
+
+    // Audio Player
+    const audioEl = $('#mlAudio');
+    const playerBox = $('#mlPlayerBox');
+    if (audioEl) {
+      if (song.has_audio) {
+        audioEl.src = `/api/music/songs/${song.id}/audio`;
+        playerBox?.classList.remove('hidden');
+      } else {
+        audioEl.pause();
+        audioEl.src = '';
+        playerBox?.classList.add('hidden');
+      }
+    }
+
+    // Stars rating
+    const starsEl = $('#mlStars');
+    if (starsEl) {
+      starsEl.innerHTML = renderStars(song.id, song.rating || 0);
+      starsEl.querySelectorAll('.star').forEach(st => {
+        st.onclick = async (e) => {
+          e.stopPropagation();
+          const r = parseInt(st.dataset.val, 10);
+          try {
+            await api(`/api/music/songs/${song.id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ rating: r }),
+            });
+            song.rating = r;
+            starsEl.innerHTML = renderStars(song.id, r);
+            const cardStar = $(`#musicSongList .song-card[data-id="${song.id}"] .song-stars`);
+            if (cardStar) cardStar.innerHTML = renderStars(song.id, r);
+            toast(`Puan verildi: ${r} Yıldız`);
+          } catch (err) {
+            toast('Puan kaydedilemedi: ' + err.message, true);
+          }
+        };
+      });
+    }
+
+    // Favorite Button
+    const favBtn = $('#mlFavBtn');
+    if (favBtn) {
+      favBtn.textContent = song.favorite ? '★ Favori' : '☆ Favori';
+      favBtn.classList.toggle('active', !!song.favorite);
+      favBtn.onclick = async (e) => {
+        e.stopPropagation();
+        const newFav = !song.favorite;
+        try {
+          await api(`/api/music/songs/${song.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ favorite: newFav }),
+          });
+          song.favorite = newFav;
+          favBtn.textContent = newFav ? '★ Favori' : '☆ Favori';
+          favBtn.classList.toggle('active', newFav);
+          const cardFav = $(`#musicSongList .song-card[data-id="${song.id}"] .song-fav-btn`);
+          if (cardFav) cardFav.classList.toggle('on', newFav);
+          loadMusicStats();
+        } catch (err) {
+          toast('Favori güncellenemedi: ' + err.message, true);
+        }
+      };
+    }
+
+    // Suno Link
+    const sunoLink = $('#mlSunoLink');
+    if (sunoLink) {
+      if (song.suno_url) {
+        sunoLink.href = song.suno_url;
+        sunoLink.classList.remove('hidden');
+      } else {
+        sunoLink.classList.add('hidden');
+      }
+    }
+
+    // Downloads
+    const dlTxt = $('#mlDlTxt');
+    const dlLrc = $('#mlDlLrc');
+    const dlSrt = $('#mlDlSrt');
+    const dlAudio = $('#mlDlAudio');
+    if (dlTxt) dlTxt.href = `/api/music/songs/${song.id}/download/txt`;
+    if (song.has_synced_lyrics) {
+      if (dlLrc) { dlLrc.href = `/api/music/songs/${song.id}/download/lrc`; dlLrc.classList.remove('hidden'); }
+      if (dlSrt) { dlSrt.href = `/api/music/songs/${song.id}/download/srt`; dlSrt.classList.remove('hidden'); }
+    } else {
+      if (dlLrc) dlLrc.classList.add('hidden');
+      if (dlSrt) dlSrt.classList.add('hidden');
+    }
+    if (song.has_audio && dlAudio) {
+      dlAudio.href = `/api/music/songs/${song.id}/audio`;
+      dlAudio.classList.remove('hidden');
+    } else if (dlAudio) {
+      dlAudio.classList.add('hidden');
+    }
+
+    // Edit button inside detail modal
+    const editBtn = $('#mlEditBtn');
+    if (editBtn) {
+      editBtn.onclick = () => {
+        closeSongDetailModal();
+        openEditSongModal(song);
+      };
+    }
+
+    // Delete button inside detail modal
+    const deleteBtn = $('#mlDeleteBtn');
+    if (deleteBtn) {
+      deleteBtn.onclick = async () => {
+        if (!confirm(`"${song.title}" adlı şarkıyı kasadan silmek istediğinize emin misiniz?`)) return;
+        try {
+          await api(`/api/music/songs/${song.id}`, { method: 'DELETE' });
+          closeSongDetailModal();
+          state.songs = state.songs.filter(s => s.id !== song.id);
+          const card = $(`#musicSongList .song-card[data-id="${song.id}"]`);
+          if (card) card.remove();
+          toast('Şarkı silindi');
+          loadMusicStats();
+        } catch (err) {
+          toast('Silinemedi: ' + err.message, true);
+        }
+      };
+    }
+
+    // Style / Prompt
+    const styleEl = $('#mlStyle');
+    if (styleEl) styleEl.textContent = song.style || 'Belirtilmemiş';
+
+    $('#mlCopyStyleBtn').onclick = () => {
+      navigator.clipboard.writeText(song.style || '');
+      toast('Suno Tam Stil promptu panoya kopyalandı! 📋');
+    };
+
+    // Synchronizer button
+    const syncBtn = $('#mlOpenSyncBtn');
+    if (syncBtn) {
+      if (song.has_audio) {
+        syncBtn.classList.remove('hidden');
+        syncBtn.onclick = () => {
+          closeSongDetailModal();
+          openSyncModal(song);
+        };
+      } else {
+        syncBtn.classList.add('hidden');
+      }
+    }
+
+    // Lyrics Content & Tabs
     let currentModalMode = 'clean';
     const updateModalLyricsView = () => {
       const cleanLines = cleanLyricsForSync(song.lyrics || '');
+      const contentEl = $('#mlContent');
+      if (!contentEl) return;
       if (currentModalMode === 'clean') {
         $('#mlTabClean')?.classList.add('active');
         $('#mlTabRaw')?.classList.remove('active');
-        $('#mlContent').innerHTML = cleanLines.length
-          ? cleanLines.map(l => `<div style="margin-bottom:6px">${escapeHtml(l)}</div>`).join('')
+        contentEl.classList.remove('tagged-mode');
+        contentEl.innerHTML = cleanLines.length
+          ? cleanLines.map(l => `<div style="margin-bottom:8px">${escapeHtml(l)}</div>`).join('')
           : '<span class="muted">Şarkı sözü bulunamadı</span>';
       } else {
         $('#mlTabRaw')?.classList.add('active');
         $('#mlTabClean')?.classList.remove('active');
-        $('#mlContent').innerHTML = formatLyrics(song.lyrics);
+        contentEl.classList.add('tagged-mode');
+        contentEl.innerHTML = formatLyrics(song.lyrics);
       }
     };
     updateModalLyricsView();
@@ -675,38 +853,38 @@
       navigator.clipboard.writeText(song.lyrics || '');
       toast('Orijinal şarkı sözleri (etiketli) panoya kopyalandı! 📋');
     };
-    $('#mlCopyStyleBtn').onclick = () => {
-      navigator.clipboard.writeText(song.style || '');
-      toast('Suno Tam Stil promptu panoya kopyalandı! 📋');
-    };
 
-    // Download links in lyrics modal
-    const dlLrc = $('#mlDlLrc');
-    const dlSrt = $('#mlDlSrt');
-    const dlTxt = $('#mlDlTxt');
-    if (dlTxt) dlTxt.href = `/api/music/songs/${song.id}/download/txt`;
-    if (song.has_synced_lyrics) {
-      if (dlLrc) { dlLrc.href = `/api/music/songs/${song.id}/download/lrc`; dlLrc.classList.remove('hidden'); }
-      if (dlSrt) { dlSrt.href = `/api/music/songs/${song.id}/download/srt`; dlSrt.classList.remove('hidden'); }
-    } else {
-      if (dlLrc) dlLrc.classList.add('hidden');
-      if (dlSrt) dlSrt.classList.add('hidden');
+    // Navigation buttons (‹ and ›)
+    const prevBtn = $('#mlPrev');
+    const nextBtn = $('#mlNext');
+    if (prevBtn) {
+      prevBtn.classList.toggle('disabled', idx <= 0);
+      prevBtn.onclick = () => {
+        if (idx > 0) openSongDetail(idx - 1);
+      };
     }
-
-    const syncBtn = $('#mlOpenSyncBtn');
-    if (syncBtn) {
-      if (song.has_audio) {
-        syncBtn.classList.remove('hidden');
-        syncBtn.onclick = () => {
-          modal.classList.add('hidden');
-          openSyncModal(song);
-        };
-      } else {
-        syncBtn.classList.add('hidden');
-      }
+    if (nextBtn) {
+      nextBtn.classList.toggle('disabled', idx >= state.songs.length - 1);
+      nextBtn.onclick = () => {
+        if (idx < state.songs.length - 1) openSongDetail(idx + 1);
+      };
     }
 
     modal.classList.remove('hidden');
+  }
+
+  function closeSongDetailModal() {
+    const modal = $('#musicLyricsModal');
+    if (modal) modal.classList.add('hidden');
+    const audioEl = $('#mlAudio');
+    if (audioEl) {
+      audioEl.pause();
+      audioEl.src = '';
+    }
+  }
+
+  function openLyricsModal(song) {
+    openSongDetail(song);
   }
 
   // ===================================================================
@@ -1196,7 +1374,20 @@
     });
 
     // Close Modals
-    $('#mlClose')?.addEventListener('click', () => $('#musicLyricsModal')?.classList.add('hidden'));
+    $('#mlClose')?.addEventListener('click', closeSongDetailModal);
+    $('#musicLyricsModal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'musicLyricsModal') closeSongDetailModal();
+    });
+
+    // Keyboard navigation for Song Detail Modal (ArrowLeft / ArrowRight / Escape)
+    document.addEventListener('keydown', (e) => {
+      const modal = $('#musicLyricsModal');
+      if (!modal || modal.classList.contains('hidden')) return;
+      if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
+      if (e.key === 'Escape') closeSongDetailModal();
+      if (e.key === 'ArrowLeft') $('#mlPrev')?.click();
+      if (e.key === 'ArrowRight') $('#mlNext')?.click();
+    });
     $('#meClose')?.addEventListener('click', () => $('#musicEditModal')?.classList.add('hidden'));
     $('#meCancel')?.addEventListener('click', () => $('#musicEditModal')?.classList.add('hidden'));
     $('#muClose')?.addEventListener('click', () => $('#musicUploadModal')?.classList.add('hidden'));
