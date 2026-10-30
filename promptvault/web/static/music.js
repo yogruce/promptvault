@@ -289,6 +289,7 @@
       const wsName = song.workspace_name || 'Genel';
       const artist = song.artist || 'Bilinmeyen Sanatçı';
       const ratingStars = renderStars(song.id, song.rating || 0);
+      const safeCardTitle = (song.title || 'song').replace(/[\\/:*?"<>|\r\n\t]/g, '_').trim() || 'song';
 
       card.innerHTML = `
         <div class="song-card-header">
@@ -345,8 +346,8 @@
           <div class="song-actions">
             ${song.has_audio ? `<button class="btn-open-sync ghost small" data-id="${song.id}" title="DistroKid tarzı şarkı sözü senkronla">🎙️ Senkronla</button>` : ''}
             ${song.has_synced_lyrics ? `
-              <a href="/api/music/songs/${song.id}/download/lrc" download class="ghost small" title="LRC formatında indir">📥 LRC</a>
-              <a href="/api/music/songs/${song.id}/download/srt" download class="ghost small" title="SRT altyazı indir">📥 SRT</a>
+              <a href="/api/music/songs/${song.id}/download/lrc" download="${escapeHtml(safeCardTitle)}.lrc" class="ghost small" title="LRC formatında indir">📥 LRC</a>
+              <a href="/api/music/songs/${song.id}/download/srt" download="${escapeHtml(safeCardTitle)}.srt" class="ghost small" title="SRT altyazı indir">📥 SRT</a>
             ` : ''}
             ${song.suno_url ? `<a href="${song.suno_url}" target="_blank" class="btn-suno ghost small" title="Suno sayfasında aç">🔗 Suno</a>` : ''}
             <button class="btn-edit-song ghost small" data-id="${song.id}" title="Düzenle">✏ Düzenle</button>
@@ -752,20 +753,33 @@
     }
 
     // Downloads
+    const safeTitle = (song.title || 'Suno_Sarkisi').replace(/[\\/:*?"<>|\r\n\t]/g, '_').trim() || 'song';
     const dlTxt = $('#mlDlTxt');
     const dlLrc = $('#mlDlLrc');
     const dlSrt = $('#mlDlSrt');
     const dlAudio = $('#mlDlAudio');
-    if (dlTxt) dlTxt.href = `/api/music/songs/${song.id}/download/txt`;
+    if (dlTxt) {
+      dlTxt.href = `/api/music/songs/${song.id}/download/txt`;
+      dlTxt.setAttribute('download', `${safeTitle}_metadata.txt`);
+    }
     if (song.has_synced_lyrics) {
-      if (dlLrc) { dlLrc.href = `/api/music/songs/${song.id}/download/lrc`; dlLrc.classList.remove('hidden'); }
-      if (dlSrt) { dlSrt.href = `/api/music/songs/${song.id}/download/srt`; dlSrt.classList.remove('hidden'); }
+      if (dlLrc) {
+        dlLrc.href = `/api/music/songs/${song.id}/download/lrc`;
+        dlLrc.setAttribute('download', `${safeTitle}.lrc`);
+        dlLrc.classList.remove('hidden');
+      }
+      if (dlSrt) {
+        dlSrt.href = `/api/music/songs/${song.id}/download/srt`;
+        dlSrt.setAttribute('download', `${safeTitle}.srt`);
+        dlSrt.classList.remove('hidden');
+      }
     } else {
       if (dlLrc) dlLrc.classList.add('hidden');
       if (dlSrt) dlSrt.classList.add('hidden');
     }
     if (song.has_audio && dlAudio) {
-      dlAudio.href = `/api/music/songs/${song.id}/audio`;
+      dlAudio.href = `/api/music/songs/${song.id}/download/audio`;
+      dlAudio.setAttribute('download', `${safeTitle}.mp3`);
       dlAudio.classList.remove('hidden');
     } else if (dlAudio) {
       dlAudio.classList.add('hidden');

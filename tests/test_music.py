@@ -360,3 +360,53 @@ Sonunda bulundu dört yapraklı yonca.
         "Sonunda bulundu dört yapraklı yonca.",
     ]
 
+
+def test_music_download_turkish_characters_and_audio(tmp_path: Path):
+    db_file = tmp_path / "web_music.db"
+    vault = tmp_path / "vault"
+    vault.mkdir(parents=True)
+    music_dir = vault / "music"
+    music_dir.mkdir(parents=True)
+    audio_file = music_dir / "test_track.mp3"
+    audio_file.write_bytes(b"FAKE_MP3_CONTENT")
+
+    music_lib = MusicLibrary(db_file, vault)
+    app = create_app(music_library=music_lib)
+    client = TestClient(app)
+
+    # Add a song with Turkish characters and special characters in title
+    song = music_lib.add_song(
+        title="Şarkı & Yağmur / Gözler (Özgürlük)",
+        artist="Çağlar Öztürk",
+        style="Akustik gitar, melankolik, Türkçe vokal",
+        lyrics="Yağmur yağıyor ince ince\nGüneş açtı.",
+        audio_path=audio_file,
+    )
+    song_id = song["id"]
+
+    # 1. Download TXT - must not fail with 500 (Latin-1 encoding issue) and contain metadata
+    r_txt = client.get(f"/api/music/songs/{song_id}/download/txt")
+    assert r_txt.status_code == 200
+    assert "Content-Disposition" in r_txt.headers
+    cd_txt = r_txt.headers["Content-Disposition"]
+    assert "filename*=" in cd_txt or "filename=" in cd_txt
+    assert "Yağmur yağıyor" in r_txt.text
+    assert "Akustik gitar" in r_txt.text
+    assert "Çağlar Öztürk" in r_txt.text
+
+    # 2. Download Audio via /download/audio - must have song title in filename header
+    r_audio = client.get(f"/api/music/songs/{song_id}/download/audio")
+    assert r_audio.status_code == 200
+    assert r_audio.content == b"FAKE_MP3_CONTENT"
+    cd_audio = r_audio.headers.get("content-disposition", "")
+    assert "filename" in cd_audio
+    assert "Ya" in cd_audio or "ark" in urllib.parse.unquote(cd_audio)
+
+    # 3. Download Audio via /audio?download=1
+    r_stream_dl = client.get(f"/api/music/songs/{song_id}/audio?download=1")
+    assert r_stream_dl.status_code == 200
+    assert r_stream_dl.content == b"FAKE_MP3_CONTENT"
+    cd_stream = r_stream_dl.headers.get("content-disposition", "")
+    assert "filename" in cd_stream
+    assert "Ya" in cd_stream or "ark" in urllib.parse.unquote(cd_stream)
+

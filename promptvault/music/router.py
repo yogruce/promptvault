@@ -4,6 +4,8 @@ from __future__ import annotations
 import mimetypes
 import re
 import threading
+import unicodedata
+import urllib.parse
 from pathlib import Path
 from typing import Any
 
@@ -75,6 +77,14 @@ class ManualSongAdd(BaseModel):
     favorite: bool = False
     notes: str = ""
     tags: list[str] = []
+
+
+def make_content_disposition(filename: str, disposition: str = "attachment") -> str:
+    safe_name = re.sub(r'[\\/:*?"<>|\r\n\t]', '_', filename).strip() or "download"
+    ascii_name = unicodedata.normalize('NFKD', safe_name).encode('ascii', 'ignore').decode('ascii')
+    ascii_name = re.sub(r'[^\w\s.-]', '_', ascii_name).strip() or "download"
+    encoded_name = urllib.parse.quote(safe_name, encoding='utf-8')
+    return f"{disposition}; filename=\"{ascii_name}\"; filename*=utf-8''{encoded_name}"
 
 
 def create_music_router(music_lib: MusicLibrary) -> APIRouter:
@@ -178,11 +188,17 @@ def create_music_router(music_lib: MusicLibrary) -> APIRouter:
 
     # ------------------------------------------------------------- Audio
     @router.get("/songs/{song_id}/audio")
-    def stream_audio(song_id: int):
+    def stream_audio(song_id: int, download: bool = Query(False)):
         p = music_lib.resolve_audio_path(song_id)
         if not p or not p.exists():
             raise HTTPException(404, "Bu şarkı için ses dosyası bulunamadı")
         mime, _ = mimetypes.guess_type(str(p))
+        if download:
+            song = music_lib.get_song(song_id)
+            raw_title = (song.get("title") if song else None) or "audio"
+            safe_title = re.sub(r'[\\/:*?"<>|\r\n\t]', '_', raw_title).strip() or "audio"
+            ext = p.suffix or ".mp3"
+            return FileResponse(p, media_type=mime or "audio/mpeg", filename=f"{safe_title}{ext}")
         return FileResponse(p, media_type=mime or "audio/mpeg")
 
     # ------------------------------------------------------------- Lyrics Sync & Downloads
@@ -213,10 +229,20 @@ def create_music_router(music_lib: MusicLibrary) -> APIRouter:
         if not song:
             raise HTTPException(404, "Şarkı bulunamadı")
 
-        safe_title = re.sub(r'[\\/:*?"<>|]', '_', song.get("title", "lyrics"))
+        raw_title = (song.get("title") or "lyrics").strip()
+        safe_title = re.sub(r'[\\/:*?"<>|\r\n\t]', '_', raw_title).strip() or "song"
         fmt = fmt.lower().strip()
 
-        if fmt == "lrc":
+        if fmt in ("audio", "mp3"):
+            p = music_lib.resolve_audio_path(song_id)
+            if not p or not p.exists():
+                raise HTTPException(404, "Bu şarkı için ses dosyası bulunamadı")
+            mime, _ = mimetypes.guess_type(str(p))
+            ext = p.suffix or ".mp3"
+            filename = f"{safe_title}{ext}"
+            return FileResponse(p, media_type=mime or "audio/mpeg", filename=filename)
+
+        elif fmt == "lrc":
             content = song.get("lrc_content") or ""
             if not content and song.get("synced_lyrics"):
                 import json
@@ -228,10 +254,11 @@ def create_music_router(music_lib: MusicLibrary) -> APIRouter:
                     pass
             if not content:
                 raise HTTPException(400, "Bu şarkı için henüz senkronize LRC sözü yok")
+            filename = f"{safe_title}.lrc"
             return Response(
                 content=content,
                 media_type="text/plain; charset=utf-8",
-                headers={"Content-Disposition": f'attachment; filename="{safe_title}.lrc"'}
+                headers={"Content-Disposition": make_content_disposition(filename)}
             )
 
         elif fmt == "srt":
@@ -246,34 +273,57 @@ def create_music_router(music_lib: MusicLibrary) -> APIRouter:
                     pass
             if not content:
                 raise HTTPException(400, "Bu şarkı için henüz senkronize SRT altyazısı yok")
+            filename = f"{safe_title}.srt"
             return Response(
                 content=content,
                 media_type="text/plain; charset=utf-8",
-                headers={"Content-Disposition": f'attachment; filename="{safe_title}.srt"'}
+                headers={"Content-Disposition": make_content_disposition(filename)}
             )
 
         elif fmt == "txt":
-            # If synced, export with timestamps, else export raw lyrics
-            if song.get("lrc_content"):
-                content = song["lrc_content"]
-            else:
-                content = song.get("lyrics", "")
+            content = song.get("metadata_txt")
+            if not content or not content.strip():
+                header_lines = [
+                    "=========================================",
+                    f"ŞARKI ADI   : {song.get('title', '') or 'İsimsiz Şarkı'}",
+                    f"SANATÇI     : {song.get('artist', '') or 'Bilinmeyen Sanatçı'}",
+                    f"MODEL       : {song.get('model', 'Suno AI') or 'Suno AI'}",
+                ]
+                if song.get("persona"):
+                    header_lines.append(f"PERSONA     : {song['persona']}")
+                if song.get("workspace_name"):
+                    header_lines.append(f"WORKSPACE   : {song['workspace_name']}")
+                if song.get("suno_url"):
+                    header_lines.append(f"LİNK        : {song['suno_url']}")
+                header_lines += [
+                    "=========================================",
+                    "",
+                    "[TAM STİL / PROMPT]",
+                    song.get("style", "") or "Stil belirtilmemiş",
+                    "",
+                    "[ŞARKI SÖZLERİ & META ETİKETLER]",
+                    song.get("lyrics", "") or "Şarkı sözü bulunamadı",
+                    "=========================================",
+                ]
+                content = "\n".join(header_lines)
+            filename = f"{safe_title}_metadata.txt"
             return Response(
                 content=content,
                 media_type="text/plain; charset=utf-8",
-                headers={"Content-Disposition": f'attachment; filename="{safe_title}.txt"'}
+                headers={"Content-Disposition": make_content_disposition(filename)}
             )
 
         elif fmt == "json":
             content = song.get("synced_lyrics") or "[]"
+            filename = f"{safe_title}.json"
             return Response(
                 content=content,
                 media_type="application/json; charset=utf-8",
-                headers={"Content-Disposition": f'attachment; filename="{safe_title}.json"'}
+                headers={"Content-Disposition": make_content_disposition(filename)}
             )
 
         else:
-            raise HTTPException(400, f"Desteklenmeyen format: {fmt}. İzin verilenler: lrc, srt, txt, json")
+            raise HTTPException(400, f"Desteklenmeyen format: {fmt}. İzin verilenler: txt, audio, mp3, lrc, srt, json")
 
     # ------------------------------------------------------------- Tags
     @router.get("/tags")
