@@ -12,6 +12,7 @@ class ParsedSong:
     style: str = ""
     lyrics: str = ""
     model: str = "Suno AI"
+    persona: str = ""
     created_at: str = ""
     suno_url: str = ""
     tags: list[str] = field(default_factory=list)
@@ -56,6 +57,7 @@ class Song:
     workspace_name: str | None = None
     workspace_color: str | None = None
     artist: str = ""
+    persona: str = ""
     audio_path: str | None = None
     has_audio: bool = False
     rating: int = 0
@@ -80,6 +82,7 @@ class Song:
             "workspace_name": self.workspace_name,
             "workspace_color": self.workspace_color,
             "artist": self.artist,
+            "persona": self.persona,
             "audio_path": self.audio_path,
             "has_audio": self.has_audio,
             "rating": self.rating,

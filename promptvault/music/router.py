@@ -32,6 +32,7 @@ class SongPatch(BaseModel):
     style: str | None = None
     lyrics: str | None = None
     model: str | None = None
+    persona: str | None = None
     workspace_id: int | None = None
     artist: str | None = None
     rating: int | None = None
@@ -61,6 +62,7 @@ class ManualSongAdd(BaseModel):
     lyrics: str = ""
     suno_id: str = ""
     model: str = "Suno AI"
+    persona: str = ""
     workspace_id: int | None = None
     artist: str = ""
     rating: int = 0

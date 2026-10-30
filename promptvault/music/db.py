@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS songs (
     suno_url TEXT DEFAULT '',
     workspace_id INTEGER REFERENCES workspaces(id) ON DELETE SET NULL,
     artist TEXT DEFAULT '',
+    persona TEXT DEFAULT '',
     audio_path TEXT DEFAULT '',
     vault_audio_path TEXT DEFAULT '',
     txt_path TEXT DEFAULT '',
@@ -55,6 +56,7 @@ CREATE TABLE IF NOT EXISTS songs (
 CREATE INDEX IF NOT EXISTS ix_songs_suno_id ON songs(suno_id);
 CREATE INDEX IF NOT EXISTS ix_songs_ws ON songs(workspace_id);
 CREATE INDEX IF NOT EXISTS ix_songs_artist ON songs(artist);
+CREATE INDEX IF NOT EXISTS ix_songs_persona ON songs(persona);
 CREATE INDEX IF NOT EXISTS ix_songs_rating ON songs(rating);
 CREATE INDEX IF NOT EXISTS ix_songs_favorite ON songs(favorite);
 
@@ -72,25 +74,25 @@ CREATE INDEX IF NOT EXISTS ix_song_tags_song ON song_tags(song_id);
 
 MUSIC_FTS_SCHEMA = """
 CREATE VIRTUAL TABLE IF NOT EXISTS songs_fts USING fts5(
-    title, style, lyrics, artist, notes,
+    title, style, lyrics, artist, persona, notes,
     content='songs', content_rowid='id', tokenize='unicode61'
 );
 
 CREATE TRIGGER IF NOT EXISTS songs_ai AFTER INSERT ON songs BEGIN
-  INSERT INTO songs_fts(rowid, title, style, lyrics, artist, notes)
-  VALUES (new.id, new.title, new.style, new.lyrics, new.artist, new.notes);
+  INSERT INTO songs_fts(rowid, title, style, lyrics, artist, persona, notes)
+  VALUES (new.id, new.title, new.style, new.lyrics, new.artist, new.persona, new.notes);
 END;
 
 CREATE TRIGGER IF NOT EXISTS songs_ad AFTER DELETE ON songs BEGIN
-  INSERT INTO songs_fts(songs_fts, rowid, title, style, lyrics, artist, notes)
-  VALUES ('delete', old.id, old.title, old.style, old.lyrics, old.artist, old.notes);
+  INSERT INTO songs_fts(songs_fts, rowid, title, style, lyrics, artist, persona, notes)
+  VALUES ('delete', old.id, old.title, old.style, old.lyrics, old.artist, old.persona, old.notes);
 END;
 
-CREATE TRIGGER IF NOT EXISTS songs_au AFTER UPDATE OF title, style, lyrics, artist, notes ON songs BEGIN
-  INSERT INTO songs_fts(songs_fts, rowid, title, style, lyrics, artist, notes)
-  VALUES ('delete', old.id, old.title, old.style, old.lyrics, old.artist, old.notes);
-  INSERT INTO songs_fts(rowid, title, style, lyrics, artist, notes)
-  VALUES (new.id, new.title, new.style, new.lyrics, new.artist, new.notes);
+CREATE TRIGGER IF NOT EXISTS songs_au AFTER UPDATE OF title, style, lyrics, artist, persona, notes ON songs BEGIN
+  INSERT INTO songs_fts(songs_fts, rowid, title, style, lyrics, artist, persona, notes)
+  VALUES ('delete', old.id, old.title, old.style, old.lyrics, old.artist, old.persona, old.notes);
+  INSERT INTO songs_fts(rowid, title, style, lyrics, artist, persona, notes)
+  VALUES (new.id, new.title, new.style, new.lyrics, new.artist, new.persona, new.notes);
 END;
 """
 
@@ -147,6 +149,11 @@ class MusicLibrary:
         c = self.conn
         with c:
             c.executescript(MUSIC_SCHEMA)
+            # Schema migration: check if persona column exists in songs
+            cols = [r[1] for r in c.execute("PRAGMA table_info(songs)").fetchall()]
+            if cols and "persona" not in cols:
+                c.execute("ALTER TABLE songs ADD COLUMN persona TEXT DEFAULT ''")
+                c.execute("CREATE INDEX IF NOT EXISTS ix_songs_persona ON songs(persona)")
             c.executescript(MUSIC_FTS_SCHEMA)
             # Create default workspace if none exist
             count = c.execute("SELECT COUNT(*) FROM workspaces").fetchone()[0]
@@ -278,6 +285,7 @@ class MusicLibrary:
         lyrics: str = "",
         suno_id: str = "",
         model: str = "Suno AI",
+        persona: str = "",
         created_at: str = "",
         suno_url: str = "",
         workspace_id: int | None = None,
@@ -294,6 +302,7 @@ class MusicLibrary:
         sha1 = ""
         vault_audio_rel = ""
         vault_txt_rel = ""
+        effective_artist = artist.strip() or persona.strip()
 
         # Vault copy for audio
         if audio_path:
@@ -338,9 +347,12 @@ class MusicLibrary:
                 if workspace_id is not None:
                     update_fields.append("workspace_id = ?")
                     update_vals.append(workspace_id)
-                if artist:
+                if persona:
+                    update_fields.append("persona = ?")
+                    update_vals.append(persona)
+                if effective_artist:
                     update_fields.append("artist = ?")
-                    update_vals.append(artist)
+                    update_vals.append(effective_artist)
                 if vault_audio_rel:
                     update_fields.append("vault_audio_path = ?")
                     update_vals.append(vault_audio_rel)
@@ -358,15 +370,15 @@ class MusicLibrary:
                 cur = c.execute(
                     """
                     INSERT INTO songs (
-                        suno_id, title, style, lyrics, model, created_at, suno_url,
+                        suno_id, title, style, lyrics, model, persona, created_at, suno_url,
                         workspace_id, artist, audio_path, vault_audio_path,
                         txt_path, vault_txt_path, rating, favorite, notes,
                         sha1, added_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
-                        suno_id, title, style, lyrics, model, created_at, suno_url,
-                        workspace_id, artist, str(audio_path) if audio_path else "",
+                        suno_id, title, style, lyrics, model, persona, created_at, suno_url,
+                        workspace_id, effective_artist, str(audio_path) if audio_path else "",
                         vault_audio_rel, str(txt_path) if txt_path else "",
                         vault_txt_rel, rating, 1 if favorite else 0, notes,
                         sha1, now, now
@@ -404,16 +416,18 @@ class MusicLibrary:
         p = Path(txt_path)
         content = p.read_text(encoding="utf-8", errors="replace")
         parsed = parse_suno_txt(content, filename=p.name)
+        effective_artist = artist or parsed.persona
         return self.add_song(
             title=parsed.title,
             style=parsed.style,
             lyrics=parsed.lyrics,
             suno_id=parsed.suno_id,
             model=parsed.model,
+            persona=parsed.persona,
             created_at=parsed.created_at,
             suno_url=parsed.suno_url,
             workspace_id=workspace_id,
-            artist=artist,
+            artist=effective_artist,
             audio_path=audio_path,
             txt_path=txt_path,
         )
@@ -467,16 +481,18 @@ class MusicLibrary:
                             matched_audio = a_path
                             break
 
+                effective_artist = artist or parsed.persona
                 self.add_song(
                     title=parsed.title,
                     style=parsed.style,
                     lyrics=parsed.lyrics,
                     suno_id=parsed.suno_id,
                     model=parsed.model,
+                    persona=parsed.persona,
                     created_at=parsed.created_at,
                     suno_url=parsed.suno_url,
                     workspace_id=workspace_id,
-                    artist=artist,
+                    artist=effective_artist,
                     audio_path=matched_audio,
                     txt_path=txt,
                 )
@@ -495,7 +511,7 @@ class MusicLibrary:
             return None
 
         allowed = {
-            "title", "style", "lyrics", "model", "workspace_id",
+            "title", "style", "lyrics", "model", "persona", "workspace_id",
             "artist", "rating", "favorite", "notes", "suno_url"
         }
         updates: list[str] = ["updated_at = ?"]
@@ -611,6 +627,9 @@ class MusicLibrary:
                 elif tok.startswith("artist:"):
                     where_clauses.append("s.artist LIKE ?")
                     params.append(f"%{tok[7:]}%")
+                elif tok.startswith("persona:"):
+                    where_clauses.append("s.persona LIKE ?")
+                    params.append(f"%{tok[8:]}%")
                 elif tok.startswith("style:"):
                     where_clauses.append("s.style LIKE ?")
                     params.append(f"%{tok[6:]}%")

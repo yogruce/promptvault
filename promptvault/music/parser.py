@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 from .models import ParsedSong
 
-STRUCTURE_PATTERN = re.compile(r"\[([A-Za-z0-9_\-/\s]+)\]")
+STRUCTURE_PATTERN = re.compile(r"\[([^\]\r\n]+)\]")
 ID_FROM_FILENAME = re.compile(r"\[([a-f0-9\-]{8,})\]")
 
 
@@ -18,9 +18,9 @@ def extract_style_tags(style: str) -> list[str]:
     seen = set()
     for t in raw_tags:
         clean = t.strip()
-        # Clean extra whitespace
         clean = re.sub(r"\s+", " ", clean)
-        if len(clean) >= 2 and len(clean) <= 60:
+        clean = clean.strip(". ")
+        if len(clean) >= 2 and len(clean) <= 70:
             lower = clean.lower()
             if lower not in seen:
                 seen.add(lower)
@@ -29,7 +29,7 @@ def extract_style_tags(style: str) -> list[str]:
 
 
 def extract_lyric_sections(lyrics: str) -> list[str]:
-    """Extracts Suno structure meta-tags like [Verse 1], [Chorus], [Drop]."""
+    """Extracts Suno structure meta-tags like [Verse 1], [Chorus], [Intro | Lead bass]."""
     if not lyrics:
         return []
     matches = STRUCTURE_PATTERN.findall(lyrics)
@@ -37,10 +37,12 @@ def extract_lyric_sections(lyrics: str) -> list[str]:
     seen = set()
     for s in matches:
         clean = s.strip()
-        lower = clean.lower()
-        if lower not in seen and len(clean) <= 40:
+        # Handle [Section | Musical cue] pattern
+        sec_name = clean.split("|", 1)[0].strip() if "|" in clean else clean
+        lower = sec_name.lower()
+        if lower not in seen and len(sec_name) <= 40:
             seen.add(lower)
-            sections.append(clean)
+            sections.append(sec_name)
     return sections
 
 
@@ -124,6 +126,9 @@ def parse_suno_txt(content: str, filename: str = "") -> ParsedSong:
             elif "MODEL" in key:
                 if val:
                     song.model = val
+            elif "PERSONA" in key:
+                if val:
+                    song.persona = val
             elif any(k in key for k in ("TARİH", "DATE", "ZAMAN")):
                 if val:
                     song.created_at = val

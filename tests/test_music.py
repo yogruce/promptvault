@@ -44,6 +44,78 @@ Yıldızlara uzansın sonsuz şarkımız
 """
 
 
+USER_SUNO_SAMPLE = """=========================================
+ŞARKI ADI   : Dört Yapraklı Yonca
+ŞARKI ID    : 659ce234-9198-40c4-999e-3c1d1ce8a657
+MODEL       : V6
+PERSONA     : Kırık Plak
+TARİH       : 17.10.2026 15:58:13
+LİNK        : https://suno.com/song/659ce234-9198-40c4-999e-3c1d1ce8a657
+=========================================
+
+[TAM STİL / PROMPT]
+Alternative rock, clean atmospheric verses rising into sweeping distorted choruses; emotional female mezzo-soprano with intimate, restrained phrasing opening to soaring projection; upbeat driving rock pulse building to high intensity; melodic lead bass up front, clean guitar arpeggios, wide distorted guitars, soaring lead-guitar solo.
+
+[ŞARKI SÖZLERİ & META ETİKETLER]
+[Intro | Prominent melodic lead bass; clean melancholic guitar arpeggios; establishing atmosphere]
+
+[Verse 1 | Intimate female vocal; restrained clean guitars and bass; gentle dynamics]
+Yüreğimizde bilmediğimiz bir yer var.
+Günün birinde duyarız oradaki sesi.
+Bakarız, orası geçen yazdan firari.
+Her yerde çiçekler,
+Desen desen renkler
+Yakından duyulur yüreğin sesi.
+Aradan süzülen bakışların sahibi,
+Hep beklenen aşkın kendisi.
+
+[Chorus | Powerful mezzo-soprano projection; wide distorted rock guitars; high emotional intensity]
+Yalnızlıktı, duyguların isim babası.
+Aşkı yaşatmaktı bütün çabası.
+Sonunda bulundu dört yapraklı yonca.
+Şansta lazım, varmak için sonuca
+=========================================
+"""
+
+
+def test_parse_suno_user_sample(tmp_path: Path):
+    parsed = parse_suno_txt(USER_SUNO_SAMPLE, filename="Dört Yapraklı Yonca [659ce234]_metadata.txt")
+    assert parsed.title == "Dört Yapraklı Yonca"
+    assert parsed.suno_id == "659ce234-9198-40c4-999e-3c1d1ce8a657"
+    assert parsed.model == "V6"
+    assert parsed.persona == "Kırık Plak"
+    assert "Alternative rock" in parsed.style
+    assert "Yüreğimizde bilmediğimiz" in parsed.lyrics
+    assert "Dört yapraklı yonca" in parsed.lyrics or "dört yapraklı yonca" in parsed.lyrics
+
+    # Check sections extracted (without the pipe/cue)
+    lower_sections = [s.lower() for s in parsed.lyric_sections]
+    assert "intro" in lower_sections
+    assert "verse 1" in lower_sections
+    assert "chorus" in lower_sections
+
+    # Check database saving with persona
+    db_file = tmp_path / "user_sample.db"
+    lib = MusicLibrary(db_file, tmp_path / "vault")
+    txt_file = tmp_path / "dort_yaprakli.txt"
+    txt_file.write_text(USER_SUNO_SAMPLE, encoding="utf-8")
+
+    song = lib.add_from_txt_file(txt_file)
+    assert song["title"] == "Dört Yapraklı Yonca"
+    assert song["persona"] == "Kırık Plak"
+    assert song["artist"] == "Kırık Plak"
+    assert song["model"] == "V6"
+
+    # Search with persona
+    total, items = lib.search("persona:Plak")
+    assert total == 1
+    assert items[0]["title"] == "Dört Yapraklı Yonca"
+
+    # Search with lyrics
+    total, items = lib.search('lyrics:"bilmediğimiz"')
+    assert total == 1
+
+
 def test_parse_suno_txt():
     parsed = parse_suno_txt(SAMPLE_SUNO_TXT, filename="Gece Yolculuğu [8d1b2c34]_metadata.txt")
     assert parsed.title == "Gece Yolculuğu"

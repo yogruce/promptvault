@@ -45,11 +45,19 @@
       .replace(/"/g, '&quot;');
   }
 
-  // Format lyrics with highlighted structure tags
+  // Format lyrics with highlighted structure tags and arrangement cues
   function formatLyrics(lyrics) {
     if (!lyrics) return '<span class="muted">Şarkı sözü bulunamadı</span>';
     const escaped = escapeHtml(lyrics);
-    return escaped.replace(/\[([A-Za-z0-9_\-/\s]+)\]/g, '<span class="lyric-tag">[$1]</span>');
+    return escaped.replace(/\[([^\]\r\n]+)\]/g, (match, content) => {
+      if (content.includes('|')) {
+        const parts = content.split('|');
+        const sec = parts[0].trim();
+        const cue = parts.slice(1).join('|').trim();
+        return `<div class="lyric-block-header"><span class="lyric-tag">[${sec}]</span> <span class="lyric-cue">| ${cue}</span></div>`;
+      }
+      return `<div class="lyric-block-header"><span class="lyric-tag">[${content}]</span></div>`;
+    });
   }
 
   // API Client Helper
@@ -262,6 +270,7 @@
             <span class="song-ws-badge" style="background:${wsColor}22; color:${wsColor}; border:1px solid ${wsColor}66">
               📁 ${escapeHtml(wsName)}
             </span>
+            ${song.persona ? `<span class="song-persona-badge" title="Suno Persona">🎭 ${escapeHtml(song.persona)}</span>` : ''}
             <span class="song-model-badge">${escapeHtml(song.model || 'Suno AI')}</span>
           </div>
           <button class="song-fav-btn ${song.favorite ? 'on' : ''}" data-id="${song.id}" title="Favori">★</button>
@@ -573,6 +582,7 @@
     $('#meSongId').value = song.id;
     $('#meTitle').value = song.title || '';
     $('#meArtist').value = song.artist || '';
+    if ($('#mePersona')) $('#mePersona').value = song.persona || '';
     $('#meStyle').value = song.style || '';
     $('#meLyrics').value = song.lyrics || '';
     $('#meNotes').value = song.notes || '';
@@ -725,6 +735,7 @@
       const body = {
         title: $('#meTitle').value.trim(),
         artist: $('#meArtist').value.trim(),
+        persona: $('#mePersona') ? $('#mePersona').value.trim() : undefined,
         style: $('#meStyle').value.trim(),
         lyrics: $('#meLyrics').value.trim(),
         notes: $('#meNotes').value.trim(),
