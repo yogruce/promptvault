@@ -163,10 +163,15 @@
       const s = await api('/api/music/stats');
       const el = $('#musicStatsText');
       if (el) {
-        el.textContent = `🎵 ${s.total_songs} Şarkı · 🏢 ${s.total_workspaces} Workspace · ⭐ ${s.favorites} Favori · 🔊 ${s.with_audio} Sesli`;
+        const songW = window.t ? window.t("music_stats_songs") : "Şarkı";
+        const wsW = window.t ? window.t("music_stats_workspaces") : "Workspace";
+        const favW = window.t ? window.t("music_stats_favorites") : "Favori";
+        const audW = window.t ? window.t("music_stats_audio") : "Sesli";
+        el.textContent = `🎵 ${s.total_songs} ${songW} · 🏢 ${s.total_workspaces} ${wsW} · ⭐ ${s.favorites} ${favW} · 🔊 ${s.with_audio} ${audW}`;
       }
     } catch (e) {}
   }
+  window.renderMusicStats = loadMusicStats;
 
   async function loadWorkspaces() {
     try {
@@ -183,7 +188,8 @@
     const selFilter = $('#musicWsFilter');
     if (selFilter) {
       const cur = selFilter.value;
-      selFilter.innerHTML = '<option value="">🏢 Tüm Workspaces (Hepsi)</option>';
+      const allWsText = window.t ? window.t("music_all_workspaces") : "🏢 Tüm Workspaces (Hepsi)";
+      selFilter.innerHTML = `<option value="">${allWsText}</option>`;
       state.workspaces.forEach(w => {
         const opt = document.createElement('option');
         opt.value = w.id;
@@ -706,7 +712,9 @@
     // Favorite Button
     const favBtn = $('#mlFavBtn');
     if (favBtn) {
-      favBtn.textContent = song.favorite ? '★ Favori' : '☆ Favori';
+      favBtn.textContent = song.favorite
+        ? (window.t ? window.t('detail_fav_on') : '★ Favori')
+        : (window.t ? window.t('detail_fav_off') : '☆ Favori');
       favBtn.classList.toggle('active', !!song.favorite);
       favBtn.onclick = async (e) => {
         e.stopPropagation();
@@ -718,7 +726,9 @@
             body: JSON.stringify({ favorite: newFav }),
           });
           song.favorite = newFav;
-          favBtn.textContent = newFav ? '★ Favori' : '☆ Favori';
+          favBtn.textContent = newFav
+            ? (window.t ? window.t('detail_fav_on') : '★ Favori')
+            : (window.t ? window.t('detail_fav_off') : '☆ Favori');
           favBtn.classList.toggle('active', newFav);
           const cardFav = $(`#musicSongList .song-card[data-id="${song.id}"] .song-fav-btn`);
           if (cardFav) cardFav.classList.toggle('on', newFav);

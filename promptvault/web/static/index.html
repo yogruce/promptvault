@@ -83,20 +83,20 @@
       </div>
       <div id="bulkbar" class="bulkbar hidden">
         <span id="bulkCount" style="font-weight:600; min-width:85px">0 seçili</span>
-        <button id="bulkAll" class="ghost small">Tümünü seç</button>
-        <button id="bulkClear" class="ghost small">Seçimi temizle</button>
-        <button id="bulkDelete" class="ghost danger" style="background:#ff5c7a26; border-color:var(--danger); font-weight:600" title="Seçilen görselleri kasadan sil">🗑 Seçilenleri Sil</button>
+        <button id="bulkAll" class="ghost small" data-i18n="bulk_all">Tümünü seç</button>
+        <button id="bulkClear" class="ghost small" data-i18n="bulk_clear">Seçimi temizle</button>
+        <button id="bulkDelete" class="ghost danger" style="background:#ff5c7a26; border-color:var(--danger); font-weight:600" title="Seçilen görselleri kasadan sil" data-i18n="bulk_delete">🗑 Seçilenleri Sil</button>
         <div style="flex:1"></div>
-        <input id="bulkTags" placeholder="Toplu etiketler (virgülle)" style="max-width:240px">
-        <button id="bulkApply" class="ghost">Etiketle</button>
+        <input id="bulkTags" placeholder="Toplu etiketler (virgülle)" data-i18n-ph="bulk_tags_ph" style="max-width:240px">
+        <button id="bulkApply" class="ghost" data-i18n="bulk_apply">Etiketle</button>
       </div>
       <div id="resultInfo" class="muted small"></div>
       <div id="grid" class="grid"></div>
-      <div class="center"><button id="more" class="ghost hidden">Daha fazla yükle</button></div>
+      <div class="center"><button id="more" class="ghost hidden" data-i18n="btn_more">Daha fazla yükle</button></div>
       <div id="empty" class="empty hidden">
-        Henüz görsel yok.<br>
-        <button class="primary" style="margin-top:12px" onclick="$('#btnUpload').click()">⬆ Görsel Yükle</button> veya
-        <a href="#" data-goto="scan">Klasör Tara</a>
+        <span data-i18n="empty_gallery">Henüz görsel yok.</span><br>
+        <button class="primary" style="margin-top:12px" onclick="$('#btnUpload').click()" data-i18n="btn_upload">⬆ Görsel Yükle</button> <span data-i18n="or">veya</span>
+        <a href="#" data-goto="scan" data-i18n="tab_scan">Klasör Tara</a>
       </div>
     </section>
 
@@ -104,12 +104,12 @@
     <section id="tab-tags" class="tab">
       <div class="toolbar">
         <select id="tagKind">
-          <option value="">Tüm türler</option><option value="prompt">Prompt</option><option value="lora">LoRA</option>
-          <option value="model">Model</option><option value="user">Kullanıcı</option><option value="generator">Üretici</option>
+          <option value="" data-i18n="tag_kind_all">Tüm türler</option><option value="prompt">Prompt</option><option value="lora">LoRA</option>
+          <option value="model">Model</option><option value="user" data-i18n="tag_kind_user">Kullanıcı</option><option value="generator" data-i18n="tag_kind_gen">Üretici</option>
         </select>
-        <input id="tagFilter" type="search" placeholder="Etiket filtrele">
-        <input id="tagQuery" type="search" placeholder="Sadece şu aramanın görsellerinde (ör. gen:comfyui)">
-        <button id="tagToWildcard" class="ghost" title="Listelenen ilk 50 etiketi wildcard yap">→ Wildcard</button>
+        <input id="tagFilter" type="search" placeholder="Etiket filtrele" data-i18n-ph="tag_filter_ph">
+        <input id="tagQuery" type="search" placeholder="Sadece şu aramanın görsellerinde (ör. gen:comfyui)" data-i18n-ph="tag_query_ph">
+        <button id="tagToWildcard" class="ghost" title="Listelenen ilk 50 etiketi wildcard yap" data-i18n="tag_to_wildcard">→ Wildcard</button>
       </div>
       <div id="tagList" class="taglist"></div>
     </section>
@@ -118,39 +118,39 @@
     <section id="tab-matrix" class="tab">
       <div class="matrix">
         <div class="panel">
-          <label>Prompt şablonu</label>
+          <label data-i18n="matrix_prompt_label">Prompt şablonu</label>
           <textarea id="mPrompt" rows="5" spellcheck="false" placeholder="masterpiece, {@subject:a cat|a dog|an owl} in {a forest|the city|space}, {|detailed fur,} __style__"></textarea>
-          <label>Negatif şablon</label>
+          <label data-i18n="matrix_neg_label">Negatif şablon</label>
           <textarea id="mNegative" rows="2" spellcheck="false" placeholder="blurry, {lowres|jpeg artifacts}"></textarea>
-          <label>Parametre eksenleri</label>
+          <label data-i18n="matrix_params_label">Parametre eksenleri</label>
           <div id="mParams"></div>
-          <button id="mAddParam" class="ghost small">+ Parametre</button>
+          <button id="mAddParam" class="ghost small" data-i18n="matrix_add_param">+ Parametre</button>
           <div class="row">
-            <label class="inline">Mod
-              <select id="mMode"><option value="product">Tüm kombinasyonlar</option><option value="random">Rastgele örnek</option></select>
+            <label class="inline"><span data-i18n="matrix_mode_label">Mod</span>
+              <select id="mMode"><option value="product" data-i18n="matrix_mode_product">Tüm kombinasyonlar</option><option value="random" data-i18n="matrix_mode_random">Rastgele örnek</option></select>
             </label>
-            <label class="inline rnd">Adet <input id="mCount" type="number" min="1" value="20"></label>
-            <label class="inline rnd">Seed <input id="mSeed" type="number" placeholder="rastgele"></label>
-            <label class="inline">Limit <input id="mLimit" type="number" min="1" value="10000"></label>
+            <label class="inline rnd"><span data-i18n="matrix_count_label">Adet</span> <input id="mCount" type="number" min="1" value="20"></label>
+            <label class="inline rnd"><span data-i18n="matrix_seed_label">Seed</span> <input id="mSeed" type="number" placeholder="rastgele"></label>
+            <label class="inline"><span data-i18n="matrix_limit_label">Limit</span> <input id="mLimit" type="number" min="1" value="10000"></label>
           </div>
           <div class="row">
-            <button id="mPreview">Önizle</button>
+            <button id="mPreview" data-i18n="matrix_preview">Önizle</button>
             <select id="mFormat">
               <option value="txt">TXT (satır başına prompt)</option>
               <option value="a1111">A1111 "Prompts from file"</option>
               <option value="csv">CSV</option><option value="json">JSON</option><option value="jsonl">JSONL</option>
             </select>
-            <button id="mExport" class="ghost">Dışa Aktar</button>
+            <button id="mExport" class="ghost" data-i18n="matrix_export">Dışa Aktar</button>
             <div style="flex:1"></div>
-            <button id="mSave" class="ghost">Kaydet</button>
+            <button id="mSave" class="ghost" data-i18n="matrix_save">Kaydet</button>
           </div>
           <div id="mSavedList" class="saved" style="margin-top:10px"></div>
         </div>
         <div class="panel">
           <div class="row" style="margin:0 0 8px">
-            <b>Önizleme</b> <span id="mCountBadge" class="badge">0</span>
+            <b data-i18n="matrix_preview_title">Önizleme</b> <span id="mCountBadge" class="badge">0</span>
             <div style="flex:1"></div>
-            <button id="mCopySample" class="ghost small">İlk promptu kopyala</button>
+            <button id="mCopySample" class="ghost small" data-i18n="matrix_copy_sample">İlk promptu kopyala</button>
           </div>
           <div id="mRows" class="mrows"></div>
         </div>
@@ -162,21 +162,21 @@
       <div class="matrix">
         <div class="panel" style="max-width:340px">
           <div class="row">
-            <b>Wildcard Listeleri</b>
+            <b data-i18n="wildcard_lists">Wildcard Listeleri</b>
             <div style="flex:1"></div>
-            <button id="wNew" class="ghost small">+ Yeni</button>
+            <button id="wNew" class="ghost small" data-i18n="wildcard_new">+ Yeni</button>
           </div>
           <div id="wList" class="wlist"></div>
         </div>
         <div class="panel">
           <div class="row">
             <input id="wName" placeholder="__ad__" style="font-weight:600">
-            <button id="wSave">Kaydet</button>
-            <button id="wDelete" class="ghost danger">Sil</button>
+            <button id="wSave" data-i18n="wildcard_save">Kaydet</button>
+            <button id="wDelete" class="ghost danger" data-i18n="wildcard_delete">Sil</button>
             <div style="flex:1"></div>
             <span id="wCount" class="muted small"></span>
           </div>
-          <label>Satır başına bir öğe (boş satırlar yok sayılır)</label>
+          <label data-i18n="wildcard_hint">Satır başına bir öğe (boş satırlar yok sayılır)</label>
           <textarea id="wItems" rows="18" spellcheck="false"></textarea>
         </div>
       </div>
@@ -210,19 +210,19 @@
     <!-- SONGS TAB -->
     <section id="tab-music-songs" class="music-tab active">
       <div class="toolbar">
-        <input id="musicQ" type="search" placeholder='Şarkı, söz veya stil ara: "neon night" ws:Synthwave artist:Nova style:80s lyrics:yıldızlar rating:>=4 is:fav'>
+        <input id="musicQ" type="search" placeholder='Şarkı, söz veya stil ara: "neon night" ws:Synthwave artist:Nova style:80s lyrics:yıldızlar rating:>=4 is:fav' data-i18n-ph="music_search_ph">
         <select id="musicWsFilter" style="max-width:240px">
-          <option value="">🏢 Tüm Workspaces (Hepsi)</option>
+          <option value="" data-i18n="music_all_workspaces">🏢 Tüm Workspaces (Hepsi)</option>
         </select>
         <input id="musicArtistFilter" type="search" placeholder="Sanatçı/Grup filtrele..." style="max-width:180px">
         <select id="musicSort" style="max-width:140px">
-          <option value="added">En yeni</option>
-          <option value="oldest">En eski</option>
-          <option value="rating">Puan</option>
-          <option value="title">Şarkı Adı</option>
-          <option value="artist">Sanatçı</option>
+          <option value="added" data-i18n="sort_added">En yeni</option>
+          <option value="oldest" data-i18n="sort_oldest">En eski</option>
+          <option value="rating" data-i18n="sort_rating">Puan</option>
+          <option value="title" data-i18n="sort_title">Şarkı Adı</option>
+          <option value="artist" data-i18n="sort_artist">Sanatçı</option>
         </select>
-        <button id="btnAddSong" class="primary">➕ Şarkı Ekle</button>
+        <button id="btnAddSong" class="primary" data-i18n="btn_add_song">➕ Şarkı Ekle</button>
         <details class="help"><summary>?</summary>
           <div><b>Müzik Arama Dili</b><br>
             <code>kelime</code> başlık, söz veya stil içinde<br>
@@ -484,24 +484,24 @@
   <div class="modal-box modal-small">
     <button class="close" id="uClose">✕</button>
     <div class="ucontent">
-      <h3>⬆ Görsel Ekle / Manuel Prompt Girişi</h3>
-      <p class="muted small">PNG görselinizi sürükleyip bırakabilir veya seçebilirsiniz. Metadata varsa otomatik okunur.</p>
+      <h3 data-i18n="upload_title">⬆ Görsel Ekle / Manuel Prompt Girişi</h3>
+      <p class="muted small" data-i18n="upload_desc">PNG görselinizi sürükleyip bırakabilir veya seçebilirsiniz. Metadata varsa otomatik okunur.</p>
       
       <div id="dropZone" class="dropzone">
         <input type="file" id="uFileInput" accept="image/png,image/jpeg,image/webp" style="display:none">
-        <div id="dropPrompt">📁 Görsel seçmek için tıklayın veya buraya sürükleyin</div>
+        <div id="dropPrompt" data-i18n="upload_drop_prompt">📁 Görsel seçmek için tıklayın veya buraya sürükleyin</div>
         <img id="uPreview" class="hidden" alt="Önizleme">
       </div>
 
-      <label>Prompt</label>
+      <label data-i18n="detail_prompt">Prompt</label>
       <textarea id="uPrompt" rows="3" placeholder="masterpiece, a beautiful cyberpunk city..."></textarea>
       
-      <label>Negatif Prompt</label>
+      <label data-i18n="detail_neg_prompt">Negatif Prompt</label>
       <textarea id="uNegative" rows="2" placeholder="blurry, lowres..."></textarea>
       
       <div class="row">
         <div style="flex:1">
-          <label>Üretici Araç</label>
+          <label data-i18n="upload_generator_label">Üretici Araç</label>
           <select id="uGenerator" style="width:100%">
             <option value="gemini">Gemini</option>
             <option value="imagen">Imagen</option>
@@ -517,23 +517,23 @@
           </select>
         </div>
         <div style="flex:1">
-          <label>Model Adı</label>
+          <label data-i18n="upload_model_label">Model Adı</label>
           <input id="uModel" placeholder="ör. Gemini 1.5, SDXL, Flux.1" style="width:100%">
         </div>
       </div>
       <div class="row">
         <div style="flex:1">
-          <label>Kullanıcı Etiketleri (virgülle)</label>
+          <label data-i18n="upload_tags_label">Kullanıcı Etiketleri (virgülle)</label>
           <input id="uTags" placeholder="favori, siberpunk, portre" style="width:100%">
         </div>
       </div>
       
-      <label>Notlar</label>
+      <label data-i18n="upload_notes_label">Notlar</label>
       <input id="uNotes" placeholder="Görsel veya deneme hakkında not..." style="width:100%">
 
       <div class="row" style="margin-top:16px; justify-content:flex-end">
-        <button id="uCancel" class="ghost">İptal</button>
-        <button id="uSubmit" class="primary">🔒 Kasaya Kaydet</button>
+        <button id="uCancel" class="ghost" data-i18n="upload_cancel">İptal</button>
+        <button id="uSubmit" class="primary" data-i18n="upload_submit">🔒 Kasaya Kaydet</button>
       </div>
     </div>
   </div>
@@ -715,26 +715,26 @@
           <button id="mlFavBtn" class="favbtn">★ Favori</button>
           <div style="flex:1"></div>
           <a id="mlSunoLink" href="#" target="_blank" class="ghost small" title="Suno sayfasında aç">🔗 Suno</a>
-          <button id="mlOpenSyncBtn" class="primary small" title="DistroKid tarzı senkronlayıcıyı aç">🎙️ Senkronla</button>
+          <button id="mlOpenSyncBtn" class="primary small" title="DistroKid tarzı senkronlayıcıyı aç" data-i18n="btn_sync_music">🎙️ Senkronla</button>
         </div>
 
         <!-- DOWNLOADS & EDIT -->
         <div class="song-detail-downloads-row">
-          <span class="muted small">İndir:</span>
+          <span class="muted small" data-i18n="music_detail_download">İndir:</span>
           <a id="mlDlTxt" class="ghost small" download title="Şarkı sözlerini .txt olarak indir">📄 TXT</a>
           <a id="mlDlLrc" class="ghost small hidden" download title="Senkronlu .lrc indir">🎙️ LRC</a>
           <a id="mlDlSrt" class="ghost small hidden" download title="Altyazı .srt indir">🎬 SRT</a>
           <a id="mlDlAudio" class="ghost small hidden" download title="Ses dosyasını (.mp3) indir">🎵 Ses İndir</a>
           <div style="flex:1"></div>
-          <button id="mlEditBtn" class="ghost small" title="Şarkıyı düzenle">✏️ Düzenle</button>
-          <button id="mlDeleteBtn" class="ghost small danger" title="Şarkıyı kasadan sil">🗑️ Sil</button>
+          <button id="mlEditBtn" class="ghost small" title="Şarkıyı düzenle" data-i18n="btn_edit">✏️ Düzenle</button>
+          <button id="mlDeleteBtn" class="ghost small danger" title="Şarkıyı kasadan sil" data-i18n="btn_delete">🗑️ Sil</button>
         </div>
 
         <!-- STYLE PROMPT SECTION -->
         <div class="song-detail-style-box">
           <div class="song-section-label">
-            <span>🎯 TAM STİL / PROMPT</span>
-            <button id="mlCopyStyleBtn" type="button" class="ghost small" title="Suno stil promptunu kopyala">📋 Promptu Kopyala</button>
+            <span data-i18n="card_style_label">🎯 TAM STİL / PROMPT</span>
+            <button id="mlCopyStyleBtn" type="button" class="ghost small" title="Suno stil promptunu kopyala" data-i18n="music_detail_copy_style">📋 Promptu Kopyala</button>
           </div>
           <div id="mlStyle" class="song-detail-style-text"></div>
         </div>
@@ -744,13 +744,13 @@
       <div class="song-detail-right">
         <div class="song-detail-lyrics-header">
           <div class="song-lyrics-tabs">
-            <button id="mlTabClean" type="button" class="tab-btn active" title="Suno etiketleri olmadan saf sözler">🎙️ Saf Sözler (Tagsız)</button>
-            <button id="mlTabRaw" type="button" class="tab-btn" title="Orijinal Suno etiketleriyle göster">📝 Orijinal (Etiketli)</button>
+            <button id="mlTabClean" type="button" class="tab-btn active" title="Suno etiketleri olmadan saf sözler" data-i18n="music_tab_clean">🎙️ Saf Sözler (Tagsız)</button>
+            <button id="mlTabRaw" type="button" class="tab-btn" title="Orijinal Suno etiketleriyle göster" data-i18n="music_tab_raw">📝 Orijinal (Etiketli)</button>
           </div>
           <div style="flex:1"></div>
           <div class="song-lyrics-actions">
-            <button id="mlCopyCleanBtn" type="button" class="primary small" title="Suno AI etiketleri olmadan saf şarkı sözlerini kopyala">📋 Tagsız Kopyala</button>
-            <button id="mlCopyBtn" type="button" class="ghost small" title="Orijinal sözleri etiketlerle kopyala">📄 Orijinal Kopyala</button>
+            <button id="mlCopyCleanBtn" type="button" class="primary small" title="Suno AI etiketleri olmadan saf şarkı sözlerini kopyala" data-i18n="music_copy_clean_btn">📋 Tagsız Kopyala</button>
+            <button id="mlCopyBtn" type="button" class="ghost small" title="Orijinal sözleri etiketlerle kopyala" data-i18n="music_copy_raw_btn">📄 Orijinal Kopyala</button>
           </div>
         </div>
 

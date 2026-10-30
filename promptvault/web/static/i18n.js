@@ -25,6 +25,16 @@ const TRANSLATIONS = {
     tab_music_styles: "🏷️ Müzik Stilleri",
     tab_music_scan: "📂 Müzik Tara & Ekle",
 
+    // Header & Dynamic Stats
+    stat_images: "görsel",
+    stat_tags: "etiket",
+    stat_favorites: "favori",
+    results_count: "sonuç",
+    music_stats_songs: "Şarkı",
+    music_stats_workspaces: "Workspace",
+    music_stats_favorites: "Favori",
+    music_stats_audio: "Sesli",
+
     // Gallery Toolbar
     search_images_ph: 'Ara: kedi "red hair" -blurry tag:portrait lora:detail gen:comfyui is:fav rating:>=3',
     sort_added: "En yeni",
@@ -32,9 +42,12 @@ const TRANSLATIONS = {
     sort_mtime: "Dosya tarihi",
     sort_rating: "Puan",
     sort_path: "Yol",
+    sort_title: "Şarkı Adı",
+    sort_artist: "Sanatçı",
     btn_upload: "⬆ Görsel Ekle",
     btn_drive_sync: "☁ Drive'a Yedekle",
     btn_select_mode: "☐ Çoklu Seçim",
+    selection_active: "Seçim Açık",
     bulk_selected: "seçili",
     bulk_all: "Tümünü seç",
     bulk_clear: "Seçimi temizle",
@@ -43,6 +56,74 @@ const TRANSLATIONS = {
     bulk_apply: "Etiketle",
     btn_more: "Daha fazla yükle",
     empty_gallery: "Henüz görsel yok.",
+    or: "veya",
+
+    // Image Detail Modal
+    detail_prompt: "Prompt",
+    detail_edit: "✏ Düzenle",
+    detail_cancel: "İptal",
+    detail_copy: "Kopyala",
+    detail_to_matrix: "Matrise aktar",
+    detail_generator: "Üretici Araç:",
+    detail_neg_prompt: "Negatif Prompt",
+    detail_save_prompt: "💾 Değişiklikleri Kaydet",
+    detail_none: "yok",
+    detail_params: "Parametreler",
+    detail_copy_a1111: "A1111 biçiminde kopyala",
+    detail_tags: "Etiketler",
+    detail_tags_hint: "(tıkla = ara)",
+    detail_add_tag_ph: "kullanıcı etiketi ekle (virgülle)",
+    detail_add_tag_btn: "Ekle",
+    detail_notes: "Notlar",
+    detail_notes_ph: "Bu görsel hakkında not...",
+    detail_raw_meta: "Ham metadata",
+    detail_safe_vault: "🔒 Kasada Güvende",
+    detail_safe_source_deleted: "🔒 Kasada Korunuyor (Kaynak Silinmiş)",
+    detail_on_disk: "Diskte",
+    detail_fav_on: "★ Favori",
+    detail_fav_off: "☆ Favori",
+    detail_delete_vault: "🗑 Kasadan Sil",
+
+    // Upload & Manual Modal
+    upload_title: "⬆ Görsel Ekle / Manuel Prompt Girişi",
+    upload_desc: "PNG görselinizi sürükleyip bırakabilir veya seçebilirsiniz. Metadata varsa otomatik okunur.",
+    upload_drop_prompt: "📁 Görsel seçmek için tıklayın veya buraya sürükleyin",
+    upload_generator_label: "Üretici Araç",
+    upload_model_label: "Model Adı",
+    upload_tags_label: "Kullanıcı Etiketleri (virgülle)",
+    upload_notes_label: "Notlar",
+    upload_cancel: "İptal",
+    upload_submit: "🔒 Kasaya Kaydet",
+
+    // Tags Tab
+    tag_kind_all: "Tüm türler",
+    tag_filter_ph: "Etiket filtrele",
+    tag_query_ph: "Sadece şu aramanın görsellerinde (ör. gen:comfyui)",
+    tag_to_wildcard: "→ Wildcard",
+
+    // Matrix Tab
+    matrix_prompt_label: "Prompt şablonu",
+    matrix_neg_label: "Negatif şablon",
+    matrix_params_label: "Parametre eksenleri",
+    matrix_add_param: "+ Parametre",
+    matrix_mode_label: "Mod",
+    matrix_mode_product: "Tüm kombinasyonlar",
+    matrix_mode_random: "Rastgele örnek",
+    matrix_count_label: "Adet",
+    matrix_seed_label: "Seed",
+    matrix_limit_label: "Limit",
+    matrix_preview: "Önizle",
+    matrix_export: "Dışa Aktar",
+    matrix_save: "Kaydet",
+    matrix_preview_title: "Önizleme",
+    matrix_copy_sample: "İlk promptu kopyala",
+
+    // Wildcards Tab
+    wildcard_lists: "Wildcard Listeleri",
+    wildcard_new: "+ Yeni",
+    wildcard_save: "Kaydet",
+    wildcard_delete: "Sil",
+    wildcard_hint: "Satır başına bir öğe (boş satırlar yok sayılır)",
 
     // Folder Scan Tab
     scan_title: "Klasör Tara ve Kasaya Aktar",
@@ -99,6 +180,7 @@ const TRANSLATIONS = {
 
     // Music
     music_search_ph: "Şarkı adı, sözler, stil veya persona ara...",
+    music_all_workspaces: "🏢 Tüm Workspaces (Hepsi)",
     btn_add_song: "➕ Şarkı Ekle",
     card_style_label: "🎯 TAM STİL / PROMPT",
     card_lyrics_label: "📄 ŞARKI SÖZLERİ",
@@ -110,6 +192,14 @@ const TRANSLATIONS = {
     btn_edit: "Düzenle",
     btn_delete: "Sil",
     no_audio_hint: "📄 Sadece Söz ve Stil Promptu",
+    music_detail_prev: "Önceki",
+    music_detail_next: "Sonraki",
+    music_detail_download: "İndir:",
+    music_detail_copy_style: "📋 Promptu Kopyala",
+    music_tab_clean: "🎙️ Saf Sözler (Tagsız)",
+    music_tab_raw: "📝 Orijinal (Etiketli)",
+    music_copy_clean_btn: "📋 Tagsız Kopyala",
+    music_copy_raw_btn: "📄 Orijinal Kopyala",
     copied_style_toast: "Suno Stil Promptu panoya kopyalandı! 📋",
     copied_lyrics_toast: "✓ Saf şarkı sözleri (tagsız) panoya kopyalandı! 📋"
   },
@@ -138,6 +228,16 @@ const TRANSLATIONS = {
     tab_music_styles: "🏷️ Music Styles",
     tab_music_scan: "📂 Scan & Add Music",
 
+    // Header & Dynamic Stats
+    stat_images: "images",
+    stat_tags: "tags",
+    stat_favorites: "favorites",
+    results_count: "results",
+    music_stats_songs: "Songs",
+    music_stats_workspaces: "Workspaces",
+    music_stats_favorites: "Favorites",
+    music_stats_audio: "with Audio",
+
     // Gallery Toolbar
     search_images_ph: 'Search: cat "red hair" -blurry tag:portrait lora:detail gen:comfyui is:fav rating:>=3',
     sort_added: "Newest",
@@ -145,9 +245,12 @@ const TRANSLATIONS = {
     sort_mtime: "File date",
     sort_rating: "Rating",
     sort_path: "Path",
+    sort_title: "Song Title",
+    sort_artist: "Artist",
     btn_upload: "⬆ Upload Image",
     btn_drive_sync: "☁ Backup to Drive",
     btn_select_mode: "☐ Select Mode",
+    selection_active: "Selection Active",
     bulk_selected: "selected",
     bulk_all: "Select all",
     bulk_clear: "Clear selection",
@@ -156,6 +259,74 @@ const TRANSLATIONS = {
     bulk_apply: "Tag",
     btn_more: "Load more",
     empty_gallery: "No images yet.",
+    or: "or",
+
+    // Image Detail Modal
+    detail_prompt: "Prompt",
+    detail_edit: "✏ Edit",
+    detail_cancel: "Cancel",
+    detail_copy: "Copy",
+    detail_to_matrix: "Send to Matrix",
+    detail_generator: "Generator:",
+    detail_neg_prompt: "Negative Prompt",
+    detail_save_prompt: "💾 Save Changes",
+    detail_none: "none",
+    detail_params: "Parameters",
+    detail_copy_a1111: "Copy in A1111 format",
+    detail_tags: "Tags",
+    detail_tags_hint: "(click = search)",
+    detail_add_tag_ph: "add user tag (comma separated)",
+    detail_add_tag_btn: "Add",
+    detail_notes: "Notes",
+    detail_notes_ph: "Notes about this image...",
+    detail_raw_meta: "Raw metadata",
+    detail_safe_vault: "🔒 Safe in Vault",
+    detail_safe_source_deleted: "🔒 Preserved in Vault (Source Deleted)",
+    detail_on_disk: "On Disk",
+    detail_fav_on: "★ Favorite",
+    detail_fav_off: "☆ Favorite",
+    detail_delete_vault: "🗑 Delete from Vault",
+
+    // Upload & Manual Modal
+    upload_title: "⬆ Upload Image / Manual Prompt Entry",
+    upload_desc: "Drag and drop or select your PNG/JPEG image. Metadata is extracted automatically.",
+    upload_drop_prompt: "📁 Click to select an image or drag & drop here",
+    upload_generator_label: "Generator",
+    upload_model_label: "Model Name",
+    upload_tags_label: "User Tags (comma separated)",
+    upload_notes_label: "Notes",
+    upload_cancel: "Cancel",
+    upload_submit: "🔒 Save to Vault",
+
+    // Tags Tab
+    tag_kind_all: "All types",
+    tag_filter_ph: "Filter tags",
+    tag_query_ph: "Only in images matching search (e.g. gen:comfyui)",
+    tag_to_wildcard: "→ Wildcard",
+
+    // Matrix Tab
+    matrix_prompt_label: "Prompt template",
+    matrix_neg_label: "Negative template",
+    matrix_params_label: "Parameter axes",
+    matrix_add_param: "+ Parameter",
+    matrix_mode_label: "Mode",
+    matrix_mode_product: "All combinations",
+    matrix_mode_random: "Random samples",
+    matrix_count_label: "Count",
+    matrix_seed_label: "Seed",
+    matrix_limit_label: "Limit",
+    matrix_preview: "Preview",
+    matrix_export: "Export",
+    matrix_save: "Save",
+    matrix_preview_title: "Preview",
+    matrix_copy_sample: "Copy first prompt",
+
+    // Wildcards Tab
+    wildcard_lists: "Wildcard Lists",
+    wildcard_new: "+ New",
+    wildcard_save: "Save",
+    wildcard_delete: "Delete",
+    wildcard_hint: "One item per line (empty lines ignored)",
 
     // Folder Scan Tab
     scan_title: "Scan Folder and Import to Vault",
@@ -212,6 +383,7 @@ const TRANSLATIONS = {
 
     // Music
     music_search_ph: "Search song title, lyrics, style or persona...",
+    music_all_workspaces: "🏢 All Workspaces (All)",
     btn_add_song: "➕ Add Song",
     card_style_label: "🎯 FULL STYLE / PROMPT",
     card_lyrics_label: "📄 SONG LYRICS",
@@ -223,6 +395,14 @@ const TRANSLATIONS = {
     btn_edit: "Edit",
     btn_delete: "Delete",
     no_audio_hint: "📄 Lyrics and Style Prompt Only",
+    music_detail_prev: "Previous",
+    music_detail_next: "Next",
+    music_detail_download: "Download:",
+    music_detail_copy_style: "📋 Copy Prompt",
+    music_tab_clean: "🎙️ Clean Lyrics (Tagless)",
+    music_tab_raw: "📝 Original (Tagged)",
+    music_copy_clean_btn: "📋 Copy Tagless",
+    music_copy_raw_btn: "📄 Copy Original",
     copied_style_toast: "Suno Style Prompt copied to clipboard! 📋",
     copied_lyrics_toast: "✓ Clean lyrics (tagless) copied to clipboard! 📋"
   }
@@ -241,6 +421,11 @@ function setLanguage(lang) {
   localStorage.setItem('pv_lang', lang);
   document.documentElement.lang = lang;
   applyI18n();
+  // Trigger language change listeners in app.js and music.js
+  if (typeof window.onLanguageChange === 'function') {
+    try { window.onLanguageChange(lang); } catch (e) {}
+  }
+  window.dispatchEvent(new CustomEvent('languagechange', { detail: { lang } }));
 }
 
 function applyI18n() {

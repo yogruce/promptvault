@@ -80,7 +80,10 @@ document.addEventListener("click", (e) => {
 
 async function loadStats() {
   const s = await api("/api/stats");
-  $("#stats").textContent = `${s.images} görsel · ${s.tags} etiket · ${s.favorites} favori`;
+  const imgWord = window.t ? window.t("stat_images") : "görsel";
+  const tagWord = window.t ? window.t("stat_tags") : "etiket";
+  const favWord = window.t ? window.t("stat_favorites") : "favori";
+  $("#stats").textContent = `${s.images} ${imgWord} · ${s.tags} ${tagWord} · ${s.favorites} ${favWord}`;
   return s;
 }
 
@@ -112,7 +115,8 @@ async function loadGallery(append = false, retries = 3) {
   G.items.push(...res.items);
   G.offset += res.items.length;
   renderGrid(append ? res.items : G.items, append);
-  $("#resultInfo").textContent = `${G.total} sonuç`;
+  const resWord = window.t ? window.t("results_count") : "sonuç";
+  $("#resultInfo").textContent = `${G.total} ${resWord}`;
   $("#more").classList.toggle("hidden", G.items.length >= G.total);
   $("#empty").classList.toggle("hidden", G.total > 0 || qVal !== "");
 }
@@ -120,7 +124,9 @@ window.loadGallery = loadGallery;
 window.G = G;
 
 function cardHTML(it, idx) {
-  const cap = it.prompt ? esc(it.prompt.slice(0, 140)) : '<i>prompt yok</i>';
+  const cap = it.prompt
+    ? esc(it.prompt.slice(0, 140))
+    : `<i>${window.currentLang === "en" ? "no prompt" : "prompt yok"}</i>`;
   const isSel = G.selected.has(it.id);
   return `<div class="card ${isSel ? "selected" : ""}" data-idx="${idx}" data-id="${it.id}">
     <img loading="lazy" src="/api/images/${it.id}/thumb" alt="">
@@ -159,9 +165,12 @@ function toggleSelect(id, selectState = null) {
 
 function updateBulk() {
   const count = G.selected.size;
-  $("#bulkCount").textContent = `${count} seçili`;
+  const selWord = window.t ? window.t("bulk_selected") : "seçili";
+  $("#bulkCount").textContent = `${count} ${selWord}`;
   $("#bulkbar").classList.toggle("hidden", count === 0 && !G.selecting);
-  $("#bulkDelete").textContent = count > 0 ? `🗑 Seçilen ${count} Görseli Sil` : "🗑 Seçilenleri Sil";
+  $("#bulkDelete").textContent = count > 0
+    ? (window.currentLang === "en" ? `🗑 Delete ${count} Selected` : `🗑 Seçilen ${count} Görseli Sil`)
+    : (window.t ? window.t("bulk_delete") : "🗑 Seçilenleri Sil");
 }
 
 function removeImagesFromUI(deletedIds) {
@@ -183,7 +192,8 @@ function removeImagesFromUI(deletedIds) {
   });
 
   updateBulk();
-  $("#resultInfo").textContent = `${G.total} sonuç`;
+  const resWord = window.t ? window.t("results_count") : "sonuç";
+  $("#resultInfo").textContent = `${G.total} ${resWord}`;
   $("#empty").classList.toggle("hidden", G.total > 0 || $("#q").value !== "");
   $("#more").classList.toggle("hidden", G.items.length >= G.total);
 }
@@ -332,9 +342,9 @@ function renderDetail(d) {
 
   const vaultBadge = d.vault_exists
     ? (d.original_exists
-        ? '<span class="vault-badge" title="Görsel ve prompt kasa deposunda korunuyor">🔒 Kasada Güvende</span>'
-        : '<span class="vault-badge unlinked" title="Kaynak dosya diskte silinmiş, ancak kasada korunuyor!">🔒 Kasada Korunuyor (Kaynak Silinmiş)</span>')
-    : '<span class="muted small">Diskte</span>';
+        ? `<span class="vault-badge" title="Görsel ve prompt kasa deposunda korunuyor">${window.t ? window.t("detail_safe_vault") : "🔒 Kasada Güvende"}</span>`
+        : `<span class="vault-badge unlinked" title="Kaynak dosya diskte silinmiş, ancak kasada korunuyor!">${window.t ? window.t("detail_safe_source_deleted") : "🔒 Kasada Korunuyor (Kaynak Silinmiş)"}</span>`)
+    : `<span class="muted small">${window.t ? window.t("detail_on_disk") : "Diskte"}</span>`;
 
   $("#dInfo").innerHTML = `
     <div class="row">
@@ -342,21 +352,21 @@ function renderDetail(d) {
       ${vaultBadge}
       <span class="muted small">${d.width}×${d.height}</span>
       <span class="stars" id="dStars">${stars}</span>
-      <button class="favbtn" id="dFav">${d.favorite ? "★ Favori" : "☆ Favori"}</button>
-      <button class="ghost danger small" id="dDelete" title="Görseli kasadan sil" style="margin-left:auto">🗑 Kasadan Sil</button>
+      <button class="favbtn" id="dFav">${d.favorite ? (window.t ? window.t("detail_fav_on") : "★ Favori") : (window.t ? window.t("detail_fav_off") : "☆ Favori")}</button>
+      <button class="ghost danger small" id="dDelete" title="Görseli kasadan sil" style="margin-left:auto">${window.t ? window.t("detail_delete_vault") : "🗑 Kasadan Sil"}</button>
     </div>
     <div class="path">${esc(d.path)}</div>
 
-    <h4>Prompt
-      <button class="ghost" id="dEditPrompt">${isEditingPrompt ? "İptal" : "✏ Düzenle"}</button>
-      <button class="ghost" id="dCopyP">Kopyala</button>
-      <button class="ghost" id="dToMatrix">Matrise aktar</button>
+    <h4>${window.t ? window.t("detail_prompt") : "Prompt"}
+      <button class="ghost" id="dEditPrompt">${isEditingPrompt ? (window.t ? window.t("detail_cancel") : "İptal") : (window.t ? window.t("detail_edit") : "✏ Düzenle")}</button>
+      <button class="ghost" id="dCopyP">${window.t ? window.t("detail_copy") : "Kopyala"}</button>
+      <button class="ghost" id="dToMatrix">${window.t ? window.t("detail_to_matrix") : "Matrise aktar"}</button>
     </h4>
 
     ${isEditingPrompt ? `
       <div>
         <div class="row" style="margin-bottom:8px">
-          <label style="margin:0; width:90px">Üretici Araç:</label>
+          <label style="margin:0; width:90px">${window.t ? window.t("detail_generator") : "Üretici Araç:"}</label>
           <select id="dGenEdit" style="flex:1">
             <option value="gemini" ${d.generator === "gemini" ? "selected" : ""}>Gemini</option>
             <option value="imagen" ${d.generator === "imagen" ? "selected" : ""}>Imagen</option>
@@ -372,24 +382,24 @@ function renderDetail(d) {
           </select>
         </div>
         <textarea id="dPromptEdit" class="ptext-edit" rows="5">${esc(d.prompt)}</textarea>
-        <h4>Negatif Prompt</h4>
+        <h4>${window.t ? window.t("detail_neg_prompt") : "Negatif Prompt"}</h4>
         <textarea id="dNegEdit" class="ptext-edit" rows="3">${esc(d.negative)}</textarea>
         <div class="row" style="margin-top:8px">
-          <button id="dSavePrompt" class="primary">💾 Değişiklikleri Kaydet</button>
+          <button id="dSavePrompt" class="primary">${window.t ? window.t("detail_save_prompt") : "💾 Değişiklikleri Kaydet"}</button>
         </div>
       </div>
     ` : `
-      <div class="ptext">${esc(d.prompt) || '<i class="muted">yok</i>'}</div>
-      ${d.negative ? `<h4>Negatif <button class="ghost" id="dCopyN">Kopyala</button></h4><div class="ptext neg">${esc(d.negative)}</div>` : ""}
+      <div class="ptext">${esc(d.prompt) || `<i class="muted">${window.t ? window.t("detail_none") : "yok"}</i>`}</div>
+      ${d.negative ? `<h4>Negatif <button class="ghost" id="dCopyN">${window.t ? window.t("detail_copy") : "Kopyala"}</button></h4><div class="ptext neg">${esc(d.negative)}</div>` : ""}
     `}
 
-    <h4>Parametreler <button class="ghost" id="dCopyAll">A1111 biçiminde kopyala</button></h4>
-    <table class="params">${rows || '<tr><td colspan="2" class="muted">yok</td></tr>'}</table>
-    <h4>Etiketler <span class="muted small" style="text-transform:none">(tıkla = ara)</span></h4>
+    <h4>${window.t ? window.t("detail_params") : "Parametreler"} <button class="ghost" id="dCopyAll">${window.t ? window.t("detail_copy_a1111") : "A1111 biçiminde kopyala"}</button></h4>
+    <table class="params">${rows || `<tr><td colspan="2" class="muted">${window.t ? window.t("detail_none") : "yok"}</td></tr>`}</table>
+    <h4>${window.t ? window.t("detail_tags") : "Etiketler"} <span class="muted small" style="text-transform:none">${window.t ? window.t("detail_tags_hint") : "(tıkla = ara)"}</span></h4>
     <div class="chips" id="dTags">${d.tags.map(tagChip).join("")}</div>
-    <div class="row"><input id="dTagInput" placeholder="kullanıcı etiketi ekle (virgülle)" style="flex:1"><button id="dTagAdd" class="ghost">Ekle</button></div>
-    <h4>Notlar</h4><textarea id="dNotes" rows="3" placeholder="Bu görsel hakkında not...">${esc(d.notes)}</textarea>
-    <details><summary class="muted small">Ham metadata (${Object.keys(d.raw || {}).length} chunk)</summary><pre class="raw">${esc(JSON.stringify(d.raw, null, 2))}</pre></details>`;
+    <div class="row"><input id="dTagInput" placeholder="${window.t ? window.t("detail_add_tag_ph") : "kullanıcı etiketi ekle (virgülle)"}" style="flex:1"><button id="dTagAdd" class="ghost">${window.t ? window.t("detail_add_tag_btn") : "Ekle"}</button></div>
+    <h4>${window.t ? window.t("detail_notes") : "Notlar"}</h4><textarea id="dNotes" rows="3" placeholder="${window.t ? window.t("detail_notes_ph") : "Bu görsel hakkında not..."}">${esc(d.notes)}</textarea>
+    <details><summary class="muted small">${window.t ? window.t("detail_raw_meta") : "Ham metadata"} (${Object.keys(d.raw || {}).length} chunk)</summary><pre class="raw">${esc(JSON.stringify(d.raw, null, 2))}</pre></details>`;
 
   const patch = async (body) => {
     const nd = await api(`/api/images/${d.id}`, { method: "PATCH", body });
@@ -509,7 +519,7 @@ function openUploadModal(file = null) {
     handleFileSelected(file);
   } else {
     $("#uPreview").classList.add("hidden");
-    $("#dropPrompt").textContent = "📁 Görsel seçmek için tıklayın veya buraya sürükleyin";
+    $("#dropPrompt").textContent = window.t ? window.t("upload_drop_prompt") : "📁 Görsel seçmek için tıklayın veya buraya sürükleyin";
     $("#uPrompt").value = "";
     $("#uNegative").value = "";
     $("#uModel").value = "";
@@ -1235,6 +1245,21 @@ $("#btnSetLangEN")?.addEventListener("click", () => window.setLanguage && window
 if (window.applyI18n) {
   window.applyI18n();
 }
+
+window.onLanguageChange = (lang) => {
+  loadStats();
+  if (G.total !== undefined) {
+    const resWord = window.t ? window.t("results_count") : "sonuç";
+    $("#resultInfo").textContent = `${G.total} ${resWord}`;
+    updateBulk();
+  }
+  if (G.current !== -1 && !$("#detailModal")?.classList.contains("hidden")) {
+    renderDetail(G.items[G.current]);
+  }
+  if (typeof window.renderMusicStats === "function") {
+    window.renderMusicStats();
+  }
+};
 
 /* -------------------------------------------------------- quick import modal */
 function openQuickImportModal() {
