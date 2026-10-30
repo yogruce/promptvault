@@ -11,9 +11,8 @@ if not exist .venv\Scripts\python.exe goto :no_venv
 
 :: 7860 portunu mesgul eden eski bir surec varsa sonlandir
 for /f "tokens=5" %%p in ('netstat -aon 2^>nul ^| findstr ":7860" ^| findstr "LISTENING"') do (
-    echo [BILGI] 7860 portunu tutan eski surec (PID: %%p) kapatiliyor...
+    echo [BILGI] 7860 portunu tutan eski surec PID %%p kapatiliyor...
     taskkill /F /PID %%p >nul 2>&1
-    timeout /t 1 /nobreak >nul
 )
 
 echo Sunucu adresi: http://127.0.0.1:7860
