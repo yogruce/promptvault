@@ -198,6 +198,59 @@ def cmd_wildcard(args, lib: Library) -> int:
     return 0
 
 
+def _is_port_in_use(host: str, port: int) -> bool:
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.bind((host, port))
+            return False
+        except OSError:
+            return True
+
+
+def _try_free_port(port: int) -> bool:
+    import os
+    import subprocess
+    import time
+    if sys.platform != "win32":
+        return False
+    try:
+        out = subprocess.check_output(
+            f'netstat -aon | findstr ":{port}" | findstr "LISTENING"',
+            shell=True,
+            text=True,
+            stderr=subprocess.DEVNULL,
+        )
+        current_pid = os.getpid()
+        killed = False
+        for line in out.strip().splitlines():
+            parts = line.split()
+            if len(parts) >= 5 and "LISTENING" in parts:
+                pid_str = parts[-1]
+                if pid_str.isdigit():
+                    pid = int(pid_str)
+                    if pid != current_pid and pid > 0:
+                        try:
+                            t_out = subprocess.check_output(
+                                f'tasklist /FI "PID eq {pid}" /FO CSV /NH',
+                                shell=True,
+                                text=True,
+                                stderr=subprocess.DEVNULL,
+                            )
+                            if "python" in t_out.lower():
+                                print(f"[BİLGİ] {port} portunu tutan eski Python süreci (PID: {pid}) sonlandırılıyor...")
+                                subprocess.run(f"taskkill /F /PID {pid}", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                                killed = True
+                        except Exception:
+                            pass
+        if killed:
+            time.sleep(1)
+        return killed
+    except Exception:
+        return False
+
+
 def cmd_serve(args, lib: Library) -> int:
     try:
         import uvicorn
@@ -205,6 +258,17 @@ def cmd_serve(args, lib: Library) -> int:
     except ImportError:
         print("Web arayüzü için: pip install promptvault[web]", file=sys.stderr)
         return 1
+
+    if _is_port_in_use(args.host, args.port):
+        _try_free_port(args.port)
+
+    if _is_port_in_use(args.host, args.port):
+        url = f"http://{args.host}:{args.port}"
+        print(f"\n[UYARI] {args.port} portu başka bir uygulama tarafından kullanılıyor.")
+        print(f"Tarayıcınızdan {url} adresini kontrol edebilir veya farklı bir port ile başlatabilirsiniz:")
+        print(f"  promptvault serve --port {args.port + 1}\n")
+        return 1
+
     url = f"http://{args.host}:{args.port}"
     print(f"PromptVault arayüzü: {url}")
     if args.open:
