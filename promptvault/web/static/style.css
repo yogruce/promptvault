@@ -584,10 +584,10 @@ h3 { margin: 18px 0 8px; }
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
 }
 .modal-song-detail .nav.prev {
-  left: 12px;
+  left: 8px;
 }
 .modal-song-detail .nav.next {
-  right: 12px;
+  left: calc(46% - 52px);
 }
 .modal-song-detail .nav:hover {
   background: var(--accent);
@@ -610,6 +610,9 @@ h3 { margin: 18px 0 8px; }
   .song-detail-grid {
     grid-template-columns: 1fr;
     overflow-y: auto;
+  }
+  .modal-song-detail .nav {
+    display: none;
   }
 }
 .song-detail-left {
@@ -692,6 +695,7 @@ h3 { margin: 18px 0 8px; }
   gap: 10px;
   margin-bottom: 14px;
   padding-bottom: 12px;
+  padding-right: 44px;
   border-bottom: 1px solid var(--line);
 }
 .song-lyrics-tabs {
