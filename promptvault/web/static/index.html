@@ -308,6 +308,20 @@
 
     <!-- SCAN & IMPORT TAB -->
     <section id="tab-music-music-scan" class="music-tab">
+      <!-- SUNO BROWSER EXTENSION / USERSCRIPT PANEL -->
+      <div class="panel narrow" style="margin-bottom: 20px;">
+        <h3>🧩 Suno AI Tarayıcı İndiricisi (v1.5)</h3>
+        <p class="muted small">Suno.com üzerindeki şarkıların <b>TAM stil promptunu</b>, <b>şarkı sözlerini</b> ve <b>üst verilerini</b> (Persona, Model, ID, Link) tek tıkla <code>.txt</code> olarak indiren aracı tarayıcınıza ekleyin.</p>
+        
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
+          <a href="/static/suno_downloader.user.js" target="_blank" class="button" id="btnInstallUserscript">
+            ⚡ 1-Tıkla Tampermonkey'e Yükle (.user.js)
+          </a>
+          <button type="button" class="ghost" id="btnCopyUserscript">📋 Script Kodunu Kopyala</button>
+          <button type="button" class="ghost" id="btnShowExtGuide">📖 Kurulum & Eklenti Rehberi</button>
+        </div>
+      </div>
+
       <div class="panel narrow">
         <h3>📂 Suno Müzik Klasörü Tara ve Eşitle</h3>
         <p class="muted small">Bilgisayarınızdaki Suno şarkıları klasörünü seçin. Tampermonkey scripti ile indirdiğiniz <code>*_metadata.txt</code> dosyaları okunur ve varsa aynı isimdeki <code>.mp3</code> / <code>.wav</code> ses dosyaları ile otomatik olarak eşleştirilip kasaya aktarılır.</p>
@@ -612,6 +626,54 @@
         <button id="msDlLrc" class="ghost small" disabled title="LRC formatında indir">📥 .LRC</button>
         <button id="msDlSrt" class="ghost small" disabled title="SubRip SRT altyazı indir">📥 .SRT</button>
         <button id="msDlTxt" class="ghost small" disabled title="Zaman damgalı TXT indir">📥 .TXT</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SUNO EXTENSION & USERSCRIPT GUIDE MODAL -->
+<div id="sunoExtGuideModal" class="modal hidden">
+  <div class="modal-box modal-small">
+    <button class="close" id="segClose">✕</button>
+    <div class="ucontent">
+      <h3 style="margin-top:0">🧩 Suno AI Tarayıcı İndiricisi Kurulumu</h3>
+      <p class="muted small">Suno.com üzerinde tek tıkla <code>.txt</code> metadata indirmek için tercih ettiğiniz yöntemi uygulayın:</p>
+
+      <div style="margin-top:16px; padding:12px; background:var(--panel2); border-radius:8px;">
+        <h4 style="margin:0 0 8px 0; color:var(--accent2);">Yöntem 1: Tampermonkey ile 1-Tıkla Kurulum (Önerilen)</h4>
+        <ol style="padding-left:18px; margin:0; font-size:13px; line-height:1.6; color:var(--text);">
+          <li>Tarayıcınıza <a href="https://www.tampermonkey.net/" target="_blank" style="color:var(--accent2); font-weight:600;">Tampermonkey</a> eklentisini kurun.</li>
+          <li><b>"⚡ 1-Tıkla Tampermonkey'e Yükle"</b> butonuna tıklayın.</li>
+          <li>Açılan Tampermonkey sekmesinde <b>"Yükle" (Install)</b> butonuna basın.</li>
+          <li>Kurulum tamamlandı! Suno.com şarkı sayfalarında pembe indirme butonu belirecektir.</li>
+        </ol>
+      </div>
+
+      <div style="margin-top:14px; padding:12px; background:var(--panel2); border-radius:8px;">
+        <h4 style="margin:0 0 8px 0; color:var(--accent);">Yöntem 2: Doğrudan Chrome / Edge Eklentisi (Tampermonkey Olmadan)</h4>
+        <ol style="padding-left:18px; margin:0; font-size:13px; line-height:1.6; color:var(--text);">
+          <li>Tarayıcınızın adres çubuğuna <code>chrome://extensions</code> veya <code>edge://extensions</code> yazın.</li>
+          <li>Sağ üst köşedeki <b>"Geliştirici modu" (Developer Mode)</b> anahtarını açın.</li>
+          <li><b>"Paketlenmemiş öge yükle" (Load unpacked)</b> butonuna tıklayın.</li>
+          <li>Açılan pencerede şu klasörü seçin:
+            <div style="margin:6px 0; display:flex; gap:6px; align-items:center;">
+              <input id="segExtPathInput" type="text" readonly value="C:\Users\yogru\.gemini\antigravity\scratch\promptvault\promptvault\web\static\suno_extension" style="font-size:11.5px; flex:1;">
+              <button type="button" class="ghost small" id="btnCopyExtPath">Kopyala</button>
+            </div>
+          </li>
+          <li>Eklenti tarayıcınıza hemen eklenir ve kullanıma hazır hale gelir!</li>
+        </ol>
+      </div>
+
+      <div style="margin-top:14px; padding:12px; background:var(--panel2); border-radius:8px;">
+        <h4 style="margin:0 0 6px 0; color:#10b981;">💡 Suno.com'da Şarkı İndirme</h4>
+        <p class="small muted" style="margin:0; line-height:1.5;">
+          Suno'da herhangi bir şarkı detayına girdiğinizde (ör. <code>suno.com/song/...</code>) sol altta veya butonların yanında <b>"📥 İndir (TAM Stil)"</b> butonu oluşur. Tıkladığınızda şarkının stili ve sözleri <code>[ŞarkıAdı]_metadata.txt</code> olarak iner. İndirdiğiniz şarkının <code>.mp3</code>'ü ile bu <code>.txt</code> dosyasını PromptVault'a yükleyerek senkronlayabilirsiniz.
+        </p>
+      </div>
+
+      <div class="row" style="margin-top:18px; justify-content:flex-end;">
+        <button id="segOk" class="primary">Tamam</button>
       </div>
     </div>
   </div>

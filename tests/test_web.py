@@ -146,3 +146,18 @@ def test_delete_endpoints(client):
     bulk_res = c.post("/api/bulk/delete", json={"ids": [img2["id"]]}).json()
     assert bulk_res["deleted_count"] == 1
     assert c.get("/api/images").json()["total"] == 0
+
+
+def test_userscript_and_extension_static(client):
+    c, _ = client
+    # Verify .user.js is served with proper content
+    res = c.get("/static/suno_downloader.user.js")
+    assert res.status_code == 200
+    assert "// ==UserScript==" in res.text
+    assert "Suno AI" in res.text
+
+    # Verify extension manifest is served
+    ext_res = c.get("/static/suno_extension/manifest.json")
+    assert ext_res.status_code == 200
+    assert "manifest_version" in ext_res.text
+

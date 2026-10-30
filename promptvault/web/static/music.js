@@ -1264,6 +1264,38 @@
       }
     });
 
+    // Suno Extension & Userscript Guides
+    $('#btnCopyUserscript')?.addEventListener('click', async () => {
+      try {
+        const res = await fetch('/static/suno_downloader.user.js');
+        const text = await res.text();
+        await navigator.clipboard.writeText(text);
+        toast('📋 Userscript kodu panoya kopyalandı!');
+      } catch (e) {
+        toast('Kopyalanamadı: ' + e.message, true);
+      }
+    });
+
+    $('#btnShowExtGuide')?.addEventListener('click', () => {
+      $('#sunoExtGuideModal')?.classList.remove('hidden');
+    });
+
+    $('#segClose')?.addEventListener('click', () => {
+      $('#sunoExtGuideModal')?.classList.add('hidden');
+    });
+
+    $('#segOk')?.addEventListener('click', () => {
+      $('#sunoExtGuideModal')?.classList.add('hidden');
+    });
+
+    $('#btnCopyExtPath')?.addEventListener('click', async () => {
+      const val = $('#segExtPathInput')?.value;
+      if (val) {
+        await navigator.clipboard.writeText(val);
+        toast('📋 Klasör yolu panoya kopyalandı!');
+      }
+    });
+
     function pollScanStatus() {
       const logEl = $('#mScanLog');
       const interval = setInterval(async () => {

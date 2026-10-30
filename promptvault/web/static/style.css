@@ -725,3 +725,28 @@ h3 { margin: 18px 0 8px; }
   align-items: center;
   gap: 4px;
 }
+
+a.button, .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: #fff;
+  border: 0;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+  text-decoration: none;
+  font-weight: 500;
+}
+a.button:hover, .btn:hover {
+  filter: brightness(1.1);
+  color: #fff;
+}
+a.button.ghost, .btn.ghost {
+  background: var(--panel2);
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+
