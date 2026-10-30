@@ -19,7 +19,7 @@ from .parser import extract_lyric_sections, extract_style_tags, parse_suno_txt
 MUSIC_SCHEMA = """
 PRAGMA foreign_keys = ON;
 
-CREATE TABLE IF NOT EXISTS workspaces (
+CREATE TABLE IF NOT EXISTS music_workspaces (
     id INTEGER PRIMARY KEY,
     name TEXT UNIQUE NOT NULL,
     description TEXT DEFAULT '',
@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS songs (
     model TEXT DEFAULT 'Suno AI',
     created_at TEXT DEFAULT '',
     suno_url TEXT DEFAULT '',
-    workspace_id INTEGER REFERENCES workspaces(id) ON DELETE SET NULL,
+    workspace_id INTEGER REFERENCES music_workspaces(id) ON DELETE SET NULL,
     artist TEXT DEFAULT '',
     persona TEXT DEFAULT '',
     audio_path TEXT DEFAULT '',
@@ -183,14 +183,44 @@ class MusicLibrary:
                 c.execute("DROP TABLE IF EXISTS songs_fts")
 
             c.executescript(MUSIC_FTS_SCHEMA)
-            # Create default workspace if none exist
-            count = c.execute("SELECT COUNT(*) FROM workspaces").fetchone()[0]
+            # Create music_workspaces table if not exists
+            c.execute("""
+            CREATE TABLE IF NOT EXISTS music_workspaces (
+                id INTEGER PRIMARY KEY,
+                name TEXT UNIQUE NOT NULL,
+                description TEXT DEFAULT '',
+                color TEXT DEFAULT '#8b5cf6',
+                icon TEXT DEFAULT '🎵',
+                created_at TEXT,
+                updated_at TEXT
+            );
+            """)
+
+            # Migration: if music_workspaces is empty, populate from existing workspaces or default
+            count = c.execute("SELECT COUNT(*) FROM music_workspaces").fetchone()[0]
             if count == 0:
+                has_old_ws = c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='workspaces'").fetchone() is not None
+                if has_old_ws:
+                    old_rows = c.execute("SELECT * FROM workspaces").fetchall()
+                    for r in old_rows:
+                        c.execute(
+                            "INSERT OR IGNORE INTO music_workspaces (id, name, description, color, icon, created_at, updated_at) "
+                            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                            (r["id"], r["name"], r["description"] or "", r["color"] or "#8b5cf6", r["icon"] or "🎵", r["created_at"], r["updated_at"])
+                        )
                 now = _now()
                 c.execute(
-                    "INSERT INTO workspaces (name, description, color, icon, created_at, updated_at) "
+                    "INSERT OR IGNORE INTO music_workspaces (name, description, color, icon, created_at, updated_at) "
                     "VALUES (?, ?, ?, ?, ?, ?)",
-                    ("Genel", "Varsayılan çalışma alanı", "#8b5cf6", "🎵", now, now)
+                    ("Genel", "Varsayılan müzik alanı", "#8b5cf6", "🎵", now, now)
+                )
+
+            # Ensure songs with missing or invalid workspace_id are pointed to Genel
+            genel_row = c.execute("SELECT id FROM music_workspaces WHERE name='Genel' LIMIT 1").fetchone()
+            if genel_row:
+                c.execute(
+                    "UPDATE songs SET workspace_id = ? WHERE workspace_id IS NULL OR workspace_id NOT IN (SELECT id FROM music_workspaces)",
+                    (genel_row[0],)
                 )
 
     def close(self) -> None:
@@ -202,13 +232,10 @@ class MusicLibrary:
     # ------------------------------------------------------------- Workspaces
     def list_workspaces(self) -> list[dict[str, Any]]:
         c = self.conn
-        has_images = c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='images'").fetchone() is not None
-        img_subquery = "(SELECT COUNT(*) FROM images WHERE workspace_id = w.id)" if has_images else "0"
-        query = f"""
+        query = """
             SELECT w.*,
-                   {img_subquery} as image_count,
                    (SELECT COUNT(*) FROM songs WHERE workspace_id = w.id) as song_count
-            FROM workspaces w
+            FROM music_workspaces w
             ORDER BY w.name ASC
         """
         rows = c.execute(query).fetchall()
@@ -227,7 +254,7 @@ class MusicLibrary:
         now = _now()
         with self.conn as c:
             cur = c.execute(
-                "INSERT INTO workspaces (name, description, color, icon, created_at, updated_at) "
+                "INSERT INTO music_workspaces (name, description, color, icon, created_at, updated_at) "
                 "VALUES (?, ?, ?, ?, ?, ?)",
                 (name, description.strip(), color.strip() or "#8b5cf6", icon.strip() or "🎵", now, now)
             )
@@ -238,7 +265,7 @@ class MusicLibrary:
         c = self.conn
         query = """
             SELECT w.*, COUNT(s.id) as song_count
-            FROM workspaces w
+            FROM music_workspaces w
             LEFT JOIN songs s ON s.workspace_id = w.id
             WHERE w.id = ?
             GROUP BY w.id
@@ -273,7 +300,7 @@ class MusicLibrary:
             values.append(icon.strip())
 
         values.append(workspace_id)
-        sql = f"UPDATE workspaces SET {', '.join(fields)} WHERE id = ?"
+        sql = f"UPDATE music_workspaces SET {', '.join(fields)} WHERE id = ?"
         with self.conn as c:
             c.execute(sql, values)
         return self.get_workspace(workspace_id)
@@ -284,24 +311,21 @@ class MusicLibrary:
             return False
         if ws["name"] == "Genel":
             raise ValueError("Varsayılan 'Genel' çalışma alanı silinemez")
-        genel = self.conn.execute("SELECT id FROM workspaces WHERE name='Genel' LIMIT 1").fetchone()
+        genel = self.conn.execute("SELECT id FROM music_workspaces WHERE name='Genel' LIMIT 1").fetchone()
         genel_id = genel[0] if genel else None
         with self.conn as c:
             if genel_id:
                 c.execute("UPDATE songs SET workspace_id = ? WHERE workspace_id = ?", (genel_id, workspace_id))
-                has_images = c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='images'").fetchone() is not None
-                if has_images:
-                    c.execute("UPDATE images SET workspace_id = ? WHERE workspace_id = ?", (genel_id, workspace_id))
-            cur = c.execute("DELETE FROM workspaces WHERE id = ?", (workspace_id,))
+            cur = c.execute("DELETE FROM music_workspaces WHERE id = ?", (workspace_id,))
             return cur.rowcount > 0
 
     # ---------------------------------------------------------------- Songs
     def get_song(self, song_id: int) -> dict[str, Any] | None:
         c = self.conn
         query = """
-            SELECT s.*, w.name as workspace_name, w.color as workspace_color
+            SELECT s.*, w.name as workspace_name, w.color as workspace_color, w.icon as workspace_icon
             FROM songs s
-            LEFT JOIN workspaces w ON s.workspace_id = w.id
+            LEFT JOIN music_workspaces w ON s.workspace_id = w.id
             WHERE s.id = ?
         """
         row = c.execute(query, (song_id,)).fetchone()
@@ -346,6 +370,9 @@ class MusicLibrary:
         vault_audio_rel = ""
         vault_txt_rel = ""
         effective_artist = artist.strip() or persona.strip()
+        if workspace_id is None:
+            genel = self.conn.execute("SELECT id FROM music_workspaces WHERE name='Genel' LIMIT 1").fetchone()
+            workspace_id = genel[0] if genel else None
 
         # Vault copy for audio
         if audio_path:
@@ -727,7 +754,7 @@ class MusicLibrary:
                 if tok.startswith("ws:"):
                     ws_name = tok[3:]
                     where_clauses.append(
-                        "s.workspace_id IN (SELECT id FROM workspaces WHERE name LIKE ?)"
+                        "s.workspace_id IN (SELECT id FROM music_workspaces WHERE name LIKE ?)"
                     )
                     params.append(f"%{ws_name}%")
                 elif tok.startswith("artist:"):
@@ -792,9 +819,9 @@ class MusicLibrary:
 
         # Fetch items
         data_sql = f"""
-            SELECT s.*, w.name as workspace_name, w.color as workspace_color
+            SELECT s.*, w.name as workspace_name, w.color as workspace_color, w.icon as workspace_icon
             FROM songs s
-            LEFT JOIN workspaces w ON s.workspace_id = w.id
+            LEFT JOIN music_workspaces w ON s.workspace_id = w.id
             {where_sql}
             ORDER BY {sort_sql}
             LIMIT ? OFFSET ?
@@ -812,7 +839,7 @@ class MusicLibrary:
     def get_stats(self) -> dict[str, Any]:
         c = self.conn
         total_songs = c.execute("SELECT COUNT(*) FROM songs").fetchone()[0]
-        total_workspaces = c.execute("SELECT COUNT(*) FROM workspaces").fetchone()[0]
+        total_workspaces = c.execute("SELECT COUNT(*) FROM music_workspaces").fetchone()[0]
         favorites = c.execute("SELECT COUNT(*) FROM songs WHERE favorite = 1").fetchone()[0]
         with_audio = c.execute("SELECT COUNT(*) FROM songs WHERE vault_audio_path != '' OR audio_path != ''").fetchone()[0]
         return {

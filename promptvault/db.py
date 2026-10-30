@@ -824,12 +824,9 @@ class Library:
 
     def list_workspaces(self) -> list[dict[str, Any]]:
         c = self.conn
-        has_songs = c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='songs'").fetchone() is not None
-        song_subquery = "(SELECT COUNT(*) FROM songs WHERE workspace_id = w.id)" if has_songs else "0"
-        query = f"""
+        query = """
             SELECT w.*,
-                   (SELECT COUNT(*) FROM images WHERE workspace_id = w.id) as image_count,
-                   {song_subquery} as song_count
+                   (SELECT COUNT(*) FROM images WHERE workspace_id = w.id) as image_count
             FROM workspaces w
             ORDER BY w.name ASC
         """
@@ -886,9 +883,6 @@ class Library:
         genel_id = genel[0] if genel else None
         with self._write_lock:
             self.conn.execute("UPDATE images SET workspace_id = ? WHERE workspace_id = ?", (genel_id, ws_id))
-            has_songs = self.conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='songs'").fetchone() is not None
-            if has_songs:
-                self.conn.execute("UPDATE songs SET workspace_id = ? WHERE workspace_id = ?", (genel_id, ws_id))
             cur = self.conn.execute("DELETE FROM workspaces WHERE id = ?", (ws_id,))
             self.conn.commit()
             return cur.rowcount > 0

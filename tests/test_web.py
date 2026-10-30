@@ -229,3 +229,34 @@ def test_web_workspaces_endpoints(client):
     assert res_genel_after["total"] == 2
 
 
+def test_workspaces_separation_between_images_and_music(tmp_path: Path):
+    from promptvault.db import Library
+    from promptvault.music import MusicLibrary
+    db_file = tmp_path / "shared.db"
+    lib = Library(db_file, tmp_path / "vault")
+    music_lib = MusicLibrary(db_file, tmp_path / "vault" / "music")
+    app = create_app(library=lib, music_library=music_lib)
+    client = TestClient(app)
+
+    # 1. Create an image workspace "Photorealistic Portre"
+    r_img = client.post("/api/workspaces", json={"name": "Photorealistic Portre", "color": "#10b981", "icon": "📸"})
+    assert r_img.status_code == 200
+
+    # 2. Create a music workspace "Synthwave Hits"
+    r_mus = client.post("/api/music/workspaces", json={"name": "Synthwave Hits", "color": "#ec4899", "icon": "⚡"})
+    assert r_mus.status_code == 200
+
+    # 3. Check image workspaces: MUST NOT contain "Synthwave Hits"
+    img_ws = client.get("/api/workspaces").json()
+    img_names = [w["name"] for w in img_ws]
+    assert "Photorealistic Portre" in img_names
+    assert "Synthwave Hits" not in img_names
+
+    # 4. Check music workspaces: MUST NOT contain "Photorealistic Portre"
+    mus_ws = client.get("/api/music/workspaces").json()
+    mus_names = [w["name"] for w in mus_ws]
+    assert "Synthwave Hits" in mus_names
+    assert "Photorealistic Portre" not in mus_names
+
+
+

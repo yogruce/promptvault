@@ -234,6 +234,20 @@
         selBulk.appendChild(opt);
       });
     }
+
+    // 5. Dropdown in Quick Import Modal (for Music)
+    const selQiMusic = $('#qiMusicWorkspace');
+    if (selQiMusic) {
+      selQiMusic.innerHTML = '';
+      state.workspaces.forEach(w => {
+        const opt = document.createElement('option');
+        opt.value = w.id;
+        opt.textContent = `${w.icon || '🎵'} ${w.name}`;
+        selQiMusic.appendChild(opt);
+      });
+      const genel = state.workspaces.find(w => w.name === 'Genel');
+      if (genel) selQiMusic.value = String(genel.id);
+    }
   }
 
   // ===================================================================
@@ -549,6 +563,7 @@
         card.className = 'workspace-card';
         card.style.borderColor = w.color || 'var(--line)';
 
+        const isGenel = w.name === 'Genel';
         card.innerHTML = `
           <div class="ws-header">
             <span class="ws-icon" style="background:${w.color}22; color:${w.color}">${escapeHtml(w.icon || '🎵')}</span>
@@ -562,7 +577,7 @@
             <button class="btn-ws-filter ghost small" data-id="${w.id}">🔍 Bu Alandaki Şarkıları Göster</button>
             <div style="flex:1"></div>
             <button class="btn-ws-edit ghost small" data-id="${w.id}">✏ Düzenle</button>
-            <button class="btn-ws-del ghost small danger" data-id="${w.id}">🗑 Sil</button>
+            ${isGenel ? '' : `<button class="btn-ws-del ghost small danger" data-id="${w.id}">🗑 Sil</button>`}
           </div>
         `;
 
@@ -576,14 +591,13 @@
 
         card.querySelector('.btn-ws-edit').addEventListener('click', () => openWorkspaceModal(w));
 
-        card.querySelector('.btn-ws-del').addEventListener('click', async () => {
+        card.querySelector('.btn-ws-del')?.addEventListener('click', async () => {
           if (!confirm(`"${w.name}" çalışma alanını silmek istiyor musunuz? (İçindeki şarkılar silinmez, Genel alanına geçer)`)) return;
           try {
             await api(`/api/music/workspaces/${w.id}`, { method: 'DELETE' });
-            toast('Çalışma alanı silindi');
+            toast('Müzik çalışma alanı silindi');
             loadWorkspacesTab();
             loadWorkspaces();
-            if (typeof window.loadImageWorkspaces === 'function') window.loadImageWorkspaces();
           } catch (e) {
             toast('Silinemedi: ' + e.message, true);
           }
@@ -1558,12 +1572,11 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
           });
-          toast('Yeni çalışma alanı oluşturuldu');
+          toast('Yeni müzik çalışma alanı oluşturuldu');
         }
         $('#workspaceModal')?.classList.add('hidden');
         loadWorkspacesTab();
         loadWorkspaces();
-        if (typeof window.loadImageWorkspaces === 'function') window.loadImageWorkspaces();
         loadMusicStats();
       } catch (e) {
         toast('Kaydedilemedi: ' + e.message, true);

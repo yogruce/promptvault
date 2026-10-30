@@ -934,19 +934,12 @@ function populateImageWorkspaceDropdowns() {
     if (genel) uSel.value = String(genel.id);
   }
 
-  // Quick import dropdowns
+  // Quick import image dropdown
   const qiSel = $("#qiImageWorkspace");
   if (qiSel) {
     qiSel.innerHTML = imageWorkspaces.map(w => `<option value="${w.id}">${esc(w.icon || '📁')} ${esc(w.name)}</option>`).join("");
     const genel = imageWorkspaces.find(w => w.name === "Genel");
     if (genel) qiSel.value = String(genel.id);
-  }
-
-  const qiMusicSel = $("#qiMusicWorkspace");
-  if (qiMusicSel) {
-    qiMusicSel.innerHTML = imageWorkspaces.map(w => `<option value="${w.id}">${esc(w.icon || '📁')} ${esc(w.name)}</option>`).join("");
-    const genel = imageWorkspaces.find(w => w.name === "Genel");
-    if (genel) qiMusicSel.value = String(genel.id);
   }
 }
 
@@ -955,7 +948,6 @@ function renderImageWorkspacesGrid() {
   if (!grid) return;
   grid.innerHTML = "";
   const imgWord = window.t ? window.t("ws_images_count") : "görsel";
-  const songWord = window.t ? window.t("ws_songs_count") : "şarkı";
   const filterBtnWord = window.t ? window.t("ws_filter_btn") : "Görselleri Filtrele";
   const editWord = window.t ? window.t("ws_edit") : "Düzenle";
   const delWord = window.t ? window.t("ws_delete") : "Sil";
@@ -974,7 +966,7 @@ function renderImageWorkspacesGrid() {
           <p class="ws-desc muted small">${esc(w.description || (window.currentLang === "en" ? "No description" : "Açıklama yok"))}</p>
         </div>
         <span class="ws-badge" style="background:${w.color || '#8b5cf6'}22; color:${w.color || '#8b5cf6'}; border:1px solid ${w.color || '#8b5cf6'}66;">
-          🎨 ${w.image_count || 0} ${imgWord} · 🎵 ${w.song_count || 0} ${songWord}
+          🎨 ${w.image_count || 0} ${imgWord}
         </span>
       </div>
       <div class="ws-actions">
@@ -994,23 +986,18 @@ function renderImageWorkspacesGrid() {
     });
 
     card.querySelector(".btn-ws-edit")?.addEventListener("click", () => {
-      if (typeof window.openWorkspaceModal === "function") {
-        window.openWorkspaceModal(w);
-      } else {
-        openImageWorkspaceModal(w);
-      }
+      openImageWorkspaceModal(w);
     });
 
     card.querySelector(".btn-ws-del")?.addEventListener("click", async () => {
       const confirmMsg = window.currentLang === "en"
-        ? `Are you sure you want to delete "${w.name}" workspace? (Items inside will be moved to Genel)`
-        : `"${w.name}" çalışma alanını silmek istiyor musunuz? (İçindeki görsel ve şarkılar Genel alanına geçer)`;
+        ? `Are you sure you want to delete "${w.name}" workspace? (Images inside will be moved to Genel)`
+        : `"${w.name}" çalışma alanını silmek istiyor musunuz? (İçindeki görseller Genel alanına geçer)`;
       if (!confirm(confirmMsg)) return;
       try {
         await api(`/api/workspaces/${w.id}`, { method: "DELETE" });
-        toast(window.currentLang === "en" ? "Workspace deleted" : "Çalışma alanı silindi");
+        toast(window.currentLang === "en" ? "Workspace deleted" : "Görsel çalışma alanı silindi");
         loadImageWorkspaces();
-        if (typeof window.loadWorkspaces === "function") window.loadWorkspaces();
         if (G.workspaceId === w.id) {
           G.workspaceId = null;
           loadGallery();
@@ -1025,25 +1012,65 @@ function renderImageWorkspacesGrid() {
 }
 
 function openImageWorkspaceModal(ws = null) {
-  const modal = $("#workspaceModal");
+  const modal = $("#imageWorkspaceModal");
   if (!modal) return;
-  if ($("#wsModalId")) $("#wsModalId").value = ws ? ws.id : "";
-  if ($("#wsModalTitle")) $("#wsModalTitle").textContent = ws
-    ? (window.currentLang === "en" ? "✏ Edit Workspace" : "✏ Çalışma Alanını Düzenle")
-    : (window.currentLang === "en" ? "➕ New Workspace / Project" : "➕ Yeni Çalışma Alanı / Proje");
-  if ($("#wsName")) $("#wsName").value = ws ? ws.name : "";
-  if ($("#wsDesc")) $("#wsDesc").value = ws ? ws.description : "";
-  if ($("#wsColor")) $("#wsColor").value = ws ? ws.color : "#8b5cf6";
-  if ($("#wsIcon")) $("#wsIcon").value = ws ? ws.icon : "🎨";
+  if ($("#iwModalId")) $("#iwModalId").value = ws ? ws.id : "";
+  if ($("#iwModalTitle")) $("#iwModalTitle").textContent = ws
+    ? (window.currentLang === "en" ? "✏ Edit Image Workspace" : "✏ Görsel Alanını Düzenle")
+    : (window.currentLang === "en" ? "➕ New Image Workspace" : "➕ Yeni Görsel Çalışma Alanı");
+  if ($("#iwName")) $("#iwName").value = ws ? ws.name : "";
+  if ($("#iwDesc")) $("#iwDesc").value = ws ? ws.description : "";
+  if ($("#iwColor")) $("#iwColor").value = ws ? ws.color : "#8b5cf6";
+  if ($("#iwIcon")) $("#iwIcon").value = ws ? ws.icon : "🎨";
   modal.classList.remove("hidden");
 }
 window.openImageWorkspaceModal = openImageWorkspaceModal;
 
 $("#btnNewImageWs")?.addEventListener("click", () => {
-  if (typeof window.openWorkspaceModal === "function") {
-    window.openWorkspaceModal();
-  } else {
-    openImageWorkspaceModal();
+  openImageWorkspaceModal();
+});
+
+$("#iwClose")?.addEventListener("click", () => {
+  $("#imageWorkspaceModal")?.classList.add("hidden");
+});
+
+$("#iwCancel")?.addEventListener("click", () => {
+  $("#imageWorkspaceModal")?.classList.add("hidden");
+});
+
+$("#iwSubmit")?.addEventListener("click", async () => {
+  const id = $("#iwModalId")?.value;
+  const name = $("#iwName")?.value.trim();
+  const description = $("#iwDesc")?.value.trim();
+  const color = $("#iwColor")?.value.trim() || "#8b5cf6";
+  const icon = $("#iwIcon")?.value.trim() || "🎨";
+
+  if (!name) {
+    toast(window.currentLang === "en" ? "Workspace name cannot be empty" : "Çalışma alanı adı boş olamaz", true);
+    return;
+  }
+
+  const payload = { name, description, color, icon };
+  try {
+    if (id) {
+      await api(`/api/workspaces/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      toast(window.currentLang === "en" ? "Workspace updated" : "Görsel çalışma alanı güncellendi");
+    } else {
+      await api("/api/workspaces", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      toast(window.currentLang === "en" ? "New workspace created" : "Yeni görsel çalışma alanı oluşturuldu");
+    }
+    $("#imageWorkspaceModal")?.classList.add("hidden");
+    loadImageWorkspaces();
+  } catch (e) {
+    toast("Kaydedilemedi: " + e.message, true);
   }
 });
 

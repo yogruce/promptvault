@@ -837,7 +837,40 @@
   </div>
 </div>
 
-<!-- WORKSPACE EKLE / DÜZENLE MODALI -->
+<!-- GÖRSEL WORKSPACE EKLE / DÜZENLE MODALI -->
+<div id="imageWorkspaceModal" class="modal hidden">
+  <div class="modal-box modal-small">
+    <button class="close" id="iwClose">✕</button>
+    <div class="ucontent">
+      <h3 id="iwModalTitle">➕ Yeni Görsel Çalışma Alanı</h3>
+      <input type="hidden" id="iwModalId">
+
+      <label>Çalışma Alanı Adı</label>
+      <input id="iwName" placeholder="ör. Karakterler, Manzara, Cyberpunk, Oyun Konseptleri" style="width:100%">
+
+      <label>Açıklama</label>
+      <input id="iwDesc" placeholder="Bu görsel alanının amacı..." style="width:100%">
+
+      <div class="row">
+        <div style="flex:1">
+          <label>Simge / Emoji</label>
+          <input id="iwIcon" value="🎨" style="width:100%">
+        </div>
+        <div style="flex:1">
+          <label>Tema Rengi</label>
+          <input id="iwColor" type="color" value="#8b5cf6" style="width:100%; height:38px; padding:2px">
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:16px; justify-content:flex-end">
+        <button id="iwCancel" class="ghost">İptal</button>
+        <button id="iwSubmit" class="primary">Kaydet</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- WORKSPACE EKLE / DÜZENLE MODALI (MÜZİK) -->
 <div id="workspaceModal" class="modal hidden">
   <div class="modal-box modal-small">
     <button class="close" id="wsClose">✕</button>
