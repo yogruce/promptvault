@@ -215,6 +215,19 @@ class Library:
             "VALUES (?, ?, ?, ?, ?, ?)",
             ("Genel", "Varsayılan çalışma alanı", "#8b5cf6", "🎨", now, now)
         )
+        conn.execute("UPDATE workspaces SET icon='🎨' WHERE name='Genel' AND icon='🎵'")
+        has_songs = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='songs'").fetchone() is not None
+        has_music_ws = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='music_workspaces'").fetchone() is not None
+        if has_songs and has_music_ws:
+            conn.execute("""
+                DELETE FROM workspaces
+                WHERE id IN (
+                    SELECT w.id FROM workspaces w
+                    JOIN music_workspaces mw ON mw.name = w.name
+                    WHERE (SELECT COUNT(*) FROM images WHERE workspace_id = w.id) = 0
+                      AND (SELECT COUNT(*) FROM songs WHERE workspace_id = mw.id) > 0
+                )
+            """)
         conn.execute(
             "UPDATE images SET workspace_id = (SELECT id FROM workspaces WHERE name='Genel' LIMIT 1) "
             "WHERE workspace_id IS NULL"

@@ -223,6 +223,21 @@ class MusicLibrary:
                     (genel_row[0],)
                 )
 
+            # Clean up music-only workspaces from old shared workspaces table if present
+            has_old_ws = c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='workspaces'").fetchone() is not None
+            has_images = c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='images'").fetchone() is not None
+            if has_old_ws and has_images:
+                c.execute("UPDATE workspaces SET icon='🎨' WHERE name='Genel' AND icon='🎵'")
+                c.execute("""
+                    DELETE FROM workspaces
+                    WHERE id IN (
+                        SELECT w.id FROM workspaces w
+                        JOIN music_workspaces mw ON mw.name = w.name
+                        WHERE (SELECT COUNT(*) FROM images WHERE workspace_id = w.id) = 0
+                          AND (SELECT COUNT(*) FROM songs WHERE workspace_id = mw.id) > 0
+                    )
+                """)
+
     def close(self) -> None:
         c = getattr(self._local, "conn", None)
         if c is not None:
