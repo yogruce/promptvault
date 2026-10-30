@@ -119,6 +119,9 @@
         viewMusic.classList.add('hidden');
         navImages.classList.remove('hidden');
         navMusic.classList.add('hidden');
+        if (window.G && window.G.items.length === 0 && window.loadGallery) {
+          window.loadGallery();
+        }
       } else {
         btnMusic.classList.add('active');
         btnImages.classList.remove('active');

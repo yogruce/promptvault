@@ -44,6 +44,7 @@ function showTab(name) {
   }
   $$("#tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
   $$(".tab").forEach((t) => t.classList.toggle("active", t.id === "tab-" + name));
+  if (name === "gallery" && G.items.length === 0) loadGallery();
   if (name === "tags") loadTags();
   if (name === "matrix") loadMatrices();
   if (name === "wildcards") loadWildcards();
@@ -90,17 +91,33 @@ let lastSelectedIdx = null;
 function quoteTag(name) { return /\s/.test(name) ? `tag:"${name}"` : `tag:${name}`; }
 function searchFor(q) { $("#q").value = q; showTab("gallery"); closeModal(); loadGallery(); }
 
-async function loadGallery(append = false) {
+async function loadGallery(append = false, retries = 3) {
   if (!append) { G.offset = 0; G.items = []; }
-  const params = new URLSearchParams({ q: $("#q").value, sort: $("#sort").value, limit: G.limit, offset: G.offset });
+  const qEl = $("#q");
+  const qVal = qEl ? qEl.value.trim() : "";
+  const sortVal = $("#sort") ? $("#sort").value : "added";
+  const params = new URLSearchParams({ q: qVal, sort: sortVal, limit: G.limit, offset: G.offset });
   let res;
-  try { res = await api("/api/images?" + params); } catch (e) { $("#resultInfo").textContent = e.message; return; }
-  G.total = res.total; G.items.push(...res.items); G.offset += res.items.length;
+  try {
+    res = await api("/api/images?" + params);
+  } catch (e) {
+    if (retries > 0) {
+      setTimeout(() => loadGallery(append, retries - 1), 500);
+      return;
+    }
+    $("#resultInfo").textContent = e.message;
+    return;
+  }
+  G.total = res.total;
+  G.items.push(...res.items);
+  G.offset += res.items.length;
   renderGrid(append ? res.items : G.items, append);
   $("#resultInfo").textContent = `${G.total} sonuç`;
   $("#more").classList.toggle("hidden", G.items.length >= G.total);
-  $("#empty").classList.toggle("hidden", G.total > 0 || $("#q").value !== "");
+  $("#empty").classList.toggle("hidden", G.total > 0 || qVal !== "");
 }
+window.loadGallery = loadGallery;
+window.G = G;
 
 function cardHTML(it, idx) {
   const cap = it.prompt ? esc(it.prompt.slice(0, 140)) : '<i>prompt yok</i>';
@@ -808,11 +825,15 @@ async function loadLibStats() {
 }
 
 /* ------------------------------------------------------------- init */
+if ($("#q")) $("#q").value = "";
 $("#scanPath").value = localStorage.getItem("pv.scanPath") || "";
 syncMode();
 addParamRow("steps", "");
 loadStats();
 loadGallery();
+window.addEventListener("load", () => {
+  if (G.items.length === 0) loadGallery();
+});
 api("/api/scan").then((s) => { if (s.running) { $("#scanStart").disabled = true; pollScan(); } });
 
 /* ------------------------------------------------------------- google drive */

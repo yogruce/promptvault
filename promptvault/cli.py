@@ -208,8 +208,15 @@ def cmd_serve(args, lib: Library) -> int:
     url = f"http://{args.host}:{args.port}"
     print(f"PromptVault arayüzü: {url}")
     if args.open:
+        import threading
+        import time
         import webbrowser
-        webbrowser.open(url)
+
+        def _delayed_open():
+            time.sleep(0.4)
+            webbrowser.open(url)
+
+        threading.Thread(target=_delayed_open, daemon=True).start()
     try:
         uvicorn.run(create_app(lib, args.wildcards), host=args.host, port=args.port, log_level="warning")
     except OSError as e:
