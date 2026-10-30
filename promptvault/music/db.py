@@ -63,7 +63,6 @@ CREATE TABLE IF NOT EXISTS songs (
 CREATE INDEX IF NOT EXISTS ix_songs_suno_id ON songs(suno_id);
 CREATE INDEX IF NOT EXISTS ix_songs_ws ON songs(workspace_id);
 CREATE INDEX IF NOT EXISTS ix_songs_artist ON songs(artist);
-CREATE INDEX IF NOT EXISTS ix_songs_persona ON songs(persona);
 CREATE INDEX IF NOT EXISTS ix_songs_rating ON songs(rating);
 CREATE INDEX IF NOT EXISTS ix_songs_favorite ON songs(favorite);
 
@@ -161,7 +160,6 @@ class MusicLibrary:
             if cols:
                 if "persona" not in cols:
                     c.execute("ALTER TABLE songs ADD COLUMN persona TEXT DEFAULT ''")
-                    c.execute("CREATE INDEX IF NOT EXISTS ix_songs_persona ON songs(persona)")
                 if "synced_lyrics" not in cols:
                     c.execute("ALTER TABLE songs ADD COLUMN synced_lyrics TEXT DEFAULT ''")
                 if "lrc_content" not in cols:
@@ -174,6 +172,16 @@ class MusicLibrary:
                     c.execute("ALTER TABLE songs ADD COLUMN vault_lrc_path TEXT DEFAULT ''")
                 if "vault_srt_path" not in cols:
                     c.execute("ALTER TABLE songs ADD COLUMN vault_srt_path TEXT DEFAULT ''")
+            c.execute("CREATE INDEX IF NOT EXISTS ix_songs_persona ON songs(persona)")
+
+            # Check if songs_fts needs migration (e.g. persona column)
+            fts_cols = [r[1] for r in c.execute("PRAGMA table_info(songs_fts)").fetchall()]
+            if fts_cols and "persona" not in fts_cols:
+                c.execute("DROP TRIGGER IF EXISTS songs_ai")
+                c.execute("DROP TRIGGER IF EXISTS songs_ad")
+                c.execute("DROP TRIGGER IF EXISTS songs_au")
+                c.execute("DROP TABLE IF EXISTS songs_fts")
+
             c.executescript(MUSIC_FTS_SCHEMA)
             # Create default workspace if none exist
             count = c.execute("SELECT COUNT(*) FROM workspaces").fetchone()[0]
