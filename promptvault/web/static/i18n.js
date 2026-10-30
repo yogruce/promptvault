@@ -66,6 +66,7 @@ const TRANSLATIONS = {
     qi_btn_disable: "Durdur / Kapat",
     qi_btn_enable: "Etkinleştir / Aç",
     qi_install_btn: "⚡ Tampermonkey Clipper Kur (.user.js)",
+    qi_copy_script: "📋 Scripti Kopyala",
     qi_install_hint: "Kurulduğunda Gemini, ChatGPT, Flow ve Suno sayfalarında otomatik '⚡ Vault'a Aktar' butonu görünür.",
 
     // Google Drive Box
@@ -176,6 +177,7 @@ const TRANSLATIONS = {
     qi_btn_disable: "Disable",
     qi_btn_enable: "Enable",
     qi_install_btn: "⚡ Install Tampermonkey Clipper (.user.js)",
+    qi_copy_script: "📋 Copy Script",
     qi_install_hint: "When installed, an automatic '⚡ Send to Vault' button appears on Gemini, ChatGPT, Flow, and Suno pages.",
 
     // Google Drive Box
@@ -268,3 +270,32 @@ window.t = t;
 window.setLanguage = setLanguage;
 window.currentLang = () => currentLang;
 window.applyI18n = applyI18n;
+
+// Auto-bind language buttons on DOM ready
+if (typeof document !== 'undefined') {
+  const initI18n = () => {
+    applyI18n();
+    document.getElementById('btnLangTR')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      setLanguage('tr');
+    });
+    document.getElementById('btnLangEN')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      setLanguage('en');
+    });
+    document.getElementById('btnSetLangTR')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      setLanguage('tr');
+    });
+    document.getElementById('btnSetLangEN')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      setLanguage('en');
+    });
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initI18n);
+  } else {
+    initI18n();
+  }
+}

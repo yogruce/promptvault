@@ -395,70 +395,98 @@ function renderDetail(d) {
     renderDetail(nd);
   };
 
-  $("#dEditPrompt").onclick = () => {
-    isEditingPrompt = !isEditingPrompt;
-    renderDetail(d);
-  };
-
-  if (isEditingPrompt) {
-    $("#dSavePrompt").onclick = async () => {
-      const newPrompt = $("#dPromptEdit").value;
-      const newNeg = $("#dNegEdit").value;
-      const newGen = $("#dGenEdit") ? $("#dGenEdit").value : undefined;
-      await patch({ prompt: newPrompt, negative: newNeg, generator: newGen });
-      isEditingPrompt = false;
-      toast("Prompt ve üretici güncellendi");
-      renderGrid(G.items, false);
-      loadStats();
+  const btnEditPrompt = $("#dEditPrompt");
+  if (btnEditPrompt) {
+    btnEditPrompt.onclick = () => {
+      isEditingPrompt = !isEditingPrompt;
+      renderDetail(d);
     };
   }
 
-  $("#dStars").onclick = (e) => { const r = +e.target.dataset.r; if (r) patch({ rating: r === d.rating ? 0 : r }); };
-  $("#dFav").onclick = () => patch({ favorite: !d.favorite }).then(() => { renderGrid(G.items, false); loadStats(); });
-  $("#dNotes").onchange = (e) => patch({ notes: e.target.value }).then(() => toast("Not kaydedildi"));
-  $("#dCopyP").onclick = () => copy(d.prompt);
-  if ($("#dCopyN")) $("#dCopyN").onclick = () => copy(d.negative);
-  $("#dCopyAll").onclick = () => copy(toA1111(d));
-  $("#dToMatrix").onclick = () => { closeModal(); sendToMatrix(d); };
-  $("#dDelete").onclick = async () => {
-    if (!confirm("Bu görseli kasadan silmek istediğinize emin misiniz?\n(Not: Bilgisayarınızdaki orijinal dosya korunur, yalnızca kasa kaydı silinir.)")) return;
-    try {
-      await api(`/api/images/${d.id}`, { method: "DELETE" });
-      toast("Görsel kasadan silindi");
-      closeModal();
-      removeImagesFromUI([d.id]);
-      loadStats();
-    } catch (err) {
-      toast("Silme hatası: " + err.message);
+  if (isEditingPrompt) {
+    const btnSavePrompt = $("#dSavePrompt");
+    if (btnSavePrompt) {
+      btnSavePrompt.onclick = async () => {
+        const newPrompt = $("#dPromptEdit")?.value || "";
+        const newNeg = $("#dNegEdit")?.value || "";
+        const newGen = $("#dGenEdit") ? $("#dGenEdit").value : undefined;
+        await patch({ prompt: newPrompt, negative: newNeg, generator: newGen });
+        isEditingPrompt = false;
+        toast("Prompt ve üretici güncellendi");
+        renderGrid(G.items, false);
+        loadStats();
+      };
     }
-  };
+  }
+
+  const dStars = $("#dStars");
+  if (dStars) dStars.onclick = (e) => { const r = +e.target.dataset.r; if (r) patch({ rating: r === d.rating ? 0 : r }); };
+
+  const dFav = $("#dFav");
+  if (dFav) dFav.onclick = () => patch({ favorite: !d.favorite }).then(() => { renderGrid(G.items, false); loadStats(); });
+
+  const dNotes = $("#dNotes");
+  if (dNotes) dNotes.onchange = (e) => patch({ notes: e.target.value }).then(() => toast("Not kaydedildi"));
+
+  const dCopyP = $("#dCopyP");
+  if (dCopyP) dCopyP.onclick = () => copy(d.prompt);
+
+  const dCopyN = $("#dCopyN");
+  if (dCopyN) dCopyN.onclick = () => copy(d.negative);
+
+  const dCopyAll = $("#dCopyAll");
+  if (dCopyAll) dCopyAll.onclick = () => copy(toA1111(d));
+
+  const dToMatrix = $("#dToMatrix");
+  if (dToMatrix) dToMatrix.onclick = () => { closeModal(); sendToMatrix(d); };
+
+  const dDelete = $("#dDelete");
+  if (dDelete) {
+    dDelete.onclick = async () => {
+      if (!confirm("Bu görseli kasadan silmek istediğinize emin misiniz?\n(Not: Bilgisayarınızdaki orijinal dosya korunur, yalnızca kasa kaydı silinir.)")) return;
+      try {
+        await api(`/api/images/${d.id}`, { method: "DELETE" });
+        toast("Görsel kasadan silindi");
+        closeModal();
+        removeImagesFromUI([d.id]);
+        loadStats();
+      } catch (err) {
+        toast("Silme hatası: " + err.message);
+      }
+    };
+  }
 
   const addTags = async () => {
-    const raw = $("#dTagInput").value;
+    const raw = $("#dTagInput")?.value || "";
     const tags = raw.split(",").map((s) => s.trim()).filter(Boolean);
     if (!tags.length) return;
     d.tags = await api(`/api/images/${d.id}/tags`, { method: "POST", body: { tags } });
-    $("#dTagInput").value = "";
+    if ($("#dTagInput")) $("#dTagInput").value = "";
     toast(`Etiket eklendi: ${tags.join(", ")}`);
     renderDetail(d);
     loadStats();
   };
-  $("#dTagAdd").onclick = addTags;
-  $("#dTagInput").onkeydown = (e) => { if (e.key === "Enter") addTags(); };
+  const dTagAdd = $("#dTagAdd");
+  if (dTagAdd) dTagAdd.onclick = addTags;
+  const dTagInput = $("#dTagInput");
+  if (dTagInput) dTagInput.onkeydown = (e) => { if (e.key === "Enter") addTags(); };
 
-  $("#dTags").onclick = async (e) => {
-    const chip = e.target.closest(".chip"); if (!chip) return;
-    if (e.target.classList.contains("x")) {
-      const removedName = chip.dataset.tag;
-      d.tags = await api(`/api/images/${d.id}/tags/${encodeURIComponent(removedName)}?kind=user`, { method: "DELETE" });
-      toast(`Etiket silindi: ${removedName}`);
-      renderDetail(d);
-      loadStats();
-      return;
-    }
-    const k = chip.dataset.kind, n = chip.dataset.tag;
-    if (k === "generator") searchFor(`gen:${n}`); else if (k === "lora") searchFor(`lora:"${n}"`); else searchFor(quoteTag(n));
-  };
+  const dTags = $("#dTags");
+  if (dTags) {
+    dTags.onclick = async (e) => {
+      const chip = e.target.closest(".chip"); if (!chip) return;
+      if (e.target.classList.contains("x")) {
+        const removedName = chip.dataset.tag;
+        d.tags = await api(`/api/images/${d.id}/tags/${encodeURIComponent(removedName)}?kind=user`, { method: "DELETE" });
+        toast(`Etiket silindi: ${removedName}`);
+        renderDetail(d);
+        loadStats();
+        return;
+      }
+      const k = chip.dataset.kind, n = chip.dataset.tag;
+      if (k === "generator") searchFor(`gen:${n}`); else if (k === "lora") searchFor(`lora:"${n}"`); else searchFor(quoteTag(n));
+    };
+  }
 }
 
 function toA1111(d) {
@@ -689,28 +717,37 @@ function writeSpec(s) {
 }
 function syncMode() { $$(".rnd").forEach((e) => (e.style.display = $("#mMode").value === "random" ? "" : "none")); }
 async function preview() {
-  $("#mErr").textContent = "";
+  const mErr = $("#mErr");
+  const mTotal = $("#mCountBadge") || $("#mTotal");
+  if (mErr) mErr.textContent = "";
   try {
     const r = await api("/api/matrix/preview", { method: "POST", body: { spec: readSpec(), limit: 300 } });
-    $("#mTotal").textContent = r.count.toLocaleString("tr-TR") + ($("#mMode").value === "random" ? " olası" : "");
-    $("#mRows").innerHTML = r.rows.map((row) => {
-      const ps = Object.entries(row.params).map(([k, v]) => `<span class="chip axis">${esc(k)}=${esc(v)}</span>`).join("");
-      return `<div class="mrow"><span class="i">#${row.index + 1}</span>${esc(row.prompt)}
-        ${row.negative ? `<div class="neg">− ${esc(row.negative)}</div>` : ""}${ps ? `<div class="chips">${ps}</div>` : ""}</div>`;
-    }).join("") + (r.rows.length < Math.min(r.count, readSpec().limit) ? `<div class="muted small center">…önizlemede ilk ${r.rows.length} satır</div>` : "");
-  } catch (e) { $("#mErr").textContent = e.message; $("#mTotal").textContent = "–"; }
+    if (mTotal) mTotal.textContent = r.count.toLocaleString("tr-TR") + ($("#mMode")?.value === "random" ? " olası" : "");
+    const mRows = $("#mRows");
+    if (mRows) {
+      mRows.innerHTML = r.rows.map((row) => {
+        const ps = Object.entries(row.params).map(([k, v]) => `<span class="chip axis">${esc(k)}=${esc(v)}</span>`).join("");
+        return `<div class="mrow"><span class="i">#${row.index + 1}</span>${esc(row.prompt)}
+          ${row.negative ? `<div class="neg">− ${esc(row.negative)}</div>` : ""}${ps ? `<div class="chips">${ps}</div>` : ""}</div>`;
+      }).join("") + (r.rows.length < Math.min(r.count, readSpec().limit) ? `<div class="muted small center">…önizlemede ilk ${r.rows.length} satır</div>` : "");
+    }
+  } catch (e) {
+    if (mErr) mErr.textContent = e.message;
+    if (mTotal) mTotal.textContent = "–";
+  }
 }
 const autoPreview = debounce(preview, 400);
-["#mPrompt", "#mNegative", "#mCount", "#mSeed", "#mLimit"].forEach((s) => $(s).addEventListener("input", autoPreview));
-$("#mMode").onchange = () => { syncMode(); preview(); };
-$("#mAddParam").onclick = () => addParamRow();
-$("#mPreview").onclick = preview;
+["#mPrompt", "#mNegative", "#mCount", "#mSeed", "#mLimit"].forEach((s) => $(s)?.addEventListener("input", autoPreview));
+$("#mMode")?.addEventListener("change", () => { syncMode(); preview(); });
+$("#mAddParam")?.addEventListener("click", () => addParamRow());
+$("#mPreview")?.addEventListener("click", preview);
 async function exportText() {
-  return api("/api/matrix/export", { method: "POST", body: { spec: readSpec(), format: $("#mFormat").value } });
+  const fmt = $("#mFormat")?.value || "txt";
+  return api("/api/matrix/export", { method: "POST", body: { spec: readSpec(), format: fmt } });
 }
-$("#mExport").onclick = async () => {
+$("#mExport")?.addEventListener("click", async () => {
   try {
-    const fmt = $("#mFormat").value;
+    const fmt = $("#mFormat")?.value || "txt";
     const r = await fetch("/api/matrix/export", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ spec: readSpec(), format: fmt }) });
     if (!r.ok) throw new Error((await r.json()).detail);
     const blob = await r.blob();
@@ -718,26 +755,43 @@ $("#mExport").onclick = async () => {
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click();
     URL.revokeObjectURL(a.href);
   } catch (e) { toast("Hata: " + e.message); }
-};
-$("#mCopy").onclick = async () => { try { const t = await exportText(); copy(typeof t === "string" ? t : JSON.stringify(t, null, 2)); } catch (e) { toast(e.message); } };
-$("#mSave").onclick = async () => {
-  const name = $("#mName").value.trim(); if (!name) return toast("Matris adı girin");
-  renderSaved(await api("/api/matrices", { method: "POST", body: { name, spec: readSpec() } })); toast("Kaydedildi");
-};
+});
+($("#mCopySample") || $("#mCopy"))?.addEventListener("click", async () => {
+  try {
+    const t = await exportText();
+    copy(typeof t === "string" ? t : JSON.stringify(t, null, 2));
+  } catch (e) {
+    toast(e.message);
+  }
+});
+$("#mSave")?.addEventListener("click", async () => {
+  const mNameEl = $("#mName");
+  const name = mNameEl ? mNameEl.value.trim() : prompt("Matris adı:");
+  if (!name) return toast("Matris adı girin");
+  renderSaved(await api("/api/matrices", { method: "POST", body: { name, spec: readSpec() } }));
+  toast("Kaydedildi");
+});
 let savedMatrices = [];
 function renderSaved(list) {
-  savedMatrices = list;
-  $("#mSaved").innerHTML = list.map((m, i) => `<span class="chip" data-i="${i}">${esc(m.name)}<span class="x" data-del="${i}">×</span></span>`).join("");
+  savedMatrices = list || [];
+  const container = $("#mSavedList") || $("#mSaved");
+  if (container) {
+    container.innerHTML = savedMatrices.map((m, i) => `<span class="chip" data-i="${i}">${esc(m.name)}<span class="x" data-del="${i}">×</span></span>`).join("");
+  }
 }
-$("#mSaved").onclick = async (e) => {
+const savedContainer = $("#mSavedList") || $("#mSaved");
+savedContainer?.addEventListener("click", async (e) => {
   if (e.target.dataset.del !== undefined) {
     const m = savedMatrices[+e.target.dataset.del];
     if (confirm(`"${m.name}" silinsin mi?`)) renderSaved(await api(`/api/matrices/${encodeURIComponent(m.name)}`, { method: "DELETE" }));
     return;
   }
   const c = e.target.closest(".chip"); if (!c) return;
-  const m = savedMatrices[+c.dataset.i]; $("#mName").value = m.name; writeSpec(m.spec);
-};
+  const m = savedMatrices[+c.dataset.i];
+  const mNameEl = $("#mName");
+  if (mNameEl) mNameEl.value = m.name;
+  writeSpec(m.spec);
+});
 async function loadMatrices() { renderSaved(await api("/api/matrices")); }
 function sendToMatrix(d) {
   const p = d.params || {}; const params = {};
@@ -775,66 +829,123 @@ $("#wDelete").onclick = async () => {
 /* ------------------------------------------------------------- scan */
 let scanTimer;
 
-$("#btnBrowseFolder").onclick = async () => {
-  try {
-    const res = await api("/api/dialog/pick-folder", { method: "POST" });
-    if (res && res.path) {
-      $("#scanPath").value = res.path;
-      localStorage.setItem("pv.scanPath", res.path);
-      toast(`Klasör seçildi: ${res.path}`);
+const btnBrowse = $("#scanBrowse") || $("#btnBrowseFolder");
+if (btnBrowse) {
+  btnBrowse.onclick = async () => {
+    try {
+      const res = await api("/api/dialog/pick-folder", { method: "POST" });
+      if (res && res.path) {
+        const scanPath = $("#scanPath");
+        if (scanPath) scanPath.value = res.path;
+        localStorage.setItem("pv.scanPath", res.path);
+        toast(`Klasör seçildi: ${res.path}`);
+      }
+    } catch (e) {
+      toast("Klasör seçici hatası: " + e.message);
     }
-  } catch (e) {
-    toast("Klasör seçici hatası: " + e.message);
-  }
-};
+  };
+}
 
 async function pollScan() {
   const s = await api("/api/scan");
   const st = s.stats;
+  const scanStatusEl = $("#scanStatus") || $("#scanInfo");
   if (st) {
-    $("#scanBar").style.width = (st.total ? (100 * st.done) / st.total : 100) + "%";
-    $("#scanInfo").textContent = `${st.done}/${st.total} · ${st.added} yeni · ${st.updated} güncellendi · ${st.moved || 0} taşındı · ${st.skipped} değişmedi · ${st.error} hata`;
+    const scanBar = $("#scanBar");
+    if (scanBar) scanBar.style.width = (st.total ? (100 * st.done) / st.total : 100) + "%";
+    if (scanStatusEl) scanStatusEl.textContent = `${st.done}/${st.total} · ${st.added} yeni · ${st.updated} güncellendi · ${st.moved || 0} taşındı · ${st.skipped} değişmedi · ${st.error} hata`;
   }
-  if (s.error) $("#scanInfo").textContent = "Hata: " + s.error;
+  if (s.error && scanStatusEl) scanStatusEl.textContent = "Hata: " + s.error;
   if (s.running) scanTimer = setTimeout(pollScan, 500);
-  else { $("#scanStart").disabled = false; loadStats(); loadLibStats(); loadGallery(); }
+  else {
+    const startBtn = $("#scanStart");
+    if (startBtn) startBtn.disabled = false;
+    loadStats();
+    loadLibStats();
+    loadGallery();
+  }
 }
-$("#scanStart").onclick = async () => {
-  const path = $("#scanPath").value.trim(); if (!path) return toast("Yol girin");
-  localStorage.setItem("pv.scanPath", path);
+const scanStartBtn = $("#scanStart");
+if (scanStartBtn) {
+  scanStartBtn.onclick = async () => {
+    const scanPath = $("#scanPath");
+    const path = scanPath ? scanPath.value.trim() : "";
+    if (!path) return toast("Yol girin");
+    localStorage.setItem("pv.scanPath", path);
+    try {
+      await api("/api/scan", {
+        method: "POST",
+        body: {
+          path,
+          recursive: $("#scanRec") ? $("#scanRec").checked : true,
+          force: $("#scanForce") ? $("#scanForce").checked : false
+        }
+      });
+      scanStartBtn.disabled = true;
+      pollScan();
+    } catch (e) {
+      toast(e.message);
+    }
+  };
+}
+
+$("#prune")?.addEventListener("click", async () => {
   try {
-    await api("/api/scan", { method: "POST", body: { path, recursive: $("#scanRec").checked, force: $("#scanForce").checked } });
-    $("#scanStart").disabled = true; pollScan();
-  } catch (e) { toast(e.message); }
-};
-$("#prune").onclick = async () => {
-  const r = await api("/api/prune", { method: "POST" });
-  toast(`Kasa doğrulandı (${r.removed} geçersiz kayıt temizlendi)`);
-  loadStats();
-  loadLibStats();
-};
+    const r = await api("/api/prune", { method: "POST" });
+    toast(`Kasa doğrulandı (${r.removed} geçersiz kayıt temizlendi)`);
+    loadStats();
+    loadLibStats();
+  } catch (e) {
+    toast("Hata: " + e.message);
+  }
+});
+
 async function loadLibStats() {
-  const s = await loadStats();
-  const list = (o) => Object.entries(o).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${v}</td></tr>`).join("");
-  $("#libStats").innerHTML = `<table class="params">
-    <tr><td>Kayıtlı Görsel</td><td>${s.images} (${s.with_prompt} promptlu)</td></tr>
-    <tr><td>Kasa Deposu</td><td><code>${esc(s.vault_dir || "~/.promptvault/vault")}</code></td></tr>
-    <tr><td>Veritabanı</td><td>${esc(s.db_path)} ${s.fts ? "· FTS5 ✓" : ""}</td></tr></table>
-    <h4 class="muted">Üreticiler</h4><table class="params">${list(s.generators)}</table>
-    <h4 class="muted">En çok kullanılan modeller</h4><table class="params">${list(s.models)}</table>`;
+  try {
+    const s = await loadStats();
+    const list = (o) => Object.entries(o || {}).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${v}</td></tr>`).join("");
+    const libStatsEl = $("#libStats");
+    if (libStatsEl) {
+      libStatsEl.innerHTML = `<table class="params">
+        <tr><td>Kayıtlı Görsel</td><td>${s.images} (${s.with_prompt} promptlu)</td></tr>
+        <tr><td>Kasa Deposu</td><td><code>${esc(s.vault_dir || "~/.promptvault/vault")}</code></td></tr>
+        <tr><td>Veritabanı</td><td>${esc(s.db_path)} ${s.fts ? "· FTS5 ✓" : ""}</td></tr></table>
+        <h4 class="muted">Üreticiler</h4><table class="params">${list(s.generators)}</table>
+        <h4 class="muted">En çok kullanılan modeller</h4><table class="params">${list(s.models)}</table>`;
+    }
+  } catch {}
 }
 
 /* ------------------------------------------------------------- init */
 if ($("#q")) $("#q").value = "";
-$("#scanPath").value = localStorage.getItem("pv.scanPath") || "";
+const scanPathEl = $("#scanPath");
+if (scanPathEl) scanPathEl.value = localStorage.getItem("pv.scanPath") || "";
 syncMode();
 addParamRow("steps", "");
-loadStats();
-loadGallery();
+
+async function initPromptVault() {
+  try { await loadStats(); } catch (e) { console.warn("loadStats error", e); }
+  try { await loadGallery(); } catch (e) { console.warn("loadGallery error", e); }
+  try { await loadGDriveStatus(); } catch (e) { console.warn("loadGDriveStatus error", e); }
+  try { await loadQuickImportStatus(); } catch (e) { console.warn("loadQuickImportStatus error", e); }
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initPromptVault);
+} else {
+  initPromptVault();
+}
+
 window.addEventListener("load", () => {
   if (G.items.length === 0) loadGallery();
 });
-api("/api/scan").then((s) => { if (s.running) { $("#scanStart").disabled = true; pollScan(); } });
+api("/api/scan").then((s) => {
+  if (s && s.running) {
+    const sb = $("#scanStart");
+    if (sb) sb.disabled = true;
+    pollScan();
+  }
+}).catch(() => {});
 
 /* ------------------------------------------------------------- google drive */
 let gdPollTimer = null;
@@ -895,16 +1006,16 @@ async function loadGDriveStatus() {
   }
 }
 
-$("#btnGdSaveConfig").onclick = async () => {
-  const client_id = $("#gdClientId").value.trim();
-  const client_secret = $("#gdClientSecret").value.trim();
+$("#btnGdSaveConfig")?.addEventListener("click", async () => {
+  const client_id = $("#gdClientId")?.value.trim() || "";
+  const client_secret = $("#gdClientSecret")?.value.trim() || "";
   if (!client_id || !client_secret) return toast("Client ID ve Secret girin");
   await api("/api/gdrive/config", { method: "POST", body: { client_id, client_secret } });
   toast("Google Drive API kimlik bilgileri kaydedildi");
   loadGDriveStatus();
-};
+});
 
-$("#btnGdLogin").onclick = async () => {
+$("#btnGdLogin")?.addEventListener("click", async () => {
   try {
     const res = await api("/api/gdrive/login", { method: "POST" });
     toast(res.message || "Tarayıcıda Google giriş penceresi açıldı...");
@@ -919,15 +1030,15 @@ $("#btnGdLogin").onclick = async () => {
   } catch (e) {
     toast("Hata: " + e.message);
   }
-};
+});
 
-$("#btnGdLogout").onclick = async () => {
+$("#btnGdLogout")?.addEventListener("click", async () => {
   if (confirm("Google Drive oturumunu kapatmak istiyor musunuz?")) {
     await api("/api/gdrive/logout", { method: "POST" });
     toast("Oturum kapatıldı");
     loadGDriveStatus();
   }
-};
+});
 
 async function startGDriveSync() {
   const s = await loadGDriveStatus();
@@ -970,8 +1081,8 @@ async function pollGDriveSync() {
   }
 }
 
-$("#btnGdSync").onclick = startGDriveSync;
-$("#btnQuickGdSync").onclick = startGDriveSync;
+$("#btnGdSync")?.addEventListener("click", startGDriveSync);
+$("#btnQuickGdSync")?.addEventListener("click", startGDriveSync);
 
 // Load GDrive status on init and tab switch
 loadGDriveStatus();
@@ -1059,7 +1170,7 @@ async function pollGDriveRestore() {
         toast(`✓ ${r.restored} kayıt geri yüklendi!`);
         loadLibStats();
         loadStats();
-        loadImages(true);
+        loadGallery(false);
       } else if (p.error) {
         statusEl.textContent = "Hata: " + p.error;
         toast("Geri yükleme hatası: " + p.error);
@@ -1103,7 +1214,7 @@ $("#localRestoreFileInput")?.addEventListener("change", async (e) => {
     toast(`✓ ${r.restored} görsel/prompt kaydı geri yüklendi!`);
     loadLibStats();
     loadStats();
-    loadImages(true);
+    loadGallery(false);
   } catch (err) {
     if (statusEl) statusEl.textContent = "Hata: " + err.message;
     toast("Hata: " + err.message);
@@ -1240,7 +1351,7 @@ $("#qiImageSubmit")?.addEventListener("click", async () => {
     $("#qiImagePrompt").value = "";
     $("#qiImageUrl").value = "";
     $("#qiImageModel").value = "";
-    loadImages(true);
+    loadGallery(false);
     loadStats();
   } catch (e) {
     toast("Hata: " + e.message);
@@ -1249,4 +1360,19 @@ $("#qiImageSubmit")?.addEventListener("click", async () => {
     btn.disabled = false;
   }
 });
+
+/* --------------------------------------------------- copy clipper script */
+async function copyClipperScript() {
+  try {
+    const res = await fetch("/static/promptvault_clipper.user.js?v=" + Date.now());
+    if (!res.ok) throw new Error("Userscript dosyası yüklenemedi");
+    const scriptCode = await res.text();
+    await navigator.clipboard.writeText(scriptCode);
+    toast("✓ Tampermonkey Clipper scripti panoya kopyalandı! Tampermonkey'e yapıştırabilirsiniz. 📋");
+  } catch (e) {
+    toast("Script kopyalama hatası: " + e.message, true);
+  }
+}
+$("#btnCopyClipperScript")?.addEventListener("click", copyClipperScript);
+$("#btnCopyClipperScriptModal")?.addEventListener("click", copyClipperScript);
 
