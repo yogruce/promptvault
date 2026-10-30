@@ -64,6 +64,12 @@ class Song:
     favorite: bool = False
     notes: str = ""
     duration: float | None = None
+    synced_lyrics: str = ""
+    lrc_content: str = ""
+    srt_content: str = ""
+    has_synced_lyrics: bool = False
+    vault_lrc_path: str = ""
+    vault_srt_path: str = ""
     tags: list[dict[str, Any]] = field(default_factory=list)
     added_at: str = ""
     updated_at: str = ""
@@ -89,6 +95,12 @@ class Song:
             "favorite": self.favorite,
             "notes": self.notes,
             "duration": self.duration,
+            "synced_lyrics": self.synced_lyrics,
+            "lrc_content": self.lrc_content,
+            "srt_content": self.srt_content,
+            "has_synced_lyrics": self.has_synced_lyrics,
+            "vault_lrc_path": self.vault_lrc_path,
+            "vault_srt_path": self.vault_srt_path,
             "tags": self.tags,
             "added_at": self.added_at,
             "updated_at": self.updated_at,

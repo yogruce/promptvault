@@ -7,6 +7,12 @@ from promptvault.music import (
     ParsedSong,
     extract_lyric_sections,
     extract_style_tags,
+    fmt_lrc,
+    fmt_srt,
+    generate_lrc,
+    generate_srt,
+    generate_synced_txt,
+    parse_lrc,
     parse_suno_txt,
 )
 from promptvault.web.app import create_app
@@ -76,6 +82,31 @@ Sonunda bulundu dört yapraklı yonca.
 Şansta lazım, varmak için sonuca
 =========================================
 """
+
+
+def test_sync_module_functions():
+    assert fmt_lrc(75.4) == "[01:15.40]"
+    assert fmt_srt(75.4) == "00:01:15,400"
+
+    items = [
+        {"start": 12.5, "end": 15.0, "text": "İlk satır"},
+        {"start": 16.0, "end": 20.2, "text": "İkinci satır"},
+    ]
+    lrc = generate_lrc(items, title="Test Song", artist="Test Artist")
+    assert "[ti:Test Song]" in lrc
+    assert "[00:12.50] İlk satır" in lrc
+
+    srt = generate_srt(items)
+    assert "00:00:12,500 --> 00:00:15,000" in srt
+    assert "İlk satır" in srt
+
+    txt = generate_synced_txt(items)
+    assert "[00:12.50] İlk satır" in txt
+
+    parsed_lrc = parse_lrc(lrc)
+    assert len(parsed_lrc) == 2
+    assert parsed_lrc[0]["text"] == "İlk satır"
+    assert parsed_lrc[0]["start"] == 12.5
 
 
 def test_parse_suno_user_sample(tmp_path: Path):
@@ -256,7 +287,36 @@ def test_music_api_client(tmp_path: Path):
     assert r.status_code == 200
     assert r.json()["rating"] == 5
 
-    # 6. Delete Song
+    # 6. Synchronize lyrics (DistroKid style timings)
+    sync_payload = {
+        "items": [
+            {"start": 1.25, "end": 4.50, "text": "Driving along the coast"},
+            {"start": 5.00, "end": 8.75, "text": "Neon sunset in your eyes"},
+        ],
+        "latency_ms": 120,
+    }
+    r = client.post(f"/api/music/songs/{song_id}/sync", json=sync_payload)
+    assert r.status_code == 200
+    assert r.json()["has_synced_lyrics"] is True
+
+    # 7. Download LRC format
+    r = client.get(f"/api/music/songs/{song_id}/download/lrc")
+    assert r.status_code == 200
+    assert "[ti:Neon Sunset]" in r.text
+    assert "[00:01." in r.text
+    assert "Driving along the coast" in r.text
+
+    # 8. Download SRT format
+    r = client.get(f"/api/music/songs/{song_id}/download/srt")
+    assert r.status_code == 200
+    assert "00:00:01,130 -->" in r.text
+    assert "Neon sunset in your eyes" in r.text
+
+    # 9. Download TXT format
+    r = client.get(f"/api/music/songs/{song_id}/download/txt")
+    assert r.status_code == 200
+
+    # 10. Delete Song
     r = client.delete(f"/api/music/songs/{song_id}")
     assert r.status_code == 200
     assert r.json()["deleted"] is True

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
 import shlex
@@ -44,6 +45,12 @@ CREATE TABLE IF NOT EXISTS songs (
     vault_audio_path TEXT DEFAULT '',
     txt_path TEXT DEFAULT '',
     vault_txt_path TEXT DEFAULT '',
+    synced_lyrics TEXT DEFAULT '',
+    lrc_content TEXT DEFAULT '',
+    srt_content TEXT DEFAULT '',
+    has_synced_lyrics INTEGER DEFAULT 0,
+    vault_lrc_path TEXT DEFAULT '',
+    vault_srt_path TEXT DEFAULT '',
     rating INTEGER DEFAULT 0,
     favorite INTEGER DEFAULT 0,
     notes TEXT DEFAULT '',
@@ -149,11 +156,24 @@ class MusicLibrary:
         c = self.conn
         with c:
             c.executescript(MUSIC_SCHEMA)
-            # Schema migration: check if persona column exists in songs
+            # Schema migration: check if columns exist in songs
             cols = [r[1] for r in c.execute("PRAGMA table_info(songs)").fetchall()]
-            if cols and "persona" not in cols:
-                c.execute("ALTER TABLE songs ADD COLUMN persona TEXT DEFAULT ''")
-                c.execute("CREATE INDEX IF NOT EXISTS ix_songs_persona ON songs(persona)")
+            if cols:
+                if "persona" not in cols:
+                    c.execute("ALTER TABLE songs ADD COLUMN persona TEXT DEFAULT ''")
+                    c.execute("CREATE INDEX IF NOT EXISTS ix_songs_persona ON songs(persona)")
+                if "synced_lyrics" not in cols:
+                    c.execute("ALTER TABLE songs ADD COLUMN synced_lyrics TEXT DEFAULT ''")
+                if "lrc_content" not in cols:
+                    c.execute("ALTER TABLE songs ADD COLUMN lrc_content TEXT DEFAULT ''")
+                if "srt_content" not in cols:
+                    c.execute("ALTER TABLE songs ADD COLUMN srt_content TEXT DEFAULT ''")
+                if "has_synced_lyrics" not in cols:
+                    c.execute("ALTER TABLE songs ADD COLUMN has_synced_lyrics INTEGER DEFAULT 0")
+                if "vault_lrc_path" not in cols:
+                    c.execute("ALTER TABLE songs ADD COLUMN vault_lrc_path TEXT DEFAULT ''")
+                if "vault_srt_path" not in cols:
+                    c.execute("ALTER TABLE songs ADD COLUMN vault_srt_path TEXT DEFAULT ''")
             c.executescript(MUSIC_FTS_SCHEMA)
             # Create default workspace if none exist
             count = c.execute("SELECT COUNT(*) FROM workspaces").fetchone()[0]
@@ -267,6 +287,7 @@ class MusicLibrary:
             return None
         data = dict(row)
         data["has_audio"] = bool(data.get("vault_audio_path") or data.get("audio_path"))
+        data["has_synced_lyrics"] = bool(data.get("has_synced_lyrics") or data.get("synced_lyrics"))
         data["tags"] = self.get_song_tags(song_id)
         return data
 
@@ -512,7 +533,9 @@ class MusicLibrary:
 
         allowed = {
             "title", "style", "lyrics", "model", "persona", "workspace_id",
-            "artist", "rating", "favorite", "notes", "suno_url"
+            "artist", "rating", "favorite", "notes", "suno_url",
+            "synced_lyrics", "lrc_content", "srt_content", "has_synced_lyrics",
+            "vault_lrc_path", "vault_srt_path"
         }
         updates: list[str] = ["updated_at = ?"]
         values: list[Any] = [_now()]
@@ -520,7 +543,7 @@ class MusicLibrary:
         for k, v in fields.items():
             if k in allowed:
                 updates.append(f"{k} = ?")
-                if k == "favorite":
+                if k in ("favorite", "has_synced_lyrics"):
                     values.append(1 if v else 0)
                 else:
                     values.append(v)
@@ -528,6 +551,67 @@ class MusicLibrary:
         values.append(song_id)
         with self.conn as c:
             c.execute(f"UPDATE songs SET {', '.join(updates)} WHERE id = ?", values)
+        return self.get_song(song_id)
+
+    def save_synced_lyrics(
+        self,
+        song_id: int,
+        items: list[dict[str, Any]],
+        latency_ms: int = 120,
+    ) -> dict[str, Any] | None:
+        """Saves synchronized lyrics, generates LRC and SRT formats, and archives to vault."""
+        song = self.get_song(song_id)
+        if not song:
+            return None
+
+        from .sync import generate_lrc, generate_srt
+
+        # Compensate for human reaction delay (offset)
+        offset_sec = max(0.0, float(latency_ms) / 1000.0)
+        compensated_items: list[dict[str, Any]] = []
+        for it in items:
+            s = max(0.0, float(it.get("start", 0.0)) - offset_sec)
+            e = max(s + 0.5, float(it.get("end", s + 3.0)) - offset_sec)
+            txt = str(it.get("text", "")).strip()
+            compensated_items.append({"start": round(s, 2), "end": round(e, 2), "text": txt})
+
+        lrc_text = generate_lrc(
+            compensated_items,
+            title=song.get("title", ""),
+            artist=song.get("artist", "") or song.get("persona", ""),
+            album=song.get("workspace_name", "")
+        )
+        srt_text = generate_srt(compensated_items)
+
+        # Archive LRC and SRT to music vault
+        sub_dir = self.vault_dir / f"sync_{song_id}"
+        sub_dir.mkdir(parents=True, exist_ok=True)
+        lrc_file = sub_dir / f"{song_id}.lrc"
+        srt_file = sub_dir / f"{song_id}.srt"
+        lrc_file.write_text(lrc_text, encoding="utf-8")
+        srt_file.write_text(srt_text, encoding="utf-8")
+
+        vault_lrc_rel = str(lrc_file.relative_to(self.vault_dir))
+        vault_srt_rel = str(srt_file.relative_to(self.vault_dir))
+        synced_json = json.dumps(compensated_items, ensure_ascii=False)
+
+        now = _now()
+        with self.conn as c:
+            c.execute(
+                """
+                UPDATE songs SET
+                    synced_lyrics = ?,
+                    lrc_content = ?,
+                    srt_content = ?,
+                    has_synced_lyrics = 1,
+                    vault_lrc_path = ?,
+                    vault_srt_path = ?,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (synced_json, lrc_text, srt_text, vault_lrc_rel, vault_srt_rel, now, song_id)
+            )
+
         return self.get_song(song_id)
 
     def delete_song(self, song_id: int, delete_vault_files: bool = True) -> bool:
@@ -643,6 +727,8 @@ class MusicLibrary:
                     where_clauses.append("s.favorite = 1")
                 elif tok == "is:audio":
                     where_clauses.append("(s.vault_audio_path != '' OR s.audio_path != '')")
+                elif tok == "is:synced":
+                    where_clauses.append("s.has_synced_lyrics = 1")
                 elif tok.startswith("rating:>="):
                     try:
                         where_clauses.append("s.rating >= ?")
@@ -696,6 +782,7 @@ class MusicLibrary:
         for r in rows:
             d = dict(r)
             d["has_audio"] = bool(d.get("vault_audio_path") or d.get("audio_path"))
+            d["has_synced_lyrics"] = bool(d.get("has_synced_lyrics") or d.get("synced_lyrics"))
             items.append(d)
 
         return total, items

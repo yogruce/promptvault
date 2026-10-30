@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import mimetypes
+import re
 import threading
 from pathlib import Path
 from typing import Any
@@ -48,6 +49,11 @@ class BulkSongDelete(BaseModel):
 class BulkAssignWorkspace(BaseModel):
     ids: list[int]
     workspace_id: int | None = None
+
+
+class SyncLyricsBody(BaseModel):
+    items: list[dict[str, Any]]
+    latency_ms: int = 120
 
 
 class MusicScanRequest(BaseModel):
@@ -178,6 +184,96 @@ def create_music_router(music_lib: MusicLibrary) -> APIRouter:
             raise HTTPException(404, "Bu şarkı için ses dosyası bulunamadı")
         mime, _ = mimetypes.guess_type(str(p))
         return FileResponse(p, media_type=mime or "audio/mpeg")
+
+    # ------------------------------------------------------------- Lyrics Sync & Downloads
+    @router.post("/songs/{song_id}/sync")
+    def sync_lyrics(song_id: int, body: SyncLyricsBody):
+        res = music_lib.save_synced_lyrics(song_id, body.items, body.latency_ms)
+        if not res:
+            raise HTTPException(404, "Şarkı bulunamadı")
+        return res
+
+    @router.get("/songs/{song_id}/synced-lyrics")
+    def get_synced_lyrics(song_id: int):
+        song = music_lib.get_song(song_id)
+        if not song:
+            raise HTTPException(404, "Şarkı bulunamadı")
+        import json
+        raw = song.get("synced_lyrics")
+        if not raw:
+            return []
+        try:
+            return json.loads(raw)
+        except Exception:
+            return []
+
+    @router.get("/songs/{song_id}/download/{fmt}")
+    def download_lyrics_format(song_id: int, fmt: str):
+        song = music_lib.get_song(song_id)
+        if not song:
+            raise HTTPException(404, "Şarkı bulunamadı")
+
+        safe_title = re.sub(r'[\\/:*?"<>|]', '_', song.get("title", "lyrics"))
+        fmt = fmt.lower().strip()
+
+        if fmt == "lrc":
+            content = song.get("lrc_content") or ""
+            if not content and song.get("synced_lyrics"):
+                import json
+                from .sync import generate_lrc
+                try:
+                    items = json.loads(song["synced_lyrics"])
+                    content = generate_lrc(items, song.get("title", ""), song.get("artist", ""))
+                except Exception:
+                    pass
+            if not content:
+                raise HTTPException(400, "Bu şarkı için henüz senkronize LRC sözü yok")
+            return Response(
+                content=content,
+                media_type="text/plain; charset=utf-8",
+                headers={"Content-Disposition": f'attachment; filename="{safe_title}.lrc"'}
+            )
+
+        elif fmt == "srt":
+            content = song.get("srt_content") or ""
+            if not content and song.get("synced_lyrics"):
+                import json
+                from .sync import generate_srt
+                try:
+                    items = json.loads(song["synced_lyrics"])
+                    content = generate_srt(items)
+                except Exception:
+                    pass
+            if not content:
+                raise HTTPException(400, "Bu şarkı için henüz senkronize SRT altyazısı yok")
+            return Response(
+                content=content,
+                media_type="text/plain; charset=utf-8",
+                headers={"Content-Disposition": f'attachment; filename="{safe_title}.srt"'}
+            )
+
+        elif fmt == "txt":
+            # If synced, export with timestamps, else export raw lyrics
+            if song.get("lrc_content"):
+                content = song["lrc_content"]
+            else:
+                content = song.get("lyrics", "")
+            return Response(
+                content=content,
+                media_type="text/plain; charset=utf-8",
+                headers={"Content-Disposition": f'attachment; filename="{safe_title}.txt"'}
+            )
+
+        elif fmt == "json":
+            content = song.get("synced_lyrics") or "[]"
+            return Response(
+                content=content,
+                media_type="application/json; charset=utf-8",
+                headers={"Content-Disposition": f'attachment; filename="{safe_title}.json"'}
+            )
+
+        else:
+            raise HTTPException(400, f"Desteklenmeyen format: {fmt}. İzin verilenler: lrc, srt, txt, json")
 
     # ------------------------------------------------------------- Tags
     @router.get("/tags")

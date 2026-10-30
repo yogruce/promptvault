@@ -271,6 +271,7 @@
               📁 ${escapeHtml(wsName)}
             </span>
             ${song.persona ? `<span class="song-persona-badge" title="Suno Persona">🎭 ${escapeHtml(song.persona)}</span>` : ''}
+            ${song.has_synced_lyrics ? `<span class="song-synced-badge" title="Senkronize LRC ve SRT hazır">🎙️ LRC/SRT</span>` : ''}
             <span class="song-model-badge">${escapeHtml(song.model || 'Suno AI')}</span>
           </div>
           <button class="song-fav-btn ${song.favorite ? 'on' : ''}" data-id="${song.id}" title="Favori">★</button>
@@ -312,6 +313,11 @@
         <div class="song-card-footer">
           <div class="song-stars">${ratingStars}</div>
           <div class="song-actions">
+            ${song.has_audio ? `<button class="btn-open-sync ghost small" data-id="${song.id}" title="DistroKid tarzı şarkı sözü senkronla">🎙️ Senkronla</button>` : ''}
+            ${song.has_synced_lyrics ? `
+              <a href="/api/music/songs/${song.id}/download/lrc" download class="ghost small" title="LRC formatında indir">📥 LRC</a>
+              <a href="/api/music/songs/${song.id}/download/srt" download class="ghost small" title="SRT altyazı indir">📥 SRT</a>
+            ` : ''}
             ${song.suno_url ? `<a href="${song.suno_url}" target="_blank" class="btn-suno ghost small" title="Suno sayfasında aç">🔗 Suno</a>` : ''}
             <button class="btn-edit-song ghost small" data-id="${song.id}" title="Düzenle">✏ Düzenle</button>
             <button class="btn-delete-song ghost small danger" data-id="${song.id}" title="Sil">🗑</button>
@@ -380,6 +386,15 @@
         e.stopPropagation();
         openLyricsModal(song);
       });
+
+      // 5.1 Open Lyrics Synchronizer
+      const btnSync = card.querySelector('.btn-open-sync');
+      if (btnSync) {
+        btnSync.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openSyncModal(song);
+        });
+      }
 
       // 6. Edit song
       const btnEdit = card.querySelector('.btn-edit-song');
@@ -553,6 +568,14 @@
     }
   }
 
+  // Clock formatting helper
+  function fmtClock(t) {
+    t = Math.max(0, parseFloat(t) || 0);
+    const m = Math.floor(t / 60);
+    const s = t - m * 60;
+    return `${String(m).padStart(2, '0')}:${s.toFixed(2).padStart(5, '0')}`;
+  }
+
   // ===================================================================
   // MODALS
   // ===================================================================
@@ -561,7 +584,7 @@
     const modal = $('#musicLyricsModal');
     if (!modal) return;
     $('#mlTitle').textContent = song.title;
-    $('#mlArtist').textContent = song.artist ? `👤 ${song.artist}` : '';
+    $('#mlArtist').textContent = (song.persona ? `🎭 ${song.persona}` : (song.artist ? `👤 ${song.artist}` : ''));
     $('#mlStyle').textContent = song.style || 'Belirtilmemiş';
     $('#mlContent').innerHTML = formatLyrics(song.lyrics);
     $('#mlCopyBtn').onclick = () => {
@@ -572,7 +595,310 @@
       navigator.clipboard.writeText(song.style || '');
       toast('Suno Tam Stil promptu panoya kopyalandı! 📋');
     };
+
+    // Download links in lyrics modal
+    const dlLrc = $('#mlDlLrc');
+    const dlSrt = $('#mlDlSrt');
+    const dlTxt = $('#mlDlTxt');
+    if (dlTxt) dlTxt.href = `/api/music/songs/${song.id}/download/txt`;
+    if (song.has_synced_lyrics) {
+      if (dlLrc) { dlLrc.href = `/api/music/songs/${song.id}/download/lrc`; dlLrc.classList.remove('hidden'); }
+      if (dlSrt) { dlSrt.href = `/api/music/songs/${song.id}/download/srt`; dlSrt.classList.remove('hidden'); }
+    } else {
+      if (dlLrc) dlLrc.classList.add('hidden');
+      if (dlSrt) dlSrt.classList.add('hidden');
+    }
+
+    const syncBtn = $('#mlOpenSyncBtn');
+    if (syncBtn) {
+      if (song.has_audio) {
+        syncBtn.classList.remove('hidden');
+        syncBtn.onclick = () => {
+          modal.classList.add('hidden');
+          openSyncModal(song);
+        };
+      } else {
+        syncBtn.classList.add('hidden');
+      }
+    }
+
     modal.classList.remove('hidden');
+  }
+
+  // ===================================================================
+  // 🎙️ DISTROKID STYLE LYRICS SYNCHRONIZER ENGINE
+  // ===================================================================
+  const sync = {
+    song: null,
+    audio: null,
+    lines: [],
+    starts: [],
+    ends: [],
+    idx: 0,
+    held: false,
+    active: false,
+    paused: false,
+    latency: 120,
+    timer: null,
+  };
+
+  function openSyncModal(song) {
+    if (!song.has_audio) {
+      toast('Bu şarkının henüz ses dosyası (.mp3 / .wav) yok! Önce ses dosyası yükleyin.', true);
+      return;
+    }
+    sync.song = song;
+    sync.audio = $('#msAudio');
+    sync.audio.src = `/api/music/songs/${song.id}/audio`;
+    sync.audio.load();
+
+    $('#msTitle').textContent = `🎙️ Senkronlayıcı: ${song.title}`;
+    $('#msSubtitle').textContent = (song.persona ? `🎭 ${song.persona}` : (song.artist ? `👤 ${song.artist}` : '')) + ` · ${song.model || 'Suno AI'}`;
+
+    // Clean lyrics into individual lines (filter empty lines)
+    const rawLines = (song.lyrics || '')
+      .split(/\r?\n/)
+      .map(l => l.trim())
+      .filter(l => l.length > 0 && !l.startsWith('==='));
+
+    sync.lines = rawLines;
+    sync.starts = new Array(rawLines.length).fill(null);
+    sync.ends = new Array(rawLines.length).fill(null);
+    sync.idx = 0;
+    sync.held = false;
+    sync.active = false;
+    sync.paused = false;
+
+    $('#msLatency').value = sync.latency;
+    $('#msLatencyVal').textContent = sync.latency;
+
+    renderSyncStream();
+    resetSyncUI();
+
+    $('#musicSyncModal').classList.remove('hidden');
+  }
+
+  function renderSyncStream() {
+    const stream = $('#msSyncStream');
+    stream.innerHTML = '';
+    sync.lines.forEach((line, i) => {
+      const row = document.createElement('div');
+      row.className = 'sync-line' + (i === sync.idx ? ' cur' : '');
+      row.dataset.idx = i;
+      row.innerHTML = `
+        <span class="line-idx">${i + 1}</span>
+        <span class="line-time">--:--.--</span>
+        <span class="line-text">${escapeHtml(line)}</span>
+      `;
+      stream.appendChild(row);
+    });
+    $('#msCounter').textContent = `0 / ${sync.lines.length} Satır`;
+  }
+
+  function resetSyncUI() {
+    $('#msBtnPlay').disabled = false;
+    $('#msBtnPause').disabled = true;
+    $('#msBtnPause').textContent = '⏸ Duraklat (Esc)';
+    $('#msBtnBack').disabled = true;
+    $('#msBtnRestart').disabled = true;
+    $('#msBtnSaveVault').disabled = true;
+    $('#msDlLrc').disabled = true;
+    $('#msDlSrt').disabled = true;
+    $('#msDlTxt').disabled = true;
+    $('#msClock').textContent = '00:00.00 / 00:00.00';
+    $('#msProgBar').style.width = '0%';
+    $('#msStatusMsg').textContent = 'Senkrona başlamak için ▶ Senkrona Başla butonuna basın.';
+    $('#msLyricsEditView').classList.add('hidden');
+    $('#msSyncStream').classList.remove('hidden');
+  }
+
+  function startSync() {
+    if (!sync.lines.length) {
+      toast('Senkronlanacak şarkı sözü bulunamadı! "Sözleri Düzenle" butonundan ekleyebilirsiniz.', true);
+      return;
+    }
+    sync.active = true;
+    sync.paused = false;
+    sync.audio.currentTime = 0;
+    sync.audio.play();
+
+    $('#msBtnPlay').disabled = true;
+    $('#msBtnPause').disabled = false;
+    $('#msBtnBack').disabled = false;
+    $('#msBtnRestart').disabled = false;
+    $('#msStatusMsg').textContent = '▶ Çalıyor: Söz girince SPACE tuşuna basılı tutun, satır bitince bırakın!';
+
+    clearInterval(sync.timer);
+    sync.timer = setInterval(tickSync, 50);
+  }
+
+  function pauseSync() {
+    if (!sync.active) return;
+    if (sync.paused) {
+      sync.audio.play();
+      sync.paused = false;
+      $('#msBtnPause').textContent = '⏸ Duraklat (Esc)';
+      $('#msStatusMsg').textContent = '▶ Çalmaya devam ediyor.';
+    } else {
+      sync.audio.pause();
+      sync.paused = true;
+      $('#msBtnPause').textContent = '▶ Devam Et (Esc)';
+      $('#msStatusMsg').textContent = '⏸ Duraklatıldı. Devam etmek için Esc tuşuna veya butona basın.';
+    }
+  }
+
+  function stepBackLine() {
+    if (!sync.active || sync.idx === 0) return;
+    if (sync.held) {
+      sync.held = false;
+    }
+    sync.idx--;
+    sync.starts[sync.idx] = null;
+    sync.ends[sync.idx] = null;
+
+    // Rewind audio by 2 seconds
+    sync.audio.currentTime = Math.max(0, sync.audio.currentTime - 2.0);
+
+    const rows = $$('#msSyncStream .sync-line');
+    rows.forEach((r, i) => {
+      r.classList.remove('cur', 'held');
+      if (i === sync.idx) {
+        r.classList.remove('done');
+        r.classList.add('cur');
+        r.querySelector('.line-time').textContent = '--:--.--';
+        r.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else if (i > sync.idx) {
+        r.classList.remove('done');
+        r.querySelector('.line-time').textContent = '--:--.--';
+      }
+    });
+
+    $('#msCounter').textContent = `${sync.idx} / ${sync.lines.length} Satır`;
+    $('#msStatusMsg').textContent = '⏪ 1 satır geri alındı, şarkı 2 saniye geriye sarıldı.';
+  }
+
+  function restartSync() {
+    sync.audio.pause();
+    sync.audio.currentTime = 0;
+    sync.starts = new Array(sync.lines.length).fill(null);
+    sync.ends = new Array(sync.lines.length).fill(null);
+    sync.idx = 0;
+    sync.held = false;
+    sync.paused = false;
+    renderSyncStream();
+    startSync();
+  }
+
+  function tickSync() {
+    if (!sync.active) return;
+    const cur = sync.audio.currentTime || 0;
+    const dur = sync.audio.duration || 0;
+    $('#msClock').textContent = `${fmtClock(cur)} / ${fmtClock(dur)}`;
+    if (dur > 0) {
+      $('#msProgBar').style.width = `${Math.min(100, (cur / dur) * 100)}%`;
+    }
+
+    if (sync.audio.ended) {
+      if (sync.held && sync.idx < sync.lines.length) {
+        sync.ends[sync.idx] = cur;
+        sync.idx++;
+        sync.held = false;
+      }
+      finishSync();
+    }
+  }
+
+  function onSpaceDown() {
+    if (!sync.active || sync.paused || sync.held || sync.idx >= sync.lines.length) return;
+    sync.held = true;
+    sync.starts[sync.idx] = sync.audio.currentTime;
+
+    const row = $(`#msSyncStream .sync-line[data-idx="${sync.idx}"]`);
+    if (row) {
+      row.classList.add('held');
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+
+  function onSpaceUp() {
+    if (!sync.active || !sync.held || sync.idx >= sync.lines.length) return;
+    sync.held = false;
+    const endTime = sync.audio.currentTime;
+    sync.ends[sync.idx] = endTime;
+
+    const curRow = $(`#msSyncStream .sync-line[data-idx="${sync.idx}"]`);
+    if (curRow) {
+      curRow.classList.remove('held', 'cur');
+      curRow.classList.add('done');
+      curRow.querySelector('.line-time').textContent = fmtClock(sync.starts[sync.idx]);
+    }
+
+    sync.idx++;
+    $('#msCounter').textContent = `${sync.idx} / ${sync.lines.length} Satır`;
+
+    if (sync.idx < sync.lines.length) {
+      const nextRow = $(`#msSyncStream .sync-line[data-idx="${sync.idx}"]`);
+      if (nextRow) {
+        nextRow.classList.add('cur');
+        nextRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    } else {
+      finishSync();
+    }
+  }
+
+  function finishSync() {
+    clearInterval(sync.timer);
+    sync.active = false;
+    sync.audio.pause();
+    $('#msBtnPlay').disabled = false;
+    $('#msBtnPause').disabled = true;
+    $('#msBtnSaveVault').disabled = false;
+    $('#msDlLrc').disabled = false;
+    $('#msDlSrt').disabled = false;
+    $('#msDlTxt').disabled = false;
+    $('#msStatusMsg').textContent = '✓ Tüm satırlar zamanlandı! 💾 Kasaya Senkronize Kaydet butonuna basarak kaydedebilirsiniz.';
+    toast('✓ Şarkı sözü senkronizasyonu tamamlandı!');
+  }
+
+  async function saveSyncToVault() {
+    const items = [];
+    for (let i = 0; i < sync.lines.length; i++) {
+      const s = sync.starts[i];
+      if (s === null || s === undefined) continue;
+      let e = sync.ends[i];
+      if (e === null || e === undefined || e <= s) {
+        e = (i + 1 < sync.lines.length && sync.starts[i + 1] !== null) ? sync.starts[i + 1] : s + 3.0;
+      }
+      items.push({ start: s, end: e, text: sync.lines[i] });
+    }
+    if (!items.length) {
+      toast('Henüz zamanlanmış satır bulunmuyor!', true);
+      return;
+    }
+
+    try {
+      $('#msBtnSaveVault').disabled = true;
+      $('#msBtnSaveVault').textContent = 'Kaydediliyor...';
+      const updated = await api(`/api/music/songs/${sync.song.id}/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items, latency_ms: sync.latency }),
+      });
+      sync.song = updated;
+      toast('✓ Senkronize sözler (LRC, SRT, TXT) başarıyla kasaya kaydedildi! 💾');
+      $('#msBtnSaveVault').textContent = '✓ Kasaya Kaydedildi';
+      loadSongs();
+    } catch (e) {
+      toast('Kaydetme hatası: ' + e.message, true);
+      $('#msBtnSaveVault').disabled = false;
+      $('#msBtnSaveVault').textContent = '💾 Kasaya Senkronize Kaydet';
+    }
+  }
+
+  function downloadSyncFormat(fmt) {
+    if (!sync.song) return;
+    window.location.href = `/api/music/songs/${sync.song.id}/download/${fmt}`;
   }
 
   // 2. Edit Song Modal
@@ -727,6 +1053,86 @@
     $('#muCancel')?.addEventListener('click', () => $('#musicUploadModal')?.classList.add('hidden'));
     $('#wsClose')?.addEventListener('click', () => $('#workspaceModal')?.classList.add('hidden'));
     $('#wsCancel')?.addEventListener('click', () => $('#workspaceModal')?.classList.add('hidden'));
+
+    // Synchronizer Modal Events
+    $('#msClose')?.addEventListener('click', () => {
+      if (sync.audio) sync.audio.pause();
+      clearInterval(sync.timer);
+      sync.active = false;
+      $('#musicSyncModal')?.classList.add('hidden');
+    });
+
+    $('#msBtnPlay')?.addEventListener('click', startSync);
+    $('#msBtnPause')?.addEventListener('click', pauseSync);
+    $('#msBtnBack')?.addEventListener('click', stepBackLine);
+    $('#msBtnRestart')?.addEventListener('click', restartSync);
+    $('#msBtnSaveVault')?.addEventListener('click', saveSyncToVault);
+
+    $('#msDlLrc')?.addEventListener('click', () => downloadSyncFormat('lrc'));
+    $('#msDlSrt')?.addEventListener('click', () => downloadSyncFormat('srt'));
+    $('#msDlTxt')?.addEventListener('click', () => downloadSyncFormat('txt'));
+
+    $('#msLatency')?.addEventListener('input', (e) => {
+      sync.latency = parseInt(e.target.value, 10);
+      $('#msLatencyVal').textContent = sync.latency;
+    });
+
+    $('#msBtnEditLyrics')?.addEventListener('click', () => {
+      const editView = $('#msLyricsEditView');
+      const streamView = $('#msSyncStream');
+      if (editView.classList.contains('hidden')) {
+        $('#msLyricsText').value = sync.lines.join('\n');
+        editView.classList.remove('hidden');
+        streamView.classList.add('hidden');
+      } else {
+        editView.classList.add('hidden');
+        streamView.classList.remove('hidden');
+      }
+    });
+
+    $('#msBtnSaveLyrics')?.addEventListener('click', () => {
+      const text = $('#msLyricsText').value;
+      sync.lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      sync.starts = new Array(sync.lines.length).fill(null);
+      sync.ends = new Array(sync.lines.length).fill(null);
+      sync.idx = 0;
+      renderSyncStream();
+      $('#msLyricsEditView').classList.add('hidden');
+      $('#msSyncStream').classList.remove('hidden');
+      toast('Sözler güncellendi, senkrona hazır!');
+    });
+
+    // Global Key Events for Synchronizer
+    window.addEventListener('keydown', (e) => {
+      const modal = $('#musicSyncModal');
+      if (!modal || modal.classList.contains('hidden')) return;
+      if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        onSpaceDown();
+      } else if (e.code === 'Backspace') {
+        e.preventDefault();
+        stepBackLine();
+      } else if (e.code === 'Escape') {
+        e.preventDefault();
+        pauseSync();
+      } else if (e.code === 'F5') {
+        e.preventDefault();
+        restartSync();
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      const modal = $('#musicSyncModal');
+      if (!modal || modal.classList.contains('hidden')) return;
+      if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        onSpaceUp();
+      }
+    });
 
     // Submit Edit Song Form
     $('#meSubmit')?.addEventListener('click', async () => {

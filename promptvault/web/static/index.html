@@ -458,6 +458,12 @@
       <h2 id="mlTitle" style="margin:0">Şarkı Sözleri</h2>
       <span id="mlArtist" class="muted small" style="margin-left:10px"></span>
       <div style="flex:1"></div>
+      <div id="mlDownloads" style="display:inline-flex; gap:6px; margin-right:8px">
+        <a id="mlDlLrc" class="ghost small hidden" download title="LRC formatında indir">📥 .LRC</a>
+        <a id="mlDlSrt" class="ghost small hidden" download title="SRT altyazı indir">📥 .SRT</a>
+        <a id="mlDlTxt" class="ghost small" download title="Düz TXT indir">📥 .TXT</a>
+      </div>
+      <button id="mlOpenSyncBtn" class="primary small" style="margin-right:8px">🎙️ Senkronlayıcı</button>
       <button id="mlCopyStyleBtn" class="ghost small">📋 Stili Kopyala</button>
       <button id="mlCopyBtn" class="ghost small" style="margin-left:6px">📋 Sözleri Kopyala</button>
     </div>
@@ -544,6 +550,68 @@
       <div class="row" style="margin-top:16px; justify-content:flex-end">
         <button id="wsCancel" class="ghost">İptal</button>
         <button id="wsSubmit" class="primary">Kaydet</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ŞARKI SÖZÜ SENKRONLAYICI MODALI (DISTROKID TARZI) -->
+<div id="musicSyncModal" class="modal hidden">
+  <div class="modal-box modal-sync">
+    <button class="close" id="msClose">✕</button>
+    <div class="sync-header">
+      <div style="flex:1">
+        <h3 id="msTitle" style="margin:0">🎙️ Şarkı Sözü Senkronlayıcı</h3>
+        <span id="msSubtitle" class="muted small"></span>
+      </div>
+      <div class="sync-latency-box">
+        <label class="inline small">Tepki Telafisi: <span id="msLatencyVal" style="color:var(--accent2); font-weight:700">120</span> ms
+          <input type="range" id="msLatency" min="0" max="400" step="10" value="120" style="width:110px">
+        </label>
+      </div>
+    </div>
+
+    <!-- AUDIO PLAYER & CLOCK -->
+    <div class="sync-player-bar">
+      <audio id="msAudio" preload="auto" style="display:none"></audio>
+      <div class="sync-clock" id="msClock">00:00.00 / 00:00.00</div>
+      <div class="sync-prog-track"><div id="msProgBar" class="sync-prog-fill"></div></div>
+      <div class="sync-counter" id="msCounter">0 / 0 Satır</div>
+    </div>
+
+    <!-- CONTROLS & SHORTCUT GUIDE -->
+    <div class="sync-ctrl-bar">
+      <button id="msBtnPlay" class="primary">▶ Senkrona Başla</button>
+      <button id="msBtnPause" class="ghost" disabled>⏸ Duraklat (Esc)</button>
+      <button id="msBtnBack" class="ghost" disabled title="1 satır geri al ve şarkıyı 2 saniye geriye sar">⏪ 1 Satır Geri (Backspace)</button>
+      <button id="msBtnRestart" class="ghost" disabled title="Şarkıyı baştan başlat">🔄 Baştan Başla (F5)</button>
+      <button id="msBtnEditLyrics" class="ghost small">✏ Sözleri Düzenle</button>
+      <div style="flex:1"></div>
+      <div class="sync-guide-pill" title="Klavye kısayolları">
+        ⌨️ <b>SPACE</b>: Basılı Tut = Zamanla · Bırak = Satır Bitti
+      </div>
+    </div>
+
+    <!-- EDITABLE LYRICS / SYNC VIEW -->
+    <div id="msLyricsEditView" class="hidden" style="margin: 10px 0;">
+      <label class="small muted">Senkronlanacak Şarkı Sözleri (Her satır ayrı zamanlanır, boşluklar atlanır):</label>
+      <textarea id="msLyricsText" rows="10"></textarea>
+      <div class="row" style="justify-content:flex-end">
+        <button id="msBtnSaveLyrics" class="primary small">✓ Sözleri Uygula ve Hazırla</button>
+      </div>
+    </div>
+
+    <!-- STREAMING LYRICS DISPLAY (DISTROKID STYLE) -->
+    <div id="msSyncStream" class="sync-stream-box"></div>
+
+    <div class="sync-footer">
+      <div id="msStatusMsg" class="small muted">Senkrona başlamak için ▶ Senkrona Başla butonuna basın.</div>
+      <div style="flex:1"></div>
+      <button id="msBtnSaveVault" class="primary" disabled>💾 Kasaya Senkronize Kaydet (LRC + SRT + TXT)</button>
+      <div class="sync-downloads" id="msDownloads" style="display:inline-flex; gap:6px; margin-left:8px;">
+        <button id="msDlLrc" class="ghost small" disabled title="LRC formatında indir">📥 .LRC</button>
+        <button id="msDlSrt" class="ghost small" disabled title="SubRip SRT altyazı indir">📥 .SRT</button>
+        <button id="msDlTxt" class="ghost small" disabled title="Zaman damgalı TXT indir">📥 .TXT</button>
       </div>
     </div>
   </div>
