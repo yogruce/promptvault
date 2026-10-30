@@ -28,6 +28,7 @@ class ScanRequest(BaseModel):
     path: str
     recursive: bool = True
     force: bool = False
+    workspace_id: int | None = None
 
 
 class ImagePatch(BaseModel):
@@ -323,7 +324,8 @@ def create_app(
     # ------------------------------------------------------------- upload & manual entry
     @app.post("/api/upload")
     async def upload_image(
-        file: UploadFile = File(...),
+        file: UploadFile | None = File(None),
+        files: list[UploadFile] | None = File(None),
         prompt: str | None = Form(None),
         negative: str | None = Form(None),
         model: str | None = Form(None),
@@ -333,22 +335,33 @@ def create_app(
         rating: int = Form(0),
         workspace_id: int | None = Form(None),
     ):
-        data = await file.read()
-        if not data:
-            raise HTTPException(400, "Dosya boş")
+        target_files = files or ([file] if file else [])
+        if not target_files:
+            raise HTTPException(400, "Dosya seçilmedi")
         tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else None
-        return lib.add_bytes(
-            data=data,
-            filename=file.filename or "upload.png",
-            prompt=prompt.strip() if prompt and prompt.strip() else None,
-            negative=negative.strip() if negative and negative.strip() else None,
-            model=model.strip() if model and model.strip() else None,
-            generator=generator.strip() if generator and generator.strip() else None,
-            tags=tag_list,
-            notes=notes or "",
-            rating=rating,
-            workspace_id=workspace_id,
-        )
+        results = []
+        for f in target_files:
+            data = await f.read()
+            if not data:
+                continue
+            res = lib.add_bytes(
+                data=data,
+                filename=f.filename or "upload.png",
+                prompt=prompt.strip() if prompt and prompt.strip() else None,
+                negative=negative.strip() if negative and negative.strip() else None,
+                model=model.strip() if model and model.strip() else None,
+                generator=generator.strip() if generator and generator.strip() else None,
+                tags=tag_list,
+                notes=notes or "",
+                rating=rating,
+                workspace_id=workspace_id,
+            )
+            results.append(res)
+        if not results:
+            raise HTTPException(400, "Dosyalar okunamadı veya boş")
+        if len(results) == 1 and not files:
+            return results[0]
+        return {"ok": True, "count": len(results), "items": results}
 
     @app.post("/api/manual-add")
     def manual_add(body: ManualAddBody):
@@ -390,8 +403,11 @@ def create_app(
 
         def run():
             try:
-                scan_state["stats"] = lib.scan(path, body.recursive, body.force,
-                                               progress=lambda s: scan_state.__setitem__("stats", s))
+                scan_state["stats"] = lib.scan(
+                    path, body.recursive, body.force,
+                    progress=lambda s: scan_state.__setitem__("stats", s),
+                    workspace_id=body.workspace_id,
+                )
             except Exception as e:  # pragma: no cover - surfaced to UI
                 scan_state["error"] = str(e)
             finally:

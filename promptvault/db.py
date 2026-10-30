@@ -363,7 +363,8 @@ class Library:
         return len(ids)
 
     # -------------------------------------------------------------- import
-    def add_file(self, path: str | Path, force: bool = False, copy_to_vault: bool | None = None) -> str:
+    def add_file(self, path: str | Path, force: bool = False, copy_to_vault: bool | None = None,
+                 workspace_id: int | None = None) -> str:
         """Index one PNG. Returns 'added' | 'updated' | 'moved' | 'skipped' | 'error'."""
         p = Path(path).resolve()
         try:
@@ -373,6 +374,10 @@ class Library:
         c = self.conn
         row = c.execute("SELECT id, size, mtime, vault_path FROM images WHERE path=?", (str(p),)).fetchone()
         if row and not force and row["size"] == st.st_size and abs((row["mtime"] or 0) - st.st_mtime) < 1e-3:
+            if workspace_id is not None and row.get("workspace_id") != workspace_id:
+                with self._write_lock:
+                    c.execute("UPDATE images SET workspace_id=? WHERE id=?", (workspace_id, row["id"]))
+                    c.commit()
             return "skipped"
         try:
             info = read_png_info(p)
@@ -400,13 +405,20 @@ class Library:
                 if moved:
                     image_id, status = moved["id"], "moved"
                     c.execute("UPDATE images SET path=? WHERE id=?", (str(p), image_id))
+                    if workspace_id is not None:
+                        c.execute("UPDATE images SET workspace_id=? WHERE id=?", (workspace_id, image_id))
                 else:
-                    genel = c.execute("SELECT id FROM workspaces WHERE name='Genel' LIMIT 1").fetchone()
-                    default_ws = genel[0] if genel else None
+                    if workspace_id is None:
+                        genel = c.execute("SELECT id FROM workspaces WHERE name='Genel' LIMIT 1").fetchone()
+                        default_ws = genel[0] if genel else None
+                    else:
+                        default_ws = workspace_id
                     cur = c.execute("INSERT INTO images(path, added_at, workspace_id) VALUES (?, ?, ?)", (str(p), _now(), default_ws))
                     image_id, status = cur.lastrowid, "added"
             else:
                 image_id = row["id"]
+                if workspace_id is not None:
+                    c.execute("UPDATE images SET workspace_id=? WHERE id=?", (workspace_id, image_id))
             c.execute(f"UPDATE images SET {', '.join(f'{k}=?' for k in values)} WHERE id=?",
                       (*values.values(), image_id))
             self._set_auto_tags(image_id, meta)
@@ -504,7 +516,8 @@ class Library:
         return self.get(image_id) or {}
 
     def scan(self, folder: str | Path, recursive: bool = True, force: bool = False,
-             progress: Callable[[dict[str, Any]], None] | None = None) -> dict[str, Any]:
+             progress: Callable[[dict[str, Any]], None] | None = None,
+             workspace_id: int | None = None) -> dict[str, Any]:
         folder = Path(folder).expanduser()
         if not folder.exists():
             raise FileNotFoundError(f"Klasör bulunamadı: {folder}")
@@ -514,7 +527,7 @@ class Library:
         stats: dict[str, Any] = {"total": len(files), "done": 0, "added": 0, "updated": 0,
                                  "moved": 0, "skipped": 0, "error": 0}
         for f in files:
-            stats[self.add_file(f, force=force)] += 1
+            stats[self.add_file(f, force=force, workspace_id=workspace_id)] += 1
             stats["done"] += 1
             if progress:
                 progress(dict(stats, current=str(f)))

@@ -23,8 +23,8 @@
 
   <!-- IMAGE TABS -->
   <nav id="tabs">
-    <button data-tab="gallery" class="active" data-i18n="tab_gallery">Galeri</button>
-    <button data-tab="workspaces" data-i18n="tab_workspaces">🏢 Workspaces</button>
+    <button data-tab="workspaces" class="active" data-i18n="tab_workspaces">🏢 Projeler / Workspaces</button>
+    <button data-tab="gallery" data-i18n="tab_gallery">🖼️ Galeri</button>
     <button data-tab="tags" data-i18n="tab_tags">Etiketler</button>
     <button data-tab="matrix" data-i18n="tab_matrix">Prompt Matrisi</button>
     <button data-tab="wildcards" data-i18n="tab_wildcards">Wildcard</button>
@@ -63,7 +63,21 @@
   <!-- ================================================================= -->
   <div id="view-images">
     <!-- GALLERY -->
-    <section id="tab-gallery" class="tab active">
+    <section id="tab-gallery" class="tab">
+      <!-- Current Workspace Banner (When viewing a specific workspace) -->
+      <div id="galleryWsBanner" class="gallery-ws-banner hidden" style="margin-bottom:12px; padding:10px 16px; background:var(--panel); border:1px solid var(--line); border-radius:8px; display:flex; align-items:center; gap:12px;">
+        <button id="btnBackToWorkspaces" class="ghost small" type="button" style="display:inline-flex; align-items:center; gap:6px;">‹ Projelere Dön</button>
+        <div style="height:20px; width:1px; background:var(--line);"></div>
+        <div class="ws-current-info" style="display:inline-flex; align-items:center; gap:8px;">
+          <span id="galleryWsIcon" style="font-size:1.2rem;">🎨</span>
+          <strong id="galleryWsTitle" style="font-size:1rem;">Genel</strong>
+          <span id="galleryWsCount" class="badge" style="font-size:0.8rem; background:rgba(139,92,246,0.15); color:var(--accent); padding:2px 8px; border-radius:12px;">0 görsel</span>
+        </div>
+        <div style="flex:1"></div>
+        <button id="btnWsAddImages" class="primary small" type="button">➕ Bu Alana Görsel Ekle</button>
+        <button id="btnWsScanFolder" class="ghost small" type="button">📁 Bu Alana Klasör Tara</button>
+      </div>
+
       <div class="toolbar">
         <input id="q" type="search" autocomplete="off" spellcheck="false" placeholder='Ara: kedi "red hair" -blurry tag:portrait lora:detail gen:comfyui is:fav rating:>=3' data-i18n-ph="search_images_ph">
         <select id="imgWsFilter" style="max-width:200px;">
@@ -199,6 +213,10 @@
           <input id="scanPath" placeholder="Örnek: C:\stable-diffusion\outputs veya D:\AI_Images" style="flex:1">
           <button id="scanBrowse" class="ghost" type="button" title="Masaüstü Klasör Seçim Penceresini Aç" data-i18n="scan_browse_btn">📁 Gözat / Klasör Seç</button>
         </div>
+        <div class="row" style="margin-top:10px; align-items:center;">
+          <label style="min-width:180px; font-weight:500;" data-i18n="scan_target_ws">📁 Hedef Çalışma Alanı / Proje:</label>
+          <select id="scanWorkspace" style="flex:1; max-width:340px;"></select>
+        </div>
         <div class="row">
           <label class="inline"><input type="checkbox" id="scanRec" checked> <span data-i18n="scan_recursive">Alt klasörleri de tara</span></label>
           <label class="inline"><input type="checkbox" id="scanForce"> <span data-i18n="scan_force">Zaten taranmış dosyaları zorla yeniden oku</span></label>
@@ -211,7 +229,7 @@
     </section>
 
     <!-- WORKSPACES & PROJELER (GÖRSELLER) -->
-    <section id="tab-workspaces" class="tab">
+    <section id="tab-workspaces" class="tab active">
       <div class="toolbar" style="margin-bottom:16px;">
         <button id="btnNewImageWs" class="primary" data-i18n="ws_btn_new">➕ Yeni Görsel Çalışma Alanı Oluştur</button>
         <span class="muted small" style="margin-left:12px;" data-i18n="ws_desc_hint">Görsellerinizi projeler ve koleksiyonlar halinde organize edin.</span>
@@ -505,7 +523,7 @@
       <p class="muted small" data-i18n="upload_desc">PNG görselinizi sürükleyip bırakabilir veya seçebilirsiniz. Metadata varsa otomatik okunur.</p>
       
       <div id="dropZone" class="dropzone">
-        <input type="file" id="uFileInput" accept="image/png,image/jpeg,image/webp" style="display:none">
+        <input type="file" id="uFileInput" accept="image/png,image/jpeg,image/webp" multiple style="display:none">
         <div id="dropPrompt" data-i18n="upload_drop_prompt">📁 Görsel seçmek için tıklayın veya buraya sürükleyin</div>
         <img id="uPreview" class="hidden" alt="Önizleme">
       </div>

@@ -69,6 +69,17 @@ def test_scan_endpoint(client):
         time.sleep(0.05)
     assert s["stats"]["updated"] == 2
 
+    # Test scanning folder directly into a target workspace
+    ws_scan = c.post("/api/workspaces", json={"name": "Tarama Projesi", "icon": "📁"}).json()
+    c.post("/api/scan", json={"path": str(folder), "force": True, "workspace_id": ws_scan["id"]})
+    for _ in range(50):
+        s = c.get("/api/scan").json()
+        if not s["running"]:
+            break
+        time.sleep(0.05)
+    ws_images = c.get("/api/images", params={"workspace_id": ws_scan["id"]}).json()
+    assert ws_images["total"] == 2
+
 
 def test_upload_and_manual_prompt_edit(client):
     c, _ = client
@@ -102,6 +113,24 @@ def test_upload_and_manual_prompt_edit(client):
     }).json()
     assert m_res["prompt"] == "an ethereal spirit in a mystical forest"
     assert c.get(f"/api/images/{m_res['id']}/file").status_code == 200
+
+    # 4. Test multi-file upload with workspace_id
+    ws = c.post("/api/workspaces", json={"name": "Oyun Karakterleri", "icon": "🎮"}).json()
+    ws_id = ws["id"]
+
+    p1 = make_blank_png(16, 16)
+    p2 = make_blank_png(32, 32)
+    multi_files = [
+        ("files", ("char1.png", p1, "image/png")),
+        ("files", ("char2.png", p2, "image/png")),
+    ]
+    res_multi = c.post("/api/upload", files=multi_files, data={"workspace_id": ws_id, "tags": "hero,game"}).json()
+    assert res_multi["ok"] is True
+    assert res_multi["count"] == 2
+
+    # Check images under this workspace
+    ws_images = c.get("/api/images", params={"workspace_id": ws_id}).json()
+    assert ws_images["total"] == 2
 
 
 def test_gdrive_endpoints(client):

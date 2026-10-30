@@ -478,11 +478,19 @@ h3 { margin: 18px 0 8px; }
   display: flex;
   flex-direction: column;
   gap: 12px;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.workspace-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
 }
 .ws-header {
   display: flex;
   align-items: center;
   gap: 12px;
+  cursor: pointer;
 }
 .ws-icon {
   font-size: 24px;
@@ -517,6 +525,7 @@ h3 { margin: 18px 0 8px; }
   gap: 6px;
   border-top: 1px solid var(--line);
   padding-top: 10px;
+  flex-wrap: wrap;
 }
 
 /* MUSIC STYLES TAG CLOUD */

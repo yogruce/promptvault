@@ -27,6 +27,28 @@ const debounce = (fn, ms = 300) => { let t; return (...a) => { clearTimeout(t); 
 async function copy(text) { await navigator.clipboard.writeText(text); toast("Panoya kopyalandı"); }
 
 /* ------------------------------------------------------------ tabs */
+function updateGalleryWsBanner() {
+  const banner = $("#galleryWsBanner");
+  if (!banner) return;
+  if (!G.workspaceId) {
+    banner.classList.add("hidden");
+    return;
+  }
+  const ws = (imageWorkspaces || []).find(w => w.id === G.workspaceId);
+  banner.classList.remove("hidden");
+  if (ws) {
+    if ($("#galleryWsIcon")) $("#galleryWsIcon").textContent = ws.icon || "🎨";
+    if ($("#galleryWsTitle")) $("#galleryWsTitle").textContent = ws.name || "";
+    if ($("#galleryWsCount")) {
+      const count = ws.image_count !== undefined ? ws.image_count : G.items.length;
+      $("#galleryWsCount").textContent = `${count} ${window.t ? window.t("ws_images_count") : "görsel"}`;
+    }
+  } else {
+    if ($("#galleryWsTitle")) $("#galleryWsTitle").textContent = `Proje #${G.workspaceId}`;
+    if ($("#galleryWsCount")) $("#galleryWsCount").textContent = `${G.items.length} görsel`;
+  }
+}
+
 function showTab(name) {
   const vSettings = $("#view-settings");
   const vImages = $("#view-images");
@@ -44,7 +66,10 @@ function showTab(name) {
   }
   $$("#tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
   $$(".tab").forEach((t) => t.classList.toggle("active", t.id === "tab-" + name));
-  if (name === "gallery" && G.items.length === 0) loadGallery();
+  if (name === "gallery") {
+    updateGalleryWsBanner();
+    if (G.items.length === 0) loadGallery();
+  }
   if (name === "workspaces") loadImageWorkspaces();
   if (name === "tags") loadTags();
   if (name === "matrix") loadMatrices();
@@ -77,6 +102,20 @@ $("#btnGlobalSettings")?.addEventListener("click", showSettingsView);
 $$("#tabs button").forEach((b) => (b.onclick = () => showTab(b.dataset.tab)));
 document.addEventListener("click", (e) => {
   const g = e.target.closest("[data-goto]"); if (g) { e.preventDefault(); showTab(g.dataset.goto); }
+});
+
+// Current workspace banner buttons in gallery
+$("#btnBackToWorkspaces")?.addEventListener("click", () => {
+  showTab("workspaces");
+});
+$("#btnWsAddImages")?.addEventListener("click", () => {
+  openUploadModal(null, G.workspaceId);
+});
+$("#btnWsScanFolder")?.addEventListener("click", () => {
+  if ($("#scanWorkspace") && G.workspaceId) {
+    $("#scanWorkspace").value = String(G.workspaceId);
+  }
+  showTab("scan");
 });
 
 async function loadStats() {
@@ -584,13 +623,20 @@ function toA1111(d) {
 }
 
 /* ------------------------------------------------------------- upload & manual add */
-let selectedUploadFile = null;
+let selectedUploadFiles = [];
 
-function openUploadModal(file = null) {
-  selectedUploadFile = file;
+function openUploadModal(files = null, defaultWsId = null) {
+  selectedUploadFiles = [];
   $("#uploadModal").classList.remove("hidden");
-  if (file) {
-    handleFileSelected(file);
+
+  // Preselect workspace if specified or if viewing a specific workspace
+  const targetWsId = defaultWsId !== null && defaultWsId !== undefined ? defaultWsId : G.workspaceId;
+  if (targetWsId !== null && targetWsId !== undefined && $("#uWorkspace")) {
+    $("#uWorkspace").value = String(targetWsId);
+  }
+
+  if (files) {
+    handleFilesSelected(files);
   } else {
     $("#uPreview").classList.add("hidden");
     $("#dropPrompt").textContent = window.t ? window.t("upload_drop_prompt") : "📁 Görsel seçmek için tıklayın veya buraya sürükleyin";
@@ -603,7 +649,7 @@ function openUploadModal(file = null) {
 }
 function closeUploadModal() {
   $("#uploadModal").classList.add("hidden");
-  selectedUploadFile = null;
+  selectedUploadFiles = [];
 }
 
 $("#btnUpload").onclick = () => openUploadModal();
@@ -614,7 +660,7 @@ $("#uploadModal").addEventListener("click", (e) => { if (e.target.id === "upload
 const dropZone = $("#dropZone");
 dropZone.onclick = () => $("#uFileInput").click();
 $("#uFileInput").onchange = (e) => {
-  if (e.target.files.length) handleFileSelected(e.target.files[0]);
+  if (e.target.files && e.target.files.length) handleFilesSelected(e.target.files);
 };
 
 dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add("dragover"); };
@@ -622,62 +668,83 @@ dropZone.ondragleave = () => dropZone.classList.remove("dragover");
 dropZone.ondrop = (e) => {
   e.preventDefault();
   dropZone.classList.remove("dragover");
-  if (e.dataTransfer.files.length) handleFileSelected(e.dataTransfer.files[0]);
+  if (e.dataTransfer.files && e.dataTransfer.files.length) handleFilesSelected(e.dataTransfer.files);
 };
 
 // Global drag-and-drop onto page
 window.addEventListener("dragover", (e) => e.preventDefault());
 window.addEventListener("drop", (e) => {
   e.preventDefault();
-  if (e.dataTransfer.files.length) {
-    const f = e.dataTransfer.files[0];
-    if (f.type.startsWith("image/") || f.name.endsWith(".png")) {
-      openUploadModal(f);
+  if (e.dataTransfer.files && e.dataTransfer.files.length) {
+    const valid = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/") || /\.(png|jpe?g|webp)$/i.test(f.name));
+    if (valid.length) {
+      openUploadModal(valid, G.workspaceId);
     }
   }
 });
 
-async function handleFileSelected(file) {
-  selectedUploadFile = file;
-  $("#dropPrompt").textContent = `Seçilen: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
-  const url = URL.createObjectURL(file);
-  $("#uPreview").src = url;
-  $("#uPreview").classList.remove("hidden");
+async function handleFilesSelected(fileOrFiles) {
+  let files = [];
+  if (fileOrFiles instanceof FileList || Array.isArray(fileOrFiles)) {
+    files = Array.from(fileOrFiles);
+  } else if (fileOrFiles instanceof File) {
+    files = [fileOrFiles];
+  }
+  if (!files.length) return;
+  selectedUploadFiles = files;
 
-  // Read PNG metadata directly in browser to pre-fill prompt inputs
-  try {
-    const buf = await file.arrayBuffer();
-    const textChunks = extractPngTextChunks(new Uint8Array(buf));
-    if (textChunks.parameters) {
-      const lines = textChunks.parameters.split("\n");
-      const pos = [];
-      const neg = [];
-      let inNeg = false;
-      for (const line of lines) {
-        if (line.startsWith("Negative prompt:")) {
-          inNeg = true;
-          neg.push(line.replace("Negative prompt:", "").trim());
-        } else if (line.includes("Steps:") && line.includes("Sampler:")) {
-          const mMatch = line.match(/Model:\s*([^,]+)/);
-          if (mMatch) $("#uModel").value = mMatch[1].trim();
-        } else {
-          (inNeg ? neg : pos).push(line);
-        }
-      }
-      if (pos.length && !$("#uPrompt").value) $("#uPrompt").value = pos.join("\n").trim();
-      if (neg.length && !$("#uNegative").value) $("#uNegative").value = neg.join("\n").trim();
-    } else if (textChunks.Description && !$("#uPrompt").value) {
-      $("#uPrompt").value = textChunks.Description.trim();
-    } else if (textChunks.prompt && !$("#uPrompt").value) {
-      // ComfyUI json or plain prompt
-      try {
-        const c = JSON.parse(textChunks.prompt);
-        for (const n of Object.values(c)) {
-          if (n.class_type === "CLIPTextEncode" && n.inputs && typeof n.inputs.text === "string") {
-            if (!$("#uPrompt").value) $("#uPrompt").value = n.inputs.text;
-            else if (!$("#uNegative").value) $("#uNegative").value = n.inputs.text;
+  if (files.length === 1) {
+    const file = files[0];
+    $("#dropPrompt").textContent = `Seçilen: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+    const url = URL.createObjectURL(file);
+    $("#uPreview").src = url;
+    $("#uPreview").classList.remove("hidden");
+
+    // Read PNG metadata directly in browser to pre-fill prompt inputs
+    try {
+      const buf = await file.arrayBuffer();
+      const textChunks = extractPngTextChunks(new Uint8Array(buf));
+      if (textChunks.parameters) {
+        const lines = textChunks.parameters.split("\n");
+        const pos = [];
+        const neg = [];
+        let inNeg = false;
+        for (const line of lines) {
+          if (line.startsWith("Negative prompt:")) {
+            inNeg = true;
+            neg.push(line.replace("Negative prompt:", "").trim());
+          } else if (line.includes("Steps:") && line.includes("Sampler:")) {
+            const mMatch = line.match(/Model:\s*([^,]+)/);
+            if (mMatch) $("#uModel").value = mMatch[1].trim();
+          } else {
+            (inNeg ? neg : pos).push(line);
           }
         }
+        if (pos.length && !$("#uPrompt").value) $("#uPrompt").value = pos.join("\n").trim();
+        if (neg.length && !$("#uNegative").value) $("#uNegative").value = neg.join("\n").trim();
+      } else if (textChunks.Description && !$("#uPrompt").value) {
+        $("#uPrompt").value = textChunks.Description.trim();
+      } else if (textChunks.prompt && !$("#uPrompt").value) {
+        try {
+          const c = JSON.parse(textChunks.prompt);
+          for (const n of Object.values(c)) {
+            if (n.class_type === "CLIPTextEncode" && n.inputs && typeof n.inputs.text === "string") {
+              if (!$("#uPrompt").value) $("#uPrompt").value = n.inputs.text;
+              else if (!$("#uNegative").value) $("#uNegative").value = n.inputs.text;
+            }
+          }
+        } catch {}
+      }
+    } catch {}
+  } else {
+    // Multiple files selected
+    const totalMb = (files.reduce((acc, f) => acc + f.size, 0) / (1024 * 1024)).toFixed(2);
+    $("#dropPrompt").textContent = `📁 Toplu Seçim: ${files.length} görsel seçildi (${totalMb} MB). Her birinin metadatası okunup eklenecektir.`;
+    const url = URL.createObjectURL(files[0]);
+    $("#uPreview").src = url;
+    $("#uPreview").classList.remove("hidden");
+  }
+}
       } catch {}
     }
   } catch {}
@@ -708,18 +775,25 @@ function extractPngTextChunks(bytes) {
 }
 
 $("#uSubmit").onclick = async () => {
-  const prompt = $("#uPrompt").value;
-  const negative = $("#uNegative").value;
-  const model = $("#uModel").value;
+  const prompt = $("#uPrompt") ? $("#uPrompt").value : "";
+  const negative = $("#uNegative") ? $("#uNegative").value : "";
+  const model = $("#uModel") ? $("#uModel").value : "";
   const generator = $("#uGenerator") ? $("#uGenerator").value : "";
-  const tags = $("#uTags").value;
-  const notes = $("#uNotes").value;
+  const tags = $("#uTags") ? $("#uTags").value : "";
+  const notes = $("#uNotes") ? $("#uNotes").value : "";
   const wsVal = $("#uWorkspace") ? $("#uWorkspace").value : "";
   const workspace_id = wsVal ? parseInt(wsVal, 10) : null;
+  const submitBtn = $("#uSubmit");
 
-  if (selectedUploadFile) {
+  if (selectedUploadFiles && selectedUploadFiles.length > 0) {
     const fd = new FormData();
-    fd.append("file", selectedUploadFile);
+    if (selectedUploadFiles.length === 1) {
+      fd.append("file", selectedUploadFiles[0]);
+    } else {
+      for (const f of selectedUploadFiles) {
+        fd.append("files", f);
+      }
+    }
     if (prompt) fd.append("prompt", prompt);
     if (negative) fd.append("negative", negative);
     if (model) fd.append("model", model);
@@ -729,14 +803,24 @@ $("#uSubmit").onclick = async () => {
     if (workspace_id) fd.append("workspace_id", workspace_id);
 
     try {
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Yükleniyor...";
+      }
       const res = await api("/api/upload", { method: "POST", body: fd });
-      toast("Görsel ve prompt kasaya eklendi!");
+      const count = res.count || selectedUploadFiles.length;
+      toast(`✓ ${count} görsel başarıyla eklendi!`);
       closeUploadModal();
       loadStats();
       loadGallery();
       loadImageWorkspaces();
     } catch (e) {
       toast("Hata: " + e.message);
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = window.t ? window.t("upload_submit_btn") : "Kasaya Ekle";
+      }
     }
   } else {
     // Manual add without an image file
@@ -930,8 +1014,8 @@ function populateImageWorkspaceDropdowns() {
   const uSel = $("#uWorkspace");
   if (uSel) {
     uSel.innerHTML = imageWorkspaces.map(w => `<option value="${w.id}">${esc(w.icon || '📁')} ${esc(w.name)}</option>`).join("");
-    const genel = imageWorkspaces.find(w => w.name === "Genel");
-    if (genel) uSel.value = String(genel.id);
+    const defaultWs = currentWs ? imageWorkspaces.find(w => w.id === currentWs) : imageWorkspaces.find(w => w.name === "Genel");
+    if (defaultWs) uSel.value = String(defaultWs.id);
   }
 
   // Quick import image dropdown
@@ -941,6 +1025,18 @@ function populateImageWorkspaceDropdowns() {
     const genel = imageWorkspaces.find(w => w.name === "Genel");
     if (genel) qiSel.value = String(genel.id);
   }
+
+  // Scan folder target workspace dropdown
+  const scanWsSel = $("#scanWorkspace");
+  if (scanWsSel) {
+    scanWsSel.innerHTML = imageWorkspaces.map(w => `<option value="${w.id}">${esc(w.icon || '📁')} ${esc(w.name)}</option>`).join("");
+    if (currentWs) {
+      scanWsSel.value = String(currentWs);
+    } else {
+      const genel = imageWorkspaces.find(w => w.name === "Genel");
+      if (genel) scanWsSel.value = String(genel.id);
+    }
+  }
 }
 
 function renderImageWorkspacesGrid() {
@@ -948,7 +1044,9 @@ function renderImageWorkspacesGrid() {
   if (!grid) return;
   grid.innerHTML = "";
   const imgWord = window.t ? window.t("ws_images_count") : "görsel";
-  const filterBtnWord = window.t ? window.t("ws_filter_btn") : "Görselleri Filtrele";
+  const openWord = window.t ? (window.t("ws_open_btn") || "Projeyi Aç") : "Projeyi Aç";
+  const addWord = window.t ? (window.t("ws_add_img_btn") || "Görsel Ekle") : "Görsel Ekle";
+  const scanWord = window.t ? (window.t("ws_scan_folder_btn") || "Klasörden Aktar") : "Klasörden Aktar";
   const editWord = window.t ? window.t("ws_edit") : "Düzenle";
   const delWord = window.t ? window.t("ws_delete") : "Sil";
 
@@ -956,6 +1054,7 @@ function renderImageWorkspacesGrid() {
     const card = document.createElement("div");
     card.className = "workspace-card";
     card.style.borderColor = w.color || "var(--line)";
+    card.title = `${w.name} projesini açmak için tıklayın`;
 
     const isGenel = w.name === "Genel";
     card.innerHTML = `
@@ -970,26 +1069,53 @@ function renderImageWorkspacesGrid() {
         </span>
       </div>
       <div class="ws-actions">
-        <button class="btn-ws-filter ghost small" data-id="${w.id}">🔍 ${filterBtnWord}</button>
+        <button class="btn-ws-open primary small" type="button" data-id="${w.id}">📂 ${openWord} (${w.image_count || 0})</button>
+        <button class="btn-ws-add ghost small" type="button" data-id="${w.id}" title="${addWord}">➕ ${addWord}</button>
+        <button class="btn-ws-scan ghost small" type="button" data-id="${w.id}" title="${scanWord}">📥 ${scanWord}</button>
         <div style="flex:1"></div>
-        <button class="btn-ws-edit ghost small" data-id="${w.id}">✏ ${editWord}</button>
-        ${isGenel ? '' : `<button class="btn-ws-del ghost small danger" data-id="${w.id}">🗑 ${delWord}</button>`}
+        <button class="btn-ws-edit ghost small" type="button" data-id="${w.id}" title="${editWord}">✏ ${editWord}</button>
+        ${isGenel ? '' : `<button class="btn-ws-del ghost small danger" type="button" data-id="${w.id}" title="${delWord}">🗑 ${delWord}</button>`}
       </div>
     `;
 
-    card.querySelector(".btn-ws-filter")?.addEventListener("click", () => {
+    const openThisWs = () => {
       G.workspaceId = w.id;
       const sel = $("#imgWsFilter");
       if (sel) sel.value = String(w.id);
+      updateGalleryWsBanner();
       showTab("gallery");
       loadGallery();
+    };
+
+    // Click whole card to open workspace (unless clicking buttons)
+    card.addEventListener("click", (e) => {
+      if (e.target.closest("button")) return;
+      openThisWs();
     });
 
-    card.querySelector(".btn-ws-edit")?.addEventListener("click", () => {
+    card.querySelector(".btn-ws-open")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openThisWs();
+    });
+
+    card.querySelector(".btn-ws-add")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openUploadModal(null, w.id);
+    });
+
+    card.querySelector(".btn-ws-scan")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if ($("#scanWorkspace")) $("#scanWorkspace").value = String(w.id);
+      showTab("scan");
+    });
+
+    card.querySelector(".btn-ws-edit")?.addEventListener("click", (e) => {
+      e.stopPropagation();
       openImageWorkspaceModal(w);
     });
 
-    card.querySelector(".btn-ws-del")?.addEventListener("click", async () => {
+    card.querySelector(".btn-ws-del")?.addEventListener("click", async (e) => {
+      e.stopPropagation();
       const confirmMsg = window.currentLang === "en"
         ? `Are you sure you want to delete "${w.name}" workspace? (Images inside will be moved to Genel)`
         : `"${w.name}" çalışma alanını silmek istiyor musunuz? (İçindeki görseller Genel alanına geçer)`;
@@ -1136,6 +1262,7 @@ async function pollScan() {
     loadStats();
     loadLibStats();
     loadGallery();
+    loadImageWorkspaces();
   }
 }
 const scanStartBtn = $("#scanStart");
@@ -1145,13 +1272,18 @@ if (scanStartBtn) {
     const path = scanPath ? scanPath.value.trim() : "";
     if (!path) return toast("Yol girin");
     localStorage.setItem("pv.scanPath", path);
+
+    const wsSel = $("#scanWorkspace");
+    const wsId = wsSel && wsSel.value ? parseInt(wsSel.value, 10) : null;
+
     try {
       await api("/api/scan", {
         method: "POST",
         body: {
           path,
           recursive: $("#scanRec") ? $("#scanRec").checked : true,
-          force: $("#scanForce") ? $("#scanForce").checked : false
+          force: $("#scanForce") ? $("#scanForce").checked : false,
+          workspace_id: wsId
         }
       });
       scanStartBtn.disabled = true;

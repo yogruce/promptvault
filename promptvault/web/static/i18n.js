@@ -13,12 +13,17 @@ const TRANSLATIONS = {
     qi_modal_desc: "Suno AI şarkılarını veya Gemini/ChatGPT görsellerini tek tuşla anında yerel kasaya kaydedin.",
 
     // Image Tabs
-    tab_gallery: "Galeri",
-    tab_workspaces: "🏢 Workspaces",
+    tab_workspaces: "🏢 Projeler / Workspaces",
+    tab_gallery: "🖼️ Galeri",
     tab_tags: "Etiketler",
     tab_matrix: "Prompt Matrisi",
     tab_wildcards: "Wildcard",
     tab_scan: "Klasör Tara",
+    scan_target_ws: "📁 Hedef Çalışma Alanı / Proje:",
+    ws_open_btn: "📂 Projeyi Aç",
+    ws_add_img_btn: "➕ Görsel Ekle",
+    ws_scan_folder_btn: "📥 Klasörden Aktar",
+    back_to_workspaces: "‹ Projelere Dön",
 
     // Music Tabs
     tab_music_songs: "🎵 Şarkılar",
@@ -228,12 +233,17 @@ const TRANSLATIONS = {
     qi_modal_desc: "Send Suno AI songs or Gemini/ChatGPT images directly to your local vault in 1 click.",
 
     // Image Tabs
-    tab_gallery: "Gallery",
-    tab_workspaces: "🏢 Workspaces",
+    tab_workspaces: "🏢 Projects / Workspaces",
+    tab_gallery: "🖼️ Gallery",
     tab_tags: "Tags",
     tab_matrix: "Prompt Matrix",
     tab_wildcards: "Wildcards",
     tab_scan: "Scan Folder",
+    scan_target_ws: "📁 Target Project / Workspace:",
+    ws_open_btn: "📂 Open Project",
+    ws_add_img_btn: "➕ Add Image",
+    ws_scan_folder_btn: "📥 Import Folder",
+    back_to_workspaces: "‹ Back to Projects",
 
     // Music Tabs
     tab_music_songs: "🎵 Songs",
