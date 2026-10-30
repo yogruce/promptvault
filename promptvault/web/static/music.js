@@ -107,6 +107,11 @@
 
     function switchDomain(domain) {
       state.domain = domain;
+      const viewSettings = $('#view-settings');
+      const btnSettings = $('#btnGlobalSettings');
+      viewSettings?.classList.add('hidden');
+      btnSettings?.classList.remove('active');
+
       if (domain === 'images') {
         btnImages.classList.add('active');
         btnMusic.classList.remove('active');
@@ -301,14 +306,14 @@
               <audio controls preload="none" src="/api/music/songs/${song.id}/audio" style="width:100%; height:32px;"></audio>
             </div>
           ` : `
-            <div class="song-no-audio">📄 Sadece Söz ve Stil Promptu</div>
+            <div class="song-no-audio">${window.t ? window.t('no_audio_hint') : '📄 Sadece Söz ve Stil Promptu'}</div>
           `}
 
           <!-- STYLE PROMPT BOX -->
           <div class="song-style-box">
             <div class="song-section-label">
-              <span>🎯 TAM STİL / PROMPT</span>
-              <button type="button" class="btn-copy-style ghost small" data-style="${escapeHtml(song.style)}" title="Promptu kopyala">📋 Kopyala</button>
+              <span>${window.t ? window.t('card_style_label') : '🎯 TAM STİL / PROMPT'}</span>
+              <button type="button" class="btn-copy-style ghost small" data-style="${escapeHtml(song.style)}" title="Promptu kopyala">${window.t ? window.t('btn_copy_style') : '📋 Kopyala'}</button>
             </div>
             <div class="song-style-content" title="Genişletmek / daraltmak için tıklayın">${escapeHtml(song.style || 'Stil belirtilmemiş')}</div>
           </div>
@@ -316,10 +321,10 @@
           <!-- LYRICS PREVIEW -->
           <div class="song-lyrics-box">
             <div class="song-section-label">
-              <span>📄 ŞARKI SÖZLERİ</span>
+              <span>${window.t ? window.t('card_lyrics_label') : '📄 ŞARKI SÖZLERİ'}</span>
               <div style="display:inline-flex; gap:6px;">
-                <button type="button" class="btn-copy-clean-lyrics ghost small" data-id="${song.id}" title="Suno AI etiketleri olmadan saf şarkı sözlerini kopyala">📋 Tagsız Kopyala</button>
-                <button type="button" class="btn-toggle-lyrics ghost small" title="Şarkı sözlerini kartta genişlet/daralt">📖 Genişlet</button>
+                <button type="button" class="btn-copy-clean-lyrics ghost small" data-id="${song.id}" title="Suno AI etiketleri olmadan saf şarkı sözlerini kopyala">${window.t ? window.t('btn_copy_clean') : '📋 Tagsız Kopyala'}</button>
+                <button type="button" class="btn-toggle-lyrics ghost small" title="Şarkı sözlerini kartta genişlet/daralt">${window.t ? window.t('btn_expand') : '📖 Genişlet'}</button>
               </div>
             </div>
             <div class="song-lyrics-preview">${formatLyrics(song.lyrics)}</div>
@@ -420,7 +425,7 @@
         e.stopPropagation();
         const box = card.querySelector('.song-lyrics-box');
         const isExp = box.classList.toggle('expanded');
-        btnToggleLyrics.textContent = isExp ? '📕 Daralt' : '📖 Genişlet';
+        btnToggleLyrics.textContent = isExp ? (window.t ? window.t('btn_collapse') : '📕 Daralt') : (window.t ? window.t('btn_expand') : '📖 Genişlet');
       });
 
       // 5.3 View Full Lyrics

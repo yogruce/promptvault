@@ -28,13 +28,50 @@ async function copy(text) { await navigator.clipboard.writeText(text); toast("Pa
 
 /* ------------------------------------------------------------ tabs */
 function showTab(name) {
+  const vSettings = $("#view-settings");
+  const vImages = $("#view-images");
+  const vMusic = $("#view-music");
+  const btnSettings = $("#btnGlobalSettings");
+  if (vSettings && !vSettings.classList.contains("hidden")) {
+    vSettings.classList.add("hidden");
+    vImages?.classList.remove("hidden");
+    vMusic?.classList.add("hidden");
+    btnSettings?.classList.remove("active");
+    $("#btnDomainImages")?.classList.add("active");
+    $("#btnDomainMusic")?.classList.remove("active");
+    $("#tabs")?.classList.remove("hidden");
+    $("#tabs-music")?.classList.add("hidden");
+  }
   $$("#tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
   $$(".tab").forEach((t) => t.classList.toggle("active", t.id === "tab-" + name));
   if (name === "tags") loadTags();
   if (name === "matrix") loadMatrices();
   if (name === "wildcards") loadWildcards();
-  if (name === "scan") { loadLibStats(); loadGDriveStatus(); loadQuickImportStatus(); }
+  if (name === "scan") loadLibStats();
 }
+
+function showSettingsView() {
+  const vSettings = $("#view-settings");
+  const vImages = $("#view-images");
+  const vMusic = $("#view-music");
+  const btnSettings = $("#btnGlobalSettings");
+  const navImages = $("#tabs");
+  const navMusic = $("#tabs-music");
+
+  vImages?.classList.add("hidden");
+  vMusic?.classList.add("hidden");
+  vSettings?.classList.remove("hidden");
+  btnSettings?.classList.add("active");
+  $("#btnDomainImages")?.classList.remove("active");
+  $("#btnDomainMusic")?.classList.remove("active");
+  navImages?.classList.add("hidden");
+  navMusic?.classList.add("hidden");
+
+  loadLibStats();
+  loadGDriveStatus();
+  loadQuickImportStatus();
+}
+$("#btnGlobalSettings")?.addEventListener("click", showSettingsView);
 $$("#tabs button").forEach((b) => (b.onclick = () => showTab(b.dataset.tab)));
 document.addEventListener("click", (e) => {
   const g = e.target.closest("[data-goto]"); if (g) { e.preventDefault(); showTab(g.dataset.goto); }
@@ -956,4 +993,112 @@ $("#btnToggleQuickImport")?.addEventListener("click", async () => {
 });
 
 loadQuickImportStatus();
+
+/* ----------------------------------------------------------- gdrive restore */
+let gdRestorePollTimer = null;
+async function startGDriveRestore() {
+  const s = await loadGDriveStatus();
+  if (!s || !s.authenticated) {
+    toast("Lütfen önce Google Drive oturumu açın");
+    return;
+  }
+  const download_images = $("#chkGdDownloadImgs") ? $("#chkGdDownloadImgs").checked : true;
+  try {
+    await api("/api/gdrive/restore", {
+      method: "POST",
+      body: { download_images }
+    });
+    $("#gdRestoreBox")?.classList.remove("hidden");
+    const statusEl = $("#gdRestoreStatus");
+    if (statusEl) statusEl.textContent = "Google Drive'dan 'PromptVault_Backup.json' aranıyor ve indiriliyor...";
+    pollGDriveRestore();
+  } catch (e) {
+    toast("Hata: " + e.message);
+  }
+}
+
+async function pollGDriveRestore() {
+  clearTimeout(gdRestorePollTimer);
+  try {
+    const p = await api("/api/gdrive/restore-status");
+    const bar = $("#gdRestoreBar");
+    const statusEl = $("#gdRestoreStatus");
+    if (!bar || !statusEl) return;
+
+    if (p.running) {
+      const pct = p.total ? Math.round((p.done * 100) / p.total) : 50;
+      bar.style.width = pct + "%";
+      statusEl.textContent = `Geri yükleniyor: ${p.done} / ${p.total} kayıt işlendi...`;
+      gdRestorePollTimer = setTimeout(pollGDriveRestore, 1200);
+    } else {
+      if (p.result) {
+        bar.style.width = "100%";
+        const r = p.result;
+        statusEl.innerHTML = `✓ <b>Geri yükleme tamamlandı!</b> Toplam: ${r.total} kayıt | Yeni: ${r.restored} | Güncellenen: ${r.updated} | İndirilen Görsel: ${r.images_downloaded}`;
+        toast(`✓ ${r.restored} kayıt geri yüklendi!`);
+        loadLibStats();
+        loadStats();
+        loadImages(true);
+      } else if (p.error) {
+        statusEl.textContent = "Hata: " + p.error;
+        toast("Geri yükleme hatası: " + p.error);
+      }
+    }
+  } catch (e) {
+    console.error("pollGDriveRestore error", e);
+  }
+}
+
+$("#btnGdRestore")?.addEventListener("click", startGDriveRestore);
+
+// Local JSON restore
+$("#btnLocalRestore")?.addEventListener("click", () => {
+  $("#localRestoreFileInput")?.click();
+});
+
+$("#localRestoreFileInput")?.addEventListener("change", async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  const statusEl = $("#localRestoreStatus");
+  if (statusEl) statusEl.textContent = `"${file.name}" okunuyor ve kasaya aktarılıyor...`;
+
+  const fd = new FormData();
+  fd.append("file", file);
+  try {
+    const res = await fetch("/api/gdrive/restore-local-json", {
+      method: "POST",
+      body: fd
+    });
+    if (!res.ok) {
+      let err = "Dosya yüklenemedi";
+      try { const j = await res.json(); if (j.detail) err = j.detail; } catch {}
+      throw new Error(err);
+    }
+    const data = await res.json();
+    const r = data.result || {};
+    if (statusEl) {
+      statusEl.innerHTML = `✓ <b>Başarılı!</b> Toplam: ${r.total} | Yeni: ${r.restored} | Güncellenen: ${r.updated}`;
+    }
+    toast(`✓ ${r.restored} görsel/prompt kaydı geri yüklendi!`);
+    loadLibStats();
+    loadStats();
+    loadImages(true);
+  } catch (err) {
+    if (statusEl) statusEl.textContent = "Hata: " + err.message;
+    toast("Hata: " + err.message);
+  } finally {
+    e.target.value = "";
+  }
+});
+
+/* --------------------------------------------------------- language toggle */
+$("#btnLangTR")?.addEventListener("click", () => window.setLanguage && window.setLanguage("tr"));
+$("#btnLangEN")?.addEventListener("click", () => window.setLanguage && window.setLanguage("en"));
+$("#btnSetLangTR")?.addEventListener("click", () => window.setLanguage && window.setLanguage("tr"));
+$("#btnSetLangEN")?.addEventListener("click", () => window.setLanguage && window.setLanguage("en"));
+
+// Apply internationalization on load
+if (window.applyI18n) {
+  window.applyI18n();
+}
 

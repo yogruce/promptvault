@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PromptVault ◈ AI Prompt, Metadata & Suno AI Müzik Yöneticisi</title>
 <link rel="stylesheet" href="/static/style.css">
+<script src="/static/i18n.js"></script>
 </head>
 <body>
 <header>
@@ -13,29 +14,40 @@
   <!-- DOMAIN SWITCHER (Görseller vs Müzik) -->
   <div class="domain-switcher">
     <button id="btnDomainImages" class="domain-btn active" title="Görsel Prompt ve PNG Metadata Kasası">
-      <span class="icon">🎨</span> Görseller
+      <span class="icon">🎨</span> <span data-i18n="domain_images">Görseller</span>
     </button>
     <button id="btnDomainMusic" class="domain-btn" title="Suno AI Şarkıları, Sözler, Tam Stil Promptları ve Workspaces">
-      <span class="icon">🎵</span> Müzik (Suno AI)
+      <span class="icon">🎵</span> <span data-i18n="domain_music">Müzik (Suno AI)</span>
     </button>
   </div>
 
   <!-- IMAGE TABS -->
   <nav id="tabs">
-    <button data-tab="gallery" class="active">Galeri</button>
-    <button data-tab="tags">Etiketler</button>
-    <button data-tab="matrix">Prompt Matrisi</button>
-    <button data-tab="wildcards">Wildcard</button>
-    <button data-tab="scan">Kasa & Tarama</button>
+    <button data-tab="gallery" class="active" data-i18n="tab_gallery">Galeri</button>
+    <button data-tab="tags" data-i18n="tab_tags">Etiketler</button>
+    <button data-tab="matrix" data-i18n="tab_matrix">Prompt Matrisi</button>
+    <button data-tab="wildcards" data-i18n="tab_wildcards">Wildcard</button>
+    <button data-tab="scan" data-i18n="tab_scan">Klasör Tara</button>
   </nav>
 
   <!-- MUSIC TABS -->
   <nav id="tabs-music" class="hidden">
-    <button id="tab-music-songs-btn" data-music-tab="songs" class="active">🎵 Şarkılar</button>
-    <button data-music-tab="workspaces">🏢 Workspaces & Sanatçılar</button>
-    <button data-music-tab="styles">🏷️ Müzik Stilleri</button>
-    <button data-music-tab="music-scan">📂 Müzik Tara & Ekle</button>
+    <button id="tab-music-songs-btn" data-music-tab="songs" class="active" data-i18n="tab_music_songs">🎵 Şarkılar</button>
+    <button data-music-tab="workspaces" data-i18n="tab_music_workspaces">🏢 Workspaces & Sanatçılar</button>
+    <button data-music-tab="styles" data-i18n="tab_music_styles">🏷️ Müzik Stilleri</button>
+    <button data-music-tab="music-scan" data-i18n="tab_music_scan">📂 Müzik Tara & Ekle</button>
   </nav>
+
+  <!-- GLOBAL SETTINGS & LANGUAGE SWITCHER -->
+  <div style="display:inline-flex; align-items:center; gap:8px;">
+    <button id="btnGlobalSettings" class="ghost" type="button" title="Ayarlar" data-i18n-title="btn_settings" style="display:inline-flex; align-items:center; gap:6px;">
+      <span>⚙️</span> <span data-i18n="btn_settings">Ayarlar</span>
+    </button>
+    <div class="lang-switcher">
+      <button id="btnLangTR" type="button" class="active" title="Türkçe">🇹🇷 TR</button>
+      <button id="btnLangEN" type="button" title="English">🇬🇧 EN</button>
+    </div>
+  </div>
 
   <div id="stats" class="muted"></div>
   <div id="musicStatsText" class="muted hidden"></div>
@@ -170,86 +182,20 @@
     <!-- SCAN & VAULT -->
     <section id="tab-scan" class="tab">
       <div class="panel narrow">
-        <h3>Klasör Tara ve Kasaya Aktar</h3>
-        <p class="muted small">Seçtiğiniz klasördeki tüm PNG/JPEG görseller taranır, içlerindeki prompt ve parametreler ayrıştırılarak yerel kasaya kopyalanır. Orijinal dosyaları silseniz bile kasadakiler güvende kalır.</p>
+        <h3 data-i18n="scan_title">Klasör Tara ve Kasaya Aktar</h3>
+        <p class="muted small" data-i18n="scan_desc">Seçtiğiniz klasördeki tüm PNG/JPEG görseller taranır, içlerindeki prompt ve parametreler ayrıştırılarak yerel kasaya kopyalanır. Orijinal dosyaları silseniz bile kasadakiler güvende kalır.</p>
         <div class="row">
           <input id="scanPath" placeholder="Örnek: C:\stable-diffusion\outputs veya D:\AI_Images" style="flex:1">
-          <button id="scanBrowse" class="ghost" type="button" title="Masaüstü Klasör Seçim Penceresini Aç">📁 Gözat / Klasör Seç</button>
+          <button id="scanBrowse" class="ghost" type="button" title="Masaüstü Klasör Seçim Penceresini Aç" data-i18n="scan_browse_btn">📁 Gözat / Klasör Seç</button>
         </div>
         <div class="row">
-          <label class="inline"><input type="checkbox" id="scanRec" checked> Alt klasörleri de tara</label>
-          <label class="inline"><input type="checkbox" id="scanForce"> Zaten taranmış dosyaları zorla yeniden oku</label>
+          <label class="inline"><input type="checkbox" id="scanRec" checked> <span data-i18n="scan_recursive">Alt klasörleri de tara</span></label>
+          <label class="inline"><input type="checkbox" id="scanForce"> <span data-i18n="scan_force">Zaten taranmış dosyaları zorla yeniden oku</span></label>
           <div style="flex:1"></div>
-          <button id="scanStart" class="primary">Taramayı Başlat</button>
+          <button id="scanStart" class="primary" data-i18n="scan_start">Taramayı Başlat</button>
         </div>
         <div class="progress"><div id="scanBar"></div></div>
         <div id="scanStatus" class="small muted"></div>
-
-        <hr style="border:0; border-top:1px solid var(--line); margin:24px 0">
-
-        <h3>☁ Google Drive Yedekleme & Senkronizasyon</h3>
-        <p class="muted small">Tüm kasayı ve prompt veritabanını Google Drive'daki <b>"Prompt Vault"</b> klasörüne otomatik olarak yükleyin. Daha önce yüklenmiş dosyalar tekrar yüklenmez, sadece yeniler eşitlenir.</p>
-        
-        <div id="gdStatusBox" class="gdrive-box">
-          <div class="row" style="margin:0 0 8px">
-            <b>Google Drive Durumu:</b>
-            <span id="gdStatusBadge" class="vault-badge unlinked">Bağlı Değil</span>
-            <div style="flex:1"></div>
-            <button id="btnGdSync" class="primary small" disabled>☁ Kasayı Drive'a Eşitle</button>
-          </div>
-          <div id="gdStatusMsg" class="small muted" style="margin-bottom:8px">Google Cloud API Client bilgisi bekleniyor...</div>
-          
-          <div id="gdConfigSection">
-            <details style="margin-top:8px">
-              <summary class="small" style="cursor:pointer; color:var(--accent2)">⚙ Google Cloud Client ID ve Secret Yapılandırması</summary>
-              <div style="padding-top:10px">
-                <label>Client ID</label>
-                <input id="gdClientId" placeholder="xxxx.apps.googleusercontent.com" style="width:100%">
-                <label>Client Secret</label>
-                <input id="gdClientSecret" type="password" placeholder="GOCSPX-xxxx" style="width:100%">
-                <div class="row" style="margin-top:10px">
-                  <button id="btnGdSaveConfig" class="ghost small">Bilgileri Kaydet</button>
-                  <button id="btnGdLogin" class="primary small" style="margin-left:8px">🔑 Google ile Giriş Yap</button>
-                  <button id="btnGdLogout" class="ghost danger small" style="margin-left:auto">Çıkış Yap</button>
-                </div>
-              </div>
-            </details>
-          </div>
-        </div>
-
-        <hr style="border:0; border-top:1px solid var(--line); margin:24px 0">
-
-        <!-- QUICK IMPORT CLIPPER SECTION -->
-        <div id="quickImportSection">
-          <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
-            <div>
-              <h3 style="margin:0 0 4px 0;">⚡ Tarayıcıdan Tek Tuşla Aktarım (Quick Import Clipper)</h3>
-              <p class="muted small" style="margin:0;">Gemini, ChatGPT, Flow/ImageFX ve Suno AI web sitelerinden tek tuşla görsel ve şarkıları yerel kasaya gönderin.</p>
-            </div>
-            <div style="display:flex; align-items:center; gap:8px;">
-              <span id="qiStatusBadge" class="vault-badge" style="background:#10b98122; color:#34d399; border:1px solid #10b98155;">Aktif (Açık)</span>
-              <button id="btnToggleQuickImport" class="ghost small">Durdur / Kapat</button>
-            </div>
-          </div>
-          
-          <div style="margin-top:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-            <a href="/static/promptvault_clipper.user.js" target="_blank" class="button small" id="btnInstallClipper">
-              ⚡ Tampermonkey Clipper Kur (.user.js)
-            </a>
-            <span class="muted small">Kurulduğunda Gemini, ChatGPT ve Suno sayfalarında otomatik "⚡ Vault'a Aktar" butonu görünür.</span>
-          </div>
-        </div>
-
-        <hr style="border:0; border-top:1px solid var(--line); margin:24px 0">
-
-        <h3>Kasa Temizliği & Bakım</h3>
-        <p class="muted small">Eğer orijinal diskteki dosya silinmişse veritabanındaki disk yolunu temizler; kasa kopyanız silinmez.</p>
-        <div class="row">
-          <button id="prune" class="ghost">Eksik Orijinal Yolları Temizle (Prune)</button>
-        </div>
-
-        <h3>Kütüphane Durumu</h3>
-        <div id="libStats"></div>
       </div>
     </section>
   </div>
@@ -372,6 +318,155 @@
         <div id="mScanLog" class="small muted" style="margin-top:10px"></div>
       </div>
     </section>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- ⚙️ AYARLAR (SETTINGS) GÖRÜNÜMÜ                                    -->
+  <!-- ================================================================= -->
+  <div id="view-settings" class="hidden">
+    <div class="settings-container">
+      <div style="margin-bottom:20px;">
+        <h2 style="margin:0 0 4px 0;" data-i18n="settings_title">⚙️ Sistem ve Entegrasyon Ayarları</h2>
+        <p class="muted small" style="margin:0;" data-i18n="settings_desc">Arayüz dili, tek tuşla aktarım (clipper), Google Drive yedekleme ve geri yükleme (restore) ayarlarını buradan yönetebilirsiniz.</p>
+      </div>
+
+      <!-- 1. DİL TERCİHİ -->
+      <div class="settings-box">
+        <h3 data-i18n="lang_box_title">🌐 Dil Tercihi / Interface Language</h3>
+        <p class="desc" data-i18n="lang_box_desc">Kullanmak istediğiniz arayüz dilini seçin. Değişiklikler anında uygulanır.</p>
+        <div style="display:flex; gap:12px; align-items:center;">
+          <button type="button" id="btnSetLangTR" class="ghost" style="padding:10px 18px; font-size:14px; display:inline-flex; align-items:center; gap:8px;">
+            <span>🇹🇷</span> Türkçe
+          </button>
+          <button type="button" id="btnSetLangEN" class="ghost" style="padding:10px 18px; font-size:14px; display:inline-flex; align-items:center; gap:8px;">
+            <span>🇬🇧</span> English
+          </button>
+        </div>
+      </div>
+
+      <!-- 2. TEK TUŞLA AKTARIM (QUICK IMPORT CLIPPER) -->
+      <div class="settings-box">
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+          <div>
+            <h3 data-i18n="qi_title">⚡ Tarayıcıdan Tek Tuşla Aktarım (Quick Import Clipper)</h3>
+            <p class="desc" style="margin:0;" data-i18n="qi_desc">Gemini, ChatGPT, Flow/ImageFX ve Suno AI web sitelerinden tek tuşla görsel, prompt, şarkı ve sözleri doğrudan yerel kasaya aktarın.</p>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span id="qiStatusBadge" class="vault-badge" style="background:#10b98122; color:#34d399; border:1px solid #10b98155;" data-i18n="qi_status_active">Aktif (Açık)</span>
+            <button id="btnToggleQuickImport" class="ghost small" data-i18n="qi_btn_disable">Durdur / Kapat</button>
+          </div>
+        </div>
+
+        <div style="margin-top:14px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+          <a href="/static/promptvault_clipper.user.js" target="_blank" class="button small" id="btnInstallClipper" data-i18n="qi_install_btn">
+            ⚡ Tampermonkey Clipper Kur (.user.js)
+          </a>
+          <span class="muted small" data-i18n="qi_install_hint">Kurulduğunda Gemini, ChatGPT, Flow ve Suno sayfalarında otomatik "⚡ Vault'a Aktar" butonu görünür.</span>
+        </div>
+
+        <div class="chip-group" style="margin-top:16px;">
+          <span class="chip">🎨 Google Gemini</span>
+          <span class="chip">💬 ChatGPT (DALL-E)</span>
+          <span class="chip">🌊 Flow / ImageFX</span>
+          <span class="chip">🎵 Suno AI (Sözler & Stil)</span>
+        </div>
+      </div>
+
+      <!-- 3. GOOGLE DRIVE YEDEKLEME & EŞİTLEME -->
+      <div class="settings-box">
+        <h3 data-i18n="gd_title">☁ Google Drive Yedekleme, Eşitleme & Geri Yükleme</h3>
+        <p class="desc" data-i18n="gd_desc">Tüm kasayı ve prompt veritabanını Google Drive'daki 'Prompt Vault' klasörüne otomatik yükleyin veya mevcut bir yedekten geri yükleyin.</p>
+
+        <div id="gdStatusBox" class="gdrive-box">
+          <div class="row" style="margin:0 0 10px">
+            <b data-i18n="gd_status_label">Google Drive Durumu:</b>
+            <span id="gdStatusBadge" class="vault-badge unlinked" data-i18n="gd_unlinked">Bağlı Değil</span>
+            <span id="gdUserEmail" class="muted small" style="margin-left:8px"></span>
+            <div style="flex:1"></div>
+            <a id="gdFolderLink" href="#" target="_blank" class="button ghost small hidden" style="margin-right:8px;">📁 Drive Klasörünü Aç</a>
+            <button id="btnGdSync" class="primary small" disabled data-i18n="gd_btn_sync">☁ Kasayı Drive'a Eşitle & Yedekle</button>
+          </div>
+
+          <div id="gdSyncRow" class="row hidden" style="margin:8px 0;">
+            <div class="progress" id="gdProgress" style="flex:1; margin:0;"><div id="gdBar"></div></div>
+          </div>
+          <div id="gdInfo" class="small muted" style="margin-bottom:8px"></div>
+
+          <div id="gdSetup">
+            <details style="margin-top:12px">
+              <summary class="small" style="cursor:pointer; color:var(--accent2)" data-i18n="gd_config_summary">⚙ Google Cloud Client ID ve Secret Yapılandırması</summary>
+              <div style="padding-top:10px">
+                <label>Client ID</label>
+                <input id="gdClientId" placeholder="xxxx.apps.googleusercontent.com" style="width:100%">
+                <label>Client Secret</label>
+                <input id="gdClientSecret" type="password" placeholder="GOCSPX-xxxx" style="width:100%">
+                <div class="row" style="margin-top:10px">
+                  <button id="btnGdSaveConfig" class="ghost small" data-i18n="gd_save_btn">Bilgileri Kaydet</button>
+                  <button id="btnGdLogin" class="primary small" style="margin-left:8px" data-i18n="gd_login_btn">🔑 Google ile Giriş Yap</button>
+                  <button id="btnGdLogout" class="ghost danger small" style="margin-left:auto" data-i18n="gd_logout_btn">Çıkış Yap</button>
+                </div>
+              </div>
+            </details>
+          </div>
+        </div>
+
+        <hr style="border:0; border-top:1px solid var(--line); margin:20px 0">
+
+        <!-- 4. YEDEKTEN GERİ YÜKLEME (RESTORE) -->
+        <h4 style="margin:0 0 6px 0;" data-i18n="restore_title">📥 Yedekten Geri Yükleme (Restore from Backup)</h4>
+        <p class="desc" data-i18n="restore_desc">Yeni kurulumlarda veya veri taşımada, Google Drive'daki 'PromptVault_Backup.json' yedeğinden ya da elinizdeki yerel bir JSON dosyasından tüm kütüphaneyi geri yükleyebilirsiniz.</p>
+
+        <div style="display:flex; flex-direction:column; gap:12px; margin-top:12px;">
+          <!-- A) Drive Restore -->
+          <div style="background:var(--panel2); padding:14px; border-radius:8px; border:1px solid var(--line);">
+            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+              <div>
+                <b>☁ Google Drive Yedeği</b>
+                <div class="muted small" style="margin-top:2px;">Google Drive'daki "Prompt Vault" klasörünüzde kayıtlı JSON ve görselleri çeker.</div>
+              </div>
+              <button id="btnGdRestore" class="ghost small" data-i18n="restore_drive_btn">📥 Drive'daki PromptVault_Backup.json'dan Geri Yükle</button>
+            </div>
+            <div style="margin-top:8px;">
+              <label class="inline" style="cursor:pointer;">
+                <input type="checkbox" id="chkGdDownloadImgs" checked>
+                <span data-i18n="restore_download_imgs">Drive'daki orijinal görselleri de yerel kasaya indir</span>
+              </label>
+            </div>
+            <div id="gdRestoreBox" class="hidden" style="margin-top:10px;">
+              <div class="progress" style="margin-bottom:6px;"><div id="gdRestoreBar"></div></div>
+              <div id="gdRestoreStatus" class="small muted"></div>
+            </div>
+          </div>
+
+          <!-- B) Local JSON Restore -->
+          <div style="background:var(--panel2); padding:14px; border-radius:8px; border:1px solid var(--line);">
+            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+              <div>
+                <b>📁 Yerel JSON Dosyası</b>
+                <div class="muted small" style="margin-top:2px;" data-i18n="restore_local_hint">Bilgisayarınızdaki PromptVault_Backup.json dosyasını seçin.</div>
+              </div>
+              <div>
+                <input type="file" id="localRestoreFileInput" accept=".json" style="display:none">
+                <button type="button" id="btnLocalRestore" class="ghost small" data-i18n="restore_local_btn">📁 Yerel JSON Dosyasından Geri Yükle</button>
+              </div>
+            </div>
+            <div id="localRestoreStatus" class="small muted" style="margin-top:8px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. KASA BAKIMI & KÜTÜPHANE DURUMU -->
+      <div class="settings-box">
+        <h3 data-i18n="maint_title">🧹 Kasa Temizliği & Bakım</h3>
+        <p class="desc" data-i18n="maint_desc">Eğer orijinal diskteki dosya silinmişse veritabanındaki disk yolunu temizler; kasa kopyanız silinmez.</p>
+        <div class="row">
+          <button id="prune" class="ghost" data-i18n="maint_prune_btn">Eksik Orijinal Yolları Temizle (Prune)</button>
+        </div>
+
+        <h4 style="margin:20px 0 8px 0;" data-i18n="maint_lib_stats">📊 Kütüphane Durumu & İstatistikler</h4>
+        <div id="libStats"></div>
+      </div>
+    </div>
   </div>
 </main>
 

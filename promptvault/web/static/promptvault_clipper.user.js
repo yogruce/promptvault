@@ -198,6 +198,44 @@
 
         container.parentNode.insertBefore(btn, container.nextSibling);
       });
+
+      // Floating button for song detail page (/song/...)
+      if (window.location.pathname.includes('/song/') && !document.getElementById('pv-suno-floating-btn')) {
+        const floatBtn = createVaultButton('⚡ Bu Şarkıyı Vault\'a Aktar');
+        floatBtn.id = 'pv-suno-floating-btn';
+        floatBtn.style.position = 'fixed';
+        floatBtn.style.bottom = '24px';
+        floatBtn.style.left = '24px';
+        floatBtn.style.zIndex = '99999';
+        floatBtn.style.padding = '10px 16px';
+        floatBtn.style.fontSize = '14px';
+        floatBtn.style.boxShadow = '0 6px 20px rgba(0,0,0,0.6)';
+        floatBtn.onclick = () => {
+          const url = window.location.href;
+          const idMatch = url.match(/song\/([a-f0-9\-]+)/);
+          const songId = idMatch ? idMatch[1] : '';
+          const titleEl = document.querySelector('h1, h2, [data-testid="song-title"]');
+          const title = titleEl ? titleEl.textContent.trim() : 'Suno Şarkısı';
+          const lyricsEl = document.querySelector('.lyrics, [data-testid="lyrics-content"], pre');
+          const lyrics = lyricsEl ? lyricsEl.textContent.trim() : '';
+          const styleEl = document.querySelector('[data-testid="style-tags"], .style-prompt');
+          const style = styleEl ? styleEl.textContent.trim() : '';
+          floatBtn.textContent = '⏳ Aktarılıyor...';
+          floatBtn.disabled = true;
+          sendToVault('music', {
+            title, lyrics, style, suno_id: songId, suno_url: url, generator: 'suno'
+          }, (data) => {
+            floatBtn.innerHTML = '✓ Aktarıldı!';
+            showToast(`"${data.title || title}" müzik kasasına aktarıldı! 🎵`);
+            setTimeout(() => { floatBtn.innerHTML = '⚡ Bu Şarkıyı Vault\'a Aktar'; floatBtn.disabled = false; }, 3000);
+          }, (err) => {
+            floatBtn.innerHTML = '❌ Hata';
+            showToast(err, false);
+            setTimeout(() => { floatBtn.innerHTML = '⚡ Bu Şarkıyı Vault\'a Aktar'; floatBtn.disabled = false; }, 3000);
+          });
+        };
+        document.body.appendChild(floatBtn);
+      }
     }
 
     setInterval(attachSunoButtons, 2000);

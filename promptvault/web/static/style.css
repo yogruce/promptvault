@@ -767,3 +767,72 @@ a.button.ghost, .btn.ghost {
   border: 1px solid var(--line);
 }
 
+/* SETTINGS VIEW & LANGUAGE SWITCHER */
+.lang-switcher {
+  display: inline-flex;
+  gap: 2px;
+  background: var(--panel2);
+  padding: 2px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+}
+.lang-switcher button {
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.lang-switcher button.active {
+  background: var(--accent) !important;
+  color: #fff !important;
+}
+.settings-container {
+  max-width: 860px;
+  margin: 0 auto;
+}
+.settings-box {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.15);
+}
+.settings-box h3 {
+  margin: 0 0 6px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  color: var(--text);
+}
+.settings-box p.desc {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0 0 16px 0;
+  line-height: 1.5;
+}
+.chip-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.chip {
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+

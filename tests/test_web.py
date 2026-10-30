@@ -161,3 +161,34 @@ def test_userscript_and_extension_static(client):
     assert ext_res.status_code == 200
     assert "manifest_version" in ext_res.text
 
+
+def test_gdrive_restore_endpoints(client):
+    import json
+    c, _ = client
+    # 1. Restore status
+    r = c.get("/api/gdrive/restore-status").json()
+    assert r["running"] is False
+
+    # 2. Restore local JSON
+    backup_data = [
+        {
+            "sha1": "abcdef1234567890abcdef1234567890abcdef12",
+            "prompt": "futuristic flying car at dusk",
+            "negative": "blurry",
+            "model": "SDXL",
+            "generator": "comfyui",
+            "rating": 5,
+            "notes": "restored note"
+        }
+    ]
+    file_payload = {"file": ("backup.json", json.dumps(backup_data).encode("utf-8"), "application/json")}
+    res = c.post("/api/gdrive/restore-local-json", files=file_payload).json()
+    assert res["ok"] is True
+    assert res["result"]["restored"] == 1
+
+    # Verify image exists in library
+    imgs = c.get("/api/images", params={"q": "flying car"}).json()
+    assert imgs["total"] == 1
+    assert imgs["items"][0]["model"] == "SDXL"
+
+

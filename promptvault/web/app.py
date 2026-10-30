@@ -446,6 +446,36 @@ def create_app(
         threading.Thread(target=run_sync, daemon=True).start()
         return gdrive.get_status()
 
+    class GDriveRestoreBody(BaseModel):
+        download_images: bool = False
+
+    @app.post("/api/gdrive/restore")
+    def gdrive_restore(body: GDriveRestoreBody = GDriveRestoreBody()):
+        if not gdrive.is_authenticated():
+            raise HTTPException(401, "Google Drive oturumu açık değil.")
+
+        def run_restore():
+            try:
+                gdrive.restore_from_gdrive(lib, download_images=body.download_images)
+            except Exception:
+                pass
+
+        threading.Thread(target=run_restore, daemon=True).start()
+        return gdrive.get_status()
+
+    @app.get("/api/gdrive/restore-status")
+    def gdrive_restore_status():
+        return gdrive._restore_progress
+
+    @app.post("/api/gdrive/restore-local-json")
+    async def gdrive_restore_local_json(file: UploadFile = File(...)):
+        content = await file.read()
+        try:
+            res = gdrive.restore_from_json_bytes(lib, content)
+            return {"ok": True, "result": res}
+        except Exception as e:
+            raise HTTPException(400, f"JSON yedeği geri yüklenemedi: {e}")
+
     # ------------------------------------------------------------ static
     @app.get("/", include_in_schema=False)
     def index():

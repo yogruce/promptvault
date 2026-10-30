@@ -24,6 +24,8 @@ class GDriveManager:
         self._lock = threading.Lock()
         self._syncing = False
         self._sync_progress: dict[str, Any] = {"running": False, "total": 0, "done": 0, "error": None}
+        self._restoring = False
+        self._restore_progress: dict[str, Any] = {"running": False, "total": 0, "done": 0, "error": None, "result": None}
 
     # ------------------------------------------------------------- auth config
     def is_configured(self) -> bool:
@@ -121,6 +123,7 @@ class GDriveManager:
             "folder": folder_info,
             "error": api_error,
             "sync": self._sync_progress,
+            "restore": self._restore_progress,
         }
 
     # ----------------------------------------------------------- folder
@@ -256,3 +259,211 @@ class GDriveManager:
         else:
             meta = {"name": "PromptVault_Backup.json", "parents": [folder_id]}
             service.files().create(body=meta, media_body=media).execute()
+
+    # ------------------------------------------------------------- restore
+    def restore_from_json_bytes(self, library, json_bytes: bytes) -> dict[str, Any]:
+        """Restore metadata from an uploaded or local JSON backup file."""
+        data = json.loads(json_bytes.decode("utf-8"))
+        if not isinstance(data, list):
+            raise ValueError("Geçersiz JSON formatı: Görsel listesi bekleniyor.")
+        return self.restore_records(library, data)
+
+    def restore_from_gdrive(self, library, download_images: bool = False, progress_callback: Callable[[dict[str, Any]], None] | None = None) -> dict[str, Any]:
+        """Find PromptVault_Backup.json in Drive and restore records (and optionally images)."""
+        with self._lock:
+            if self._restoring:
+                raise RuntimeError("Zaten bir geri yükleme işlemi devam ediyor")
+            self._restoring = True
+            self._restore_progress.update(running=True, total=0, done=0, error=None, result=None)
+
+        try:
+            service = self.build_service()
+            folder_id, folder_url = self.get_or_create_vault_folder(service)
+
+            # Query PromptVault_Backup.json
+            q = f"'{folder_id}' in parents and name='PromptVault_Backup.json' and trashed=false"
+            res = service.files().list(q=q, fields="files(id, name)").execute()
+            files = res.get("files", [])
+            if not files:
+                raise RuntimeError("Google Drive 'Prompt Vault' klasöründe 'PromptVault_Backup.json' yedeği bulunamadı.")
+
+            file_id = files[0]["id"]
+            import io
+            from googleapiclient.http import MediaIoBaseDownload
+            request = service.files().get_media(fileId=file_id)
+            fh = io.BytesIO()
+            downloader = MediaIoBaseDownload(fh, request)
+            done = False
+            while not done:
+                _, done = downloader.next_chunk()
+
+            fh.seek(0)
+            items = json.loads(fh.read().decode("utf-8"))
+            if not isinstance(items, list):
+                raise ValueError("Yedek dosyası bozuk veya geçersiz liste formatında.")
+
+            result = self.restore_records(library, items, download_images=download_images, service=service, folder_id=folder_id, progress_callback=progress_callback)
+            self._restore_progress.update(running=False, result=result)
+            return result
+        except Exception as e:
+            self._restore_progress.update(running=False, error=str(e))
+            raise
+        finally:
+            self._restoring = False
+
+    def restore_records(self, library, items: list[dict[str, Any]], download_images: bool = False, service=None, folder_id: str | None = None, progress_callback: Callable[[dict[str, Any]], None] | None = None) -> dict[str, Any]:
+        """Insert or update image records and optionally download corresponding image binaries."""
+        from datetime import datetime, timezone
+        from .parsers import ParsedMeta
+
+        self._restore_progress["total"] = len(items)
+        c = library.conn
+
+        # Pre-cache Drive files if downloading images
+        drive_file_map: dict[str, str] = {}
+        if download_images and service and folder_id:
+            try:
+                page_token = None
+                while True:
+                    f_res = service.files().list(
+                        q=f"'{folder_id}' in parents and trashed=false and mimeType contains 'image/'",
+                        fields="nextPageToken, files(id, name)",
+                        pageToken=page_token
+                    ).execute()
+                    for f in f_res.get("files", []):
+                        drive_file_map[f["name"]] = f["id"]
+                    page_token = f_res.get("nextPageToken")
+                    if not page_token:
+                        break
+            except Exception:
+                pass
+
+        restored_count = 0
+        updated_count = 0
+        downloaded_images = 0
+
+        for idx, item in enumerate(items):
+            sha1 = item.get("sha1")
+            if not sha1:
+                continue
+
+            prompt = item.get("prompt") or ""
+            negative = item.get("negative") or ""
+            model = item.get("model") or ""
+            generator = item.get("generator") or "manual"
+            seed = item.get("seed")
+            params = item.get("params")
+            if isinstance(params, dict):
+                params_str = json.dumps(params, ensure_ascii=False)
+                params_dict = params
+            elif isinstance(params, str):
+                params_str = params
+                try:
+                    params_dict = json.loads(params)
+                except Exception:
+                    params_dict = {}
+            else:
+                params_str = "{}"
+                params_dict = {}
+
+            rating = int(item.get("rating") or 0)
+            favorite = int(item.get("favorite") or 0)
+            notes = item.get("notes") or ""
+            now_iso = datetime.now(timezone.utc).isoformat(timespec="seconds")
+            added_at = item.get("added_at") or now_iso
+
+            # Check if local vault file exists
+            vault_file = library.vault_dir / sha1[:2] / f"{sha1}.png"
+            vault_path_str = str(vault_file) if vault_file.exists() else None
+            img_size = vault_file.stat().st_size if vault_file.exists() else int(item.get("size") or 0)
+            width = int(item.get("width") or 0)
+            height = int(item.get("height") or 0)
+            gdrive_id = item.get("gdrive_id")
+
+            # Try to download missing image if requested
+            if download_images and service and not vault_file.exists():
+                matched_fid = None
+                for name, fid in drive_file_map.items():
+                    if sha1[:8] in name:
+                        matched_fid = fid
+                        break
+                if matched_fid:
+                    try:
+                        import io
+                        from googleapiclient.http import MediaIoBaseDownload
+                        req = service.files().get_media(fileId=matched_fid)
+                        buf = io.BytesIO()
+                        dl = MediaIoBaseDownload(buf, req)
+                        dl_done = False
+                        while not dl_done:
+                            _, dl_done = dl.next_chunk()
+                        buf.seek(0)
+                        data_bytes = buf.read()
+                        saved_p = library._store_in_vault(sha1, data=data_bytes)
+                        vault_path_str = str(saved_p)
+                        img_size = len(data_bytes)
+                        gdrive_id = matched_fid
+                        downloaded_images += 1
+                        try:
+                            from PIL import Image
+                            with Image.open(io.BytesIO(data_bytes)) as im:
+                                width, height = im.size
+                        except Exception:
+                            pass
+                    except Exception:
+                        pass
+
+            with library._write_lock:
+                row = c.execute("SELECT id FROM images WHERE sha1=?", (sha1,)).fetchone()
+                if row:
+                    image_id = row["id"]
+                    c.execute("""
+                        UPDATE images SET
+                            vault_path=COALESCE(?, vault_path),
+                            prompt=COALESCE(NULLIF(?,''), prompt),
+                            negative=COALESCE(NULLIF(?,''), negative),
+                            model=COALESCE(NULLIF(?,''), model),
+                            generator=COALESCE(NULLIF(?,''), generator),
+                            params=COALESCE(NULLIF(?,'{}'), params),
+                            rating=COALESCE(NULLIF(?, 0), rating),
+                            favorite=COALESCE(NULLIF(?, 0), favorite),
+                            notes=COALESCE(NULLIF(?,''), notes),
+                            gdrive_id=COALESCE(?, gdrive_id),
+                            updated_at=?
+                        WHERE id=?
+                    """, (vault_path_str, prompt, negative, model, generator, params_str, rating, favorite, notes, gdrive_id, now_iso, image_id))
+                    updated_count += 1
+                else:
+                    unique_path = f"[vault]/{sha1[:8]}.png"
+                    cur = c.execute("""
+                        INSERT INTO images(path, vault_path, sha1, size, mtime, width, height, generator,
+                                           prompt, negative, model, seed, params, raw, rating, favorite, notes, added_at, updated_at, gdrive_id)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '{}', ?, ?, ?, ?, ?, ?)
+                    """, (unique_path, vault_path_str, sha1, img_size, datetime.now().timestamp(),
+                          width, height, generator, prompt, negative, model,
+                          seed if isinstance(seed, int) and abs(seed) < 2 ** 63 else None,
+                          params_str, rating, favorite, notes, added_at, now_iso, gdrive_id))
+                    image_id = cur.lastrowid
+                    restored_count += 1
+
+                # Generate auto tags
+                meta_for_tags = ParsedMeta(
+                    generator=generator,
+                    prompt=prompt,
+                    negative=negative,
+                    params=params_dict,
+                    loras=[],
+                )
+                library._set_auto_tags(image_id, meta_for_tags)
+                c.commit()
+
+            self._restore_progress["done"] = idx + 1
+            if progress_callback:
+                progress_callback(dict(self._restore_progress))
+
+        return {
+            "total": len(items),
+            "restored": restored_count,
+            "updated": updated_count,
+            "images_downloaded": downloaded_images,
+        }
