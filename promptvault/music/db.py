@@ -202,11 +202,13 @@ class MusicLibrary:
     # ------------------------------------------------------------- Workspaces
     def list_workspaces(self) -> list[dict[str, Any]]:
         c = self.conn
-        query = """
-            SELECT w.*, COUNT(s.id) as song_count
+        has_images = c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='images'").fetchone() is not None
+        img_subquery = "(SELECT COUNT(*) FROM images WHERE workspace_id = w.id)" if has_images else "0"
+        query = f"""
+            SELECT w.*,
+                   {img_subquery} as image_count,
+                   (SELECT COUNT(*) FROM songs WHERE workspace_id = w.id) as song_count
             FROM workspaces w
-            LEFT JOIN songs s ON s.workspace_id = w.id
-            GROUP BY w.id
             ORDER BY w.name ASC
         """
         rows = c.execute(query).fetchall()
@@ -277,7 +279,19 @@ class MusicLibrary:
         return self.get_workspace(workspace_id)
 
     def delete_workspace(self, workspace_id: int) -> bool:
+        ws = self.get_workspace(workspace_id)
+        if not ws:
+            return False
+        if ws["name"] == "Genel":
+            raise ValueError("Varsayılan 'Genel' çalışma alanı silinemez")
+        genel = self.conn.execute("SELECT id FROM workspaces WHERE name='Genel' LIMIT 1").fetchone()
+        genel_id = genel[0] if genel else None
         with self.conn as c:
+            if genel_id:
+                c.execute("UPDATE songs SET workspace_id = ? WHERE workspace_id = ?", (genel_id, workspace_id))
+                has_images = c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='images'").fetchone() is not None
+                if has_images:
+                    c.execute("UPDATE images SET workspace_id = ? WHERE workspace_id = ?", (genel_id, workspace_id))
             cur = c.execute("DELETE FROM workspaces WHERE id = ?", (workspace_id,))
             return cur.rowcount > 0
 

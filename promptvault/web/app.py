@@ -40,6 +40,26 @@ class ImagePatch(BaseModel):
     generator: str | None = None
     seed: int | None = None
     params: dict[str, Any] | None = None
+    workspace_id: int | None = None
+
+
+class WorkspaceCreate(BaseModel):
+    name: str
+    description: str = ""
+    color: str = "#8b5cf6"
+    icon: str = "🎨"
+
+
+class WorkspacePatch(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    color: str | None = None
+    icon: str | None = None
+
+
+class BulkWorkspaceBody(BaseModel):
+    ids: list[int]
+    workspace_id: int | None = None
 
 
 class TagsBody(BaseModel):
@@ -86,6 +106,7 @@ class ManualAddBody(BaseModel):
     tags: list[str] = []
     notes: str = ""
     rating: int = 0
+    workspace_id: int | None = None
     data_b64: str | None = None
     filename: str = "entry.png"
 
@@ -165,10 +186,58 @@ def create_app(
     def stats():
         return lib.stats()
 
+    @app.get("/api/workspaces")
+    def list_workspaces():
+        return lib.list_workspaces()
+
+    @app.post("/api/workspaces")
+    def create_workspace(body: WorkspaceCreate):
+        try:
+            return lib.create_workspace(
+                name=body.name,
+                description=body.description,
+                color=body.color,
+                icon=body.icon,
+            )
+        except Exception as e:
+            raise HTTPException(400, str(e))
+
+    @app.patch("/api/workspaces/{ws_id}")
+    def patch_workspace(ws_id: int, body: WorkspacePatch):
+        try:
+            ws = lib.update_workspace(
+                ws_id=ws_id,
+                name=body.name,
+                description=body.description,
+                color=body.color,
+                icon=body.icon,
+            )
+            if not ws:
+                raise HTTPException(404, "Çalışma alanı bulunamadı")
+            return ws
+        except Exception as e:
+            raise HTTPException(400, str(e))
+
+    @app.delete("/api/workspaces/{ws_id}")
+    def delete_workspace(ws_id: int):
+        try:
+            ok = lib.delete_workspace(ws_id)
+            if not ok:
+                raise HTTPException(404, "Çalışma alanı bulunamadı")
+            return {"deleted": True, "id": ws_id}
+        except Exception as e:
+            raise HTTPException(400, str(e))
+
     @app.get("/api/images")
-    def images(q: str = "", sort: str = "added", limit: int = Query(60, le=500), offset: int = 0):
-        total, items = lib.search(q, sort=sort, limit=limit, offset=offset)
+    def images(q: str = "", sort: str = "added", limit: int = Query(60, le=500), offset: int = 0,
+               workspace_id: int | None = Query(None)):
+        total, items = lib.search(q, sort=sort, limit=limit, offset=offset, workspace_id=workspace_id)
         return {"total": total, "items": items}
+
+    @app.post("/api/images/bulk-workspace")
+    def bulk_workspace(body: BulkWorkspaceBody):
+        count = lib.set_images_workspace(body.ids, body.workspace_id)
+        return {"updated": count, "workspace_id": body.workspace_id}
 
     @app.get("/api/images/{image_id}")
     def image(image_id: int):
@@ -262,6 +331,7 @@ def create_app(
         tags: str | None = Form(None),
         notes: str = Form(""),
         rating: int = Form(0),
+        workspace_id: int | None = Form(None),
     ):
         data = await file.read()
         if not data:
@@ -277,6 +347,7 @@ def create_app(
             tags=tag_list,
             notes=notes or "",
             rating=rating,
+            workspace_id=workspace_id,
         )
 
     @app.post("/api/manual-add")
@@ -298,6 +369,7 @@ def create_app(
             tags=body.tags,
             notes=body.notes,
             rating=body.rating,
+            workspace_id=body.workspace_id,
         )
 
     # ------------------------------------------------------------- scan

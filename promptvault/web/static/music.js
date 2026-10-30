@@ -582,6 +582,7 @@
             toast('Çalışma alanı silindi');
             loadWorkspacesTab();
             loadWorkspaces();
+            if (typeof window.loadImageWorkspaces === 'function') window.loadImageWorkspaces();
           } catch (e) {
             toast('Silinemedi: ' + e.message, true);
           }
@@ -1548,6 +1549,7 @@
         $('#workspaceModal')?.classList.add('hidden');
         loadWorkspacesTab();
         loadWorkspaces();
+        if (typeof window.loadImageWorkspaces === 'function') window.loadImageWorkspaces();
         loadMusicStats();
       } catch (e) {
         toast('Kaydedilemedi: ' + e.message, true);

@@ -82,6 +82,7 @@ class ImageImportRequest(BaseModel):
     image_url: str | None = None
     source_url: str | None = None
     model: str | None = None
+    workspace_id: int | None = None
 
 
 class MusicImportRequest(BaseModel):
@@ -96,6 +97,7 @@ class MusicImportRequest(BaseModel):
     audio_url: str | None = None
     audio_b64: str | None = None
     artist: str | None = None
+    workspace_id: int | None = None
 
 
 class ToggleRequest(BaseModel):
@@ -151,6 +153,7 @@ def create_quick_import_router(lib: Library, music_lib: MusicLibrary) -> APIRout
                 generator=gen,
                 model=req.model or gen,
                 notes=notes or "",
+                workspace_id=req.workspace_id,
             )
             image_id = record.get("id")
             # Add generator tag automatically
@@ -233,6 +236,7 @@ def create_quick_import_router(lib: Library, music_lib: MusicLibrary) -> APIRout
                 persona=persona,
                 suno_url=suno_url,
                 artist=artist,
+                workspace_id=req.workspace_id,
                 audio_path=audio_path,
                 txt_path=txt_path,
                 tags=parsed.tags if parsed else None,

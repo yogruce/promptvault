@@ -19,6 +19,15 @@ from .tokens import extract_tags, normalize_tag
 
 SCHEMA = """
 PRAGMA foreign_keys = ON;
+CREATE TABLE IF NOT EXISTS workspaces (
+    id INTEGER PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    description TEXT DEFAULT '',
+    color TEXT DEFAULT '#8b5cf6',
+    icon TEXT DEFAULT '🎨',
+    created_at TEXT,
+    updated_at TEXT
+);
 CREATE TABLE IF NOT EXISTS images (
     id INTEGER PRIMARY KEY,
     path TEXT UNIQUE NOT NULL,
@@ -31,6 +40,7 @@ CREATE TABLE IF NOT EXISTS images (
     model TEXT, seed INTEGER,
     params TEXT DEFAULT '{}', raw TEXT DEFAULT '{}',
     rating INTEGER DEFAULT 0, favorite INTEGER DEFAULT 0, notes TEXT DEFAULT '',
+    workspace_id INTEGER REFERENCES workspaces(id) ON DELETE SET NULL,
     added_at TEXT, updated_at TEXT
 );
 CREATE INDEX IF NOT EXISTS ix_images_sha1 ON images(sha1);
@@ -116,7 +126,7 @@ def parse_query(q: str) -> dict[str, Any]:
     gen:comfyui neg:watermark is:fav rating:>=3 seed:123 w:>=1024``
     """
     out: dict[str, Any] = {"text": [], "not_text": [], "tags": [], "not_tags": [], "neg": [],
-                           "loras": [], "models": [], "generators": [], "favorite": None,
+                           "loras": [], "models": [], "generators": [], "workspaces": [], "favorite": None,
                            "rating": None, "seed": None, "size": []}
     try:
         tokens = shlex.split(q or "", posix=True)
@@ -136,6 +146,8 @@ def parse_query(q: str) -> dict[str, Any]:
                 out["models"].append(val)
             elif key in ("gen", "generator"):
                 out["generators"].append(val.lower())
+            elif key in ("ws", "workspace"):
+                out["workspaces"].append(val)
             elif key == "neg":
                 out["neg"].append(val)
             elif key == "is" and val.lower() in ("fav", "favorite", "favori"):
@@ -186,6 +198,28 @@ class Library:
             conn.commit()
         except sqlite3.OperationalError:
             pass
+        # Migrate workspace_id and seed default 'Genel' workspace
+        try:
+            conn.execute("ALTER TABLE images ADD COLUMN workspace_id INTEGER REFERENCES workspaces(id) ON DELETE SET NULL")
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("CREATE INDEX IF NOT EXISTS ix_images_workspace ON images(workspace_id)")
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass
+        now = _now()
+        conn.execute(
+            "INSERT OR IGNORE INTO workspaces (name, description, color, icon, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            ("Genel", "Varsayılan çalışma alanı", "#8b5cf6", "🎨", now, now)
+        )
+        conn.execute(
+            "UPDATE images SET workspace_id = (SELECT id FROM workspaces WHERE name='Genel' LIMIT 1) "
+            "WHERE workspace_id IS NULL"
+        )
+        conn.commit()
         try:
             conn.executescript(FTS_SCHEMA)
             self.fts = True
@@ -354,7 +388,9 @@ class Library:
                     image_id, status = moved["id"], "moved"
                     c.execute("UPDATE images SET path=? WHERE id=?", (str(p), image_id))
                 else:
-                    cur = c.execute("INSERT INTO images(path, added_at) VALUES (?, ?)", (str(p), _now()))
+                    genel = c.execute("SELECT id FROM workspaces WHERE name='Genel' LIMIT 1").fetchone()
+                    default_ws = genel[0] if genel else None
+                    cur = c.execute("INSERT INTO images(path, added_at, workspace_id) VALUES (?, ?, ?)", (str(p), _now(), default_ws))
                     image_id, status = cur.lastrowid, "added"
             else:
                 image_id = row["id"]
@@ -368,11 +404,15 @@ class Library:
                   prompt: str | None = None, negative: str | None = None,
                   params: dict[str, Any] | None = None, model: str | None = None,
                   generator: str | None = None, tags: list[str] | None = None,
-                  rating: int = 0, notes: str = "") -> dict[str, Any]:
+                  rating: int = 0, notes: str = "", workspace_id: int | None = None) -> dict[str, Any]:
         """Add a single image from raw bytes directly into the vault with optional custom prompt."""
         sha1 = bytes_sha1(data)
         vault_file = self._store_in_vault(sha1, data=data)
         vault_path_str = str(vault_file)
+
+        if workspace_id is None:
+            genel = self.conn.execute("SELECT id FROM workspaces WHERE name='Genel' LIMIT 1").fetchone()
+            workspace_id = genel[0] if genel else None
 
         # Read any embedded PNG info
         width, height = 0, 0
@@ -413,22 +453,22 @@ class Library:
                 image_id = row["id"]
                 c.execute("""UPDATE images SET vault_path=?, prompt=?, negative=?, model=?,
                              params=?, rating=COALESCE(NULLIF(?,0), rating), notes=COALESCE(NULLIF(?,''), notes),
-                             updated_at=? WHERE id=?""",
+                             workspace_id=COALESCE(?, workspace_id), updated_at=? WHERE id=?""",
                           (vault_path_str, final_prompt, final_negative, final_model,
                            json.dumps(merged_params, ensure_ascii=False, default=str),
-                           rating, notes, _now(), image_id))
+                           rating, notes, workspace_id, _now(), image_id))
             else:
                 unique_path = f"[vault]/{Path(filename).stem}_{sha1[:8]}.png"
                 cur = c.execute("""
                     INSERT INTO images(path, vault_path, sha1, size, mtime, width, height, generator,
-                                       prompt, negative, model, seed, params, raw, rating, notes, added_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                       prompt, negative, model, seed, params, raw, rating, notes, workspace_id, added_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (unique_path, vault_path_str, sha1, len(data), datetime.now().timestamp(),
                       width, height, final_generator, final_prompt, final_negative, final_model,
                       seed if isinstance(seed, int) and abs(seed) < 2 ** 63 else None,
                       json.dumps(merged_params, ensure_ascii=False, default=str),
                       json.dumps(raw_meta, ensure_ascii=False),
-                      rating, notes, _now(), _now()))
+                      rating, notes, workspace_id, _now(), _now()))
                 image_id = cur.lastrowid
 
             meta_for_tags = ParsedMeta(
@@ -554,11 +594,17 @@ class Library:
         cols = columns.split()
         return ("(" + " OR ".join(f"i.{c} LIKE ?" for c in cols) + ")", [f"%{term}%"] * len(cols))
 
-    def search(self, query: str = "", sort: str = "added", limit: int = 60, offset: int = 0
-               ) -> tuple[int, list[dict[str, Any]]]:
+    def search(self, query: str = "", sort: str = "added", limit: int = 60, offset: int = 0,
+               workspace_id: int | None = None) -> tuple[int, list[dict[str, Any]]]:
         q = parse_query(query)
         where: list[str] = []
         args: list[Any] = []
+        if workspace_id is not None:
+            where.append("i.workspace_id = ?")
+            args.append(workspace_id)
+        for ws in q.get("workspaces", []):
+            where.append("i.workspace_id IN (SELECT id FROM workspaces WHERE name LIKE ?)")
+            args.append(f"%{ws}%")
         for term in q["text"]:
             cond_fts, a_fts = self._fts_cond(term, "prompt notes")
             norm = normalize_tag(term)
@@ -611,12 +657,18 @@ class Library:
         total = c.execute(f"SELECT COUNT(*) FROM images i {clause}", args).fetchone()[0]
         rows = c.execute(
             f"SELECT i.id, i.path, i.vault_path, i.sha1, i.width, i.height, i.generator, i.prompt, i.model, i.seed, "
-            f"i.rating, i.favorite FROM images i {clause} ORDER BY {SORTS.get(sort, SORTS['added'])} "
+            f"i.rating, i.favorite, i.workspace_id, w.name as workspace_name, w.color as workspace_color, w.icon as workspace_icon "
+            f"FROM images i LEFT JOIN workspaces w ON i.workspace_id = w.id {clause} "
+            f"ORDER BY {SORTS.get(sort, SORTS['added'])} "
             f"LIMIT ? OFFSET ?", (*args, limit, offset)).fetchall()
         return total, [dict(r) for r in rows]
 
     def get(self, image_id: int) -> dict[str, Any] | None:
-        row = self.conn.execute("SELECT * FROM images WHERE id=?", (image_id,)).fetchone()
+        row = self.conn.execute("""
+            SELECT i.*, w.name as workspace_name, w.color as workspace_color, w.icon as workspace_icon
+            FROM images i LEFT JOIN workspaces w ON i.workspace_id = w.id
+            WHERE i.id=?
+        """, (image_id,)).fetchone()
         if row is None:
             return None
         d = dict(row)
@@ -631,8 +683,8 @@ class Library:
         return d
 
     def update(self, image_id: int, **fields: Any) -> None:
-        """Update image fields. Supports rating, favorite, notes, prompt, negative, model, generator, seed, params."""
-        allowed_keys = ("rating", "favorite", "notes", "prompt", "negative", "model", "generator", "seed", "params")
+        """Update image fields. Supports rating, favorite, notes, prompt, negative, model, generator, seed, params, workspace_id."""
+        allowed_keys = ("rating", "favorite", "notes", "prompt", "negative", "model", "generator", "seed", "params", "workspace_id")
         allowed = {k: v for k, v in fields.items() if k in allowed_keys and v is not None}
         if "rating" in allowed:
             allowed["rating"] = max(0, min(5, int(allowed["rating"])))
@@ -695,6 +747,7 @@ class Library:
             "with_prompt": c.execute("SELECT COUNT(*) FROM images WHERE prompt != ''").fetchone()[0],
             "favorites": c.execute("SELECT COUNT(*) FROM images WHERE favorite=1").fetchone()[0],
             "tags": c.execute("SELECT COUNT(*) FROM tags").fetchone()[0],
+            "workspaces": c.execute("SELECT COUNT(*) FROM workspaces").fetchone()[0],
             "generators": {r[0] or "none": r[1] for r in c.execute(
                 "SELECT generator, COUNT(*) FROM images GROUP BY generator ORDER BY 2 DESC")},
             "models": {r[0]: r[1] for r in c.execute(
@@ -754,3 +807,88 @@ class Library:
         items = [t["name"] for t in self.tag_stats(kind=kind, query=query, limit=limit)]
         self.set_wildcard(name, items)
         return items
+
+    # ------------------------------------------------------------- workspaces
+    def set_images_workspace(self, image_ids: Iterable[int], workspace_id: int | None) -> int:
+        ids = list(image_ids)
+        if not ids:
+            return 0
+        with self._write_lock:
+            placeholders = ",".join("?" * len(ids))
+            cur = self.conn.execute(
+                f"UPDATE images SET workspace_id = ?, updated_at = ? WHERE id IN ({placeholders})",
+                (workspace_id, _now(), *ids)
+            )
+            self.conn.commit()
+            return cur.rowcount
+
+    def list_workspaces(self) -> list[dict[str, Any]]:
+        c = self.conn
+        has_songs = c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='songs'").fetchone() is not None
+        song_subquery = "(SELECT COUNT(*) FROM songs WHERE workspace_id = w.id)" if has_songs else "0"
+        query = f"""
+            SELECT w.*,
+                   (SELECT COUNT(*) FROM images WHERE workspace_id = w.id) as image_count,
+                   {song_subquery} as song_count
+            FROM workspaces w
+            ORDER BY w.name ASC
+        """
+        rows = c.execute(query).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_workspace(self, ws_id: int) -> dict[str, Any] | None:
+        row = self.conn.execute("SELECT * FROM workspaces WHERE id=?", (ws_id,)).fetchone()
+        return dict(row) if row else None
+
+    def create_workspace(self, name: str, description: str = "", color: str = "#8b5cf6", icon: str = "🎨") -> dict[str, Any]:
+        name = name.strip()
+        if not name:
+            raise ValueError("Çalışma alanı adı boş olamaz")
+        now = _now()
+        with self._write_lock:
+            cur = self.conn.execute(
+                "INSERT INTO workspaces (name, description, color, icon, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+                (name, description, color, icon, now, now)
+            )
+            self.conn.commit()
+            return self.get_workspace(cur.lastrowid)
+
+    def update_workspace(self, ws_id: int, **fields: Any) -> dict[str, Any] | None:
+        ws = self.get_workspace(ws_id)
+        if not ws:
+            return None
+        updates = []
+        vals = []
+        for k in ("name", "description", "color", "icon"):
+            if k in fields and fields[k] is not None:
+                val = fields[k].strip() if isinstance(fields[k], str) else fields[k]
+                if k == "name" and not val:
+                    raise ValueError("Çalışma alanı adı boş olamaz")
+                updates.append(f"{k} = ?")
+                vals.append(val)
+        if not updates:
+            return ws
+        updates.append("updated_at = ?")
+        vals.append(_now())
+        vals.append(ws_id)
+        with self._write_lock:
+            self.conn.execute(f"UPDATE workspaces SET {', '.join(updates)} WHERE id = ?", vals)
+            self.conn.commit()
+        return self.get_workspace(ws_id)
+
+    def delete_workspace(self, ws_id: int) -> bool:
+        ws = self.get_workspace(ws_id)
+        if not ws:
+            return False
+        if ws["name"] == "Genel":
+            raise ValueError("Varsayılan 'Genel' çalışma alanı silinemez")
+        genel = self.conn.execute("SELECT id FROM workspaces WHERE name='Genel' LIMIT 1").fetchone()
+        genel_id = genel[0] if genel else None
+        with self._write_lock:
+            self.conn.execute("UPDATE images SET workspace_id = ? WHERE workspace_id = ?", (genel_id, ws_id))
+            has_songs = self.conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='songs'").fetchone() is not None
+            if has_songs:
+                self.conn.execute("UPDATE songs SET workspace_id = ? WHERE workspace_id = ?", (genel_id, ws_id))
+            cur = self.conn.execute("DELETE FROM workspaces WHERE id = ?", (ws_id,))
+            self.conn.commit()
+            return cur.rowcount > 0

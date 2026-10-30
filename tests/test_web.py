@@ -192,3 +192,40 @@ def test_gdrive_restore_endpoints(client):
     assert imgs["items"][0]["model"] == "SDXL"
 
 
+def test_web_workspaces_endpoints(client):
+    c, _ = client
+    # 1. List workspaces (Genel exists)
+    ws_list = c.get("/api/workspaces").json()
+    assert any(w["name"] == "Genel" for w in ws_list)
+
+    # 2. Create workspace
+    res = c.post("/api/workspaces", json={"name": "PixelArt", "description": "Retro sprites", "color": "#10b981", "icon": "👾"}).json()
+    ws_id = res["id"]
+    assert res["name"] == "PixelArt"
+
+    # 3. Patch workspace
+    patched = c.patch(f"/api/workspaces/{ws_id}", json={"description": "Updated retro sprites"}).json()
+    assert patched["description"] == "Updated retro sprites"
+
+    # 4. Get images in Genel
+    genel_ws = next(w for w in ws_list if w["name"] == "Genel")
+    res_genel = c.get("/api/images", params={"workspace_id": genel_ws["id"]}).json()
+    assert res_genel["total"] == 2
+    img1_id = res_genel["items"][0]["id"]
+    img2_id = res_genel["items"][1]["id"]
+
+    # 5. Bulk move to PixelArt
+    bulk_res = c.post("/api/images/bulk-workspace", json={"ids": [img1_id, img2_id], "workspace_id": ws_id}).json()
+    assert bulk_res["updated"] == 2
+
+    # Verify images in PixelArt
+    res_pixel = c.get("/api/images", params={"workspace_id": ws_id}).json()
+    assert res_pixel["total"] == 2
+
+    # 6. Delete workspace (should move images back to Genel)
+    del_res = c.delete(f"/api/workspaces/{ws_id}").json()
+    assert del_res["deleted"] is True
+    res_genel_after = c.get("/api/images", params={"workspace_id": genel_ws["id"]}).json()
+    assert res_genel_after["total"] == 2
+
+

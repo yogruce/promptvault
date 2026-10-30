@@ -24,6 +24,7 @@
   <!-- IMAGE TABS -->
   <nav id="tabs">
     <button data-tab="gallery" class="active" data-i18n="tab_gallery">Galeri</button>
+    <button data-tab="workspaces" data-i18n="tab_workspaces">🏢 Workspaces</button>
     <button data-tab="tags" data-i18n="tab_tags">Etiketler</button>
     <button data-tab="matrix" data-i18n="tab_matrix">Prompt Matrisi</button>
     <button data-tab="wildcards" data-i18n="tab_wildcards">Wildcard</button>
@@ -65,6 +66,9 @@
     <section id="tab-gallery" class="tab active">
       <div class="toolbar">
         <input id="q" type="search" autocomplete="off" spellcheck="false" placeholder='Ara: kedi "red hair" -blurry tag:portrait lora:detail gen:comfyui is:fav rating:>=3' data-i18n-ph="search_images_ph">
+        <select id="imgWsFilter" style="max-width:200px;">
+          <option value="" data-i18n="all_workspaces">🏢 Tüm Projeler / Workspaces</option>
+        </select>
         <select id="sort">
           <option value="added" data-i18n="sort_added">En yeni</option><option value="oldest" data-i18n="sort_oldest">En eski</option>
           <option value="mtime" data-i18n="sort_mtime">Dosya tarihi</option><option value="rating" data-i18n="sort_rating">Puan</option><option value="path" data-i18n="sort_path">Yol</option>
@@ -86,6 +90,10 @@
         <button id="bulkAll" class="ghost small" data-i18n="bulk_all">Tümünü seç</button>
         <button id="bulkClear" class="ghost small" data-i18n="bulk_clear">Seçimi temizle</button>
         <button id="bulkDelete" class="ghost danger" style="background:#ff5c7a26; border-color:var(--danger); font-weight:600" title="Seçilen görselleri kasadan sil" data-i18n="bulk_delete">🗑 Seçilenleri Sil</button>
+        <div style="display:inline-flex; align-items:center; gap:6px; margin-left:8px;">
+          <select id="bulkWorkspaceSelect" style="max-width:180px; padding:4px 8px; font-size:12.5px;"></select>
+          <button id="bulkMoveWs" class="ghost small" data-i18n="bulk_move_ws">Taşı</button>
+        </div>
         <div style="flex:1"></div>
         <input id="bulkTags" placeholder="Toplu etiketler (virgülle)" data-i18n-ph="bulk_tags_ph" style="max-width:240px">
         <button id="bulkApply" class="ghost" data-i18n="bulk_apply">Etiketle</button>
@@ -200,6 +208,15 @@
         <div class="progress"><div id="scanBar"></div></div>
         <div id="scanStatus" class="small muted"></div>
       </div>
+    </section>
+
+    <!-- WORKSPACES & PROJELER (GÖRSELLER) -->
+    <section id="tab-workspaces" class="tab">
+      <div class="toolbar" style="margin-bottom:16px;">
+        <button id="btnNewImageWs" class="primary" data-i18n="ws_btn_new">➕ Yeni Çalışma Alanı / Proje Oluştur</button>
+        <span class="muted small" style="margin-left:12px;" data-i18n="ws_desc_hint">Görsellerinizi ve Suno müziklerinizi projeler halinde organize edin.</span>
+      </div>
+      <div id="imageWorkspacesGrid" class="workspaces-grid"></div>
     </section>
   </div>
 
@@ -526,6 +543,10 @@
           <label data-i18n="upload_tags_label">Kullanıcı Etiketleri (virgülle)</label>
           <input id="uTags" placeholder="favori, siberpunk, portre" style="width:100%">
         </div>
+        <div style="flex:1">
+          <label data-i18n="detail_workspace">🏢 Proje / Alan</label>
+          <select id="uWorkspace" style="width:100%"></select>
+        </div>
       </div>
       
       <label data-i18n="upload_notes_label">Notlar</label>
@@ -574,6 +595,11 @@
         </div>
       </div>
 
+      <div style="margin-top:10px;">
+        <label data-i18n="detail_workspace">🏢 Proje / Çalışma Alanı</label>
+        <select id="qiMusicWorkspace" style="width:100%"></select>
+      </div>
+
       <label>Tam Stil / Prompt</label>
       <textarea id="qiMusicStyle" rows="2" placeholder="Alternative rock, clean atmospheric verses..."></textarea>
 
@@ -609,6 +635,11 @@
           <label>Model Adı</label>
           <input id="qiImageModel" placeholder="Gemini 1.5, SDXL, Flux.1" style="width:100%">
         </div>
+      </div>
+
+      <div style="margin-top:10px;">
+        <label data-i18n="detail_workspace">🏢 Proje / Çalışma Alanı</label>
+        <select id="qiImageWorkspace" style="width:100%"></select>
       </div>
 
       <div class="row" style="margin-top:16px; justify-content:flex-end;">

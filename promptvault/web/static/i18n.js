@@ -14,6 +14,7 @@ const TRANSLATIONS = {
 
     // Image Tabs
     tab_gallery: "Galeri",
+    tab_workspaces: "🏢 Workspaces",
     tab_tags: "Etiketler",
     tab_matrix: "Prompt Matrisi",
     tab_wildcards: "Wildcard",
@@ -37,6 +38,7 @@ const TRANSLATIONS = {
 
     // Gallery Toolbar
     search_images_ph: 'Ara: kedi "red hair" -blurry tag:portrait lora:detail gen:comfyui is:fav rating:>=3',
+    all_workspaces: "🏢 Tüm Projeler / Workspaces",
     sort_added: "En yeni",
     sort_oldest: "En eski",
     sort_mtime: "Dosya tarihi",
@@ -52,13 +54,22 @@ const TRANSLATIONS = {
     bulk_all: "Tümünü seç",
     bulk_clear: "Seçimi temizle",
     bulk_delete: "🗑 Seçilenleri Sil",
+    bulk_move_ws: "Taşı",
     bulk_tags_ph: "Toplu etiketler (virgülle)",
     bulk_apply: "Etiketle",
     btn_more: "Daha fazla yükle",
     empty_gallery: "Henüz görsel yok.",
     or: "veya",
+    ws_btn_new: "➕ Yeni Çalışma Alanı / Proje Oluştur",
+    ws_desc_hint: "Görsellerinizi ve Suno müziklerinizi projeler halinde organize edin.",
+    ws_filter_btn: "Görselleri Filtrele",
+    ws_images_count: "görsel",
+    ws_songs_count: "şarkı",
+    ws_edit: "Düzenle",
+    ws_delete: "Sil",
 
     // Image Detail Modal
+    detail_workspace: "🏢 Proje / Alan:",
     detail_prompt: "Prompt",
     detail_edit: "✏ Düzenle",
     detail_cancel: "İptal",
@@ -217,6 +228,7 @@ const TRANSLATIONS = {
 
     // Image Tabs
     tab_gallery: "Gallery",
+    tab_workspaces: "🏢 Workspaces",
     tab_tags: "Tags",
     tab_matrix: "Prompt Matrix",
     tab_wildcards: "Wildcards",
@@ -240,6 +252,7 @@ const TRANSLATIONS = {
 
     // Gallery Toolbar
     search_images_ph: 'Search: cat "red hair" -blurry tag:portrait lora:detail gen:comfyui is:fav rating:>=3',
+    all_workspaces: "🏢 All Projects / Workspaces",
     sort_added: "Newest",
     sort_oldest: "Oldest",
     sort_mtime: "File date",
@@ -255,13 +268,22 @@ const TRANSLATIONS = {
     bulk_all: "Select all",
     bulk_clear: "Clear selection",
     bulk_delete: "🗑 Delete Selected",
+    bulk_move_ws: "Move",
     bulk_tags_ph: "Bulk tags (comma separated)",
     bulk_apply: "Tag",
     btn_more: "Load more",
     empty_gallery: "No images yet.",
     or: "or",
+    ws_btn_new: "➕ Create New Workspace / Project",
+    ws_desc_hint: "Organize your images and Suno music into dedicated projects.",
+    ws_filter_btn: "Filter Images",
+    ws_images_count: "images",
+    ws_songs_count: "songs",
+    ws_edit: "Edit",
+    ws_delete: "Delete",
 
     // Image Detail Modal
+    detail_workspace: "🏢 Project / Workspace:",
     detail_prompt: "Prompt",
     detail_edit: "✏ Edit",
     detail_cancel: "Cancel",

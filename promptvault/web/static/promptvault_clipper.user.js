@@ -412,35 +412,50 @@
         } catch (e) {}
       }
 
+      // 0. Meta Description'dan stil ve prompt çek
+      const ogDesc = document.querySelector('meta[property="og:description"]')?.content ||
+                     document.querySelector('meta[name="description"]')?.content || '';
+      let metaStyle = '';
+      if (ogDesc) {
+        const match = ogDesc.match(/(?:on Suno\.?|Listen to [^.]+\.?)\s*(.+)$/i);
+        if (match && match[1]) {
+          metaStyle = match[1].trim();
+        } else if (!ogDesc.startsWith('Listen to') && ogDesc.length > 5) {
+          metaStyle = ogDesc.trim();
+        }
+      }
+
       // 3. DOM (Ekran) üzerinden Tam Stil Yakalama (Show Summary tıkla)
       const allElements = Array.from(document.querySelectorAll('div, p, span, a, button, pre, textarea'));
-      let domStyle = '';
+      let domStyle = metaStyle || '';
       try {
-        const summaryToggleEl = allElements.find(el =>
-          el.children.length === 0 &&
-          el.innerText &&
-          (el.innerText.includes('Show Summary') || el.innerText.includes('Hide Summary'))
-        );
+        const summaryToggleEl = allElements.find(el => {
+          const t = (el.innerText || el.textContent || '').trim();
+          return t === 'Show Summary' || t === 'Show summary';
+        });
         if (summaryToggleEl) {
-          if (summaryToggleEl.innerText.includes('Hide Summary')) {
-            summaryToggleEl.click();
-            await new Promise(r => setTimeout(r, 150));
-          }
-          let current = summaryToggleEl;
+          summaryToggleEl.click();
+          await new Promise(r => setTimeout(r, 200));
+        }
+        const activeSummaryEl = allElements.find(el => {
+          const t = (el.innerText || el.textContent || '').trim();
+          return t === 'Hide Summary' || t === 'Hide summary';
+        });
+        if (activeSummaryEl) {
+          let current = activeSummaryEl;
           for (let i = 0; i < 6; i++) {
             if (!current.parentElement) break;
             current = current.parentElement;
-            const fullText = current.innerText || '';
-            if (fullText.includes('Show Summary') || fullText.includes('Hide Summary')) {
+            const fullText = current.innerText || current.textContent || '';
+            if (fullText.includes('Summary')) {
               const lines = fullText.split('\n').map(l => l.trim()).filter(l =>
                 l.length > 0 &&
-                !l.includes('Show Summary') &&
-                !l.includes('Hide Summary') &&
+                !l.includes('Summary') &&
                 !l.includes('Add a Caption') &&
                 !l.includes('{"')
               );
               lines.sort((a, b) => b.length - a.length);
-              if (lines.length > 0 && lines[0].length > domStyle.length && lines[0].length < 1000) {
+              if (lines.length > 0 && lines[0].length > domStyle.length && lines[0].length < 2000) {
                 domStyle = lines[0];
               }
             }
@@ -448,8 +463,21 @@
         }
       } catch (e) {}
 
-      // Sanatçı / Kullanıcı Adı (Persona yoksa @username bul)
+      // Sanatçı / Kullanıcı Adı & Başlık Taraması
+      const ogTitle = document.querySelector('meta[property="og:title"]')?.content || '';
+      const docTitle = document.title || '';
+      const h1Text = document.querySelector('h1')?.innerText || document.querySelector('h1')?.textContent || '';
+      let rawTitle = cached.title || ogTitle || h1Text || docTitle || 'Suno Şarkısı';
+
       let artistName = (cached.persona || '').replace(/^Yok$/i, '').trim();
+      if (rawTitle.includes(' by ')) {
+        const parts = rawTitle.split(' by ');
+        rawTitle = parts[0].trim();
+        if (!artistName && parts[1]) {
+          artistName = parts[1].replace(/\s*\|\s*Suno.*$/i, '').trim();
+        }
+      }
+      rawTitle = rawTitle.replace(/\s*\|\s*Suno.*$/i, '').trim();
       if (!artistName) {
         const userLink = document.querySelector('a[href^="/@"], a[href*="suno.com/@"]');
         if (userLink) {
@@ -457,33 +485,27 @@
         }
       }
 
-      // DOM Başlık Taraması
-      const titleEl = document.querySelector('h1') || document.querySelector('title');
-      let rawTitle = cached.title || (titleEl ? titleEl.innerText : 'Suno Şarkısı');
-      rawTitle = rawTitle.replace(/\s*\|\s*Suno.*$/i, '').replace(/\s+by\s+[a-zA-Z0-9_.-]+$/i, '').trim();
-
       // DOM Sözler Taraması
       let lyrics = cached.lyrics || '';
       if (!lyrics) {
-        let maxLines = 0;
-        allElements.forEach(el => {
-          if (el.children.length === 0 && el.innerText) {
-            const txt = el.innerText.trim();
-            const lines = txt.split('\n').length;
-            if (lines > maxLines && lines > 3 && !txt.includes('Create') && !txt.includes('Library') && !txt.includes('{"')) {
-              maxLines = lines;
-              lyrics = txt;
-            }
+        const lyricCandidates = Array.from(document.querySelectorAll('[data-testid*="lyrics"], [class*="lyrics"], [class*="Lyrics"], div[class*="prompt"], [class*="PromptText"], pre'));
+        for (const el of lyricCandidates) {
+          const txt = (el.innerText || el.textContent || '').trim();
+          if (txt && (txt.includes('[Verse') || txt.includes('[Chorus') || txt.includes('[Intro') || txt.includes('\n\n') || txt.split('\n').length >= 3)) {
+            lyrics = txt;
+            break;
           }
-        });
+        }
         if (!lyrics) {
-          const containers = Array.from(document.querySelectorAll('div, pre, textarea'));
-          containers.forEach(el => {
-            const txt = (el.innerText || '').trim();
-            const lines = txt.split('\n').length;
-            if ((txt.includes('[Verse') || txt.includes('[Chorus') || txt.includes('[Intro')) && lines > maxLines && txt.length < 6000) {
-              maxLines = lines;
-              lyrics = txt;
+          let maxLines = 0;
+          allElements.forEach(el => {
+            if (el.children.length === 0 && el.innerText) {
+              const txt = el.innerText.trim();
+              const lines = txt.split('\n').length;
+              if (lines > maxLines && lines > 3 && !txt.includes('Create') && !txt.includes('Library') && !txt.includes('{"')) {
+                maxLines = lines;
+                lyrics = txt;
+              }
             }
           });
         }
@@ -491,14 +513,15 @@
 
       let audioUrl = cached.audio_url || '';
       if (!audioUrl) {
+        const ogAudio = document.querySelector('meta[property="og:audio"]')?.content || '';
         const audioEl = document.querySelector('audio source, audio[src]');
-        if (audioEl) audioUrl = audioEl.src || '';
+        audioUrl = ogAudio || (audioEl ? (audioEl.src || audioEl.currentSrc) : '');
       }
 
       return {
         id: songId,
         title: rawTitle || 'Suno Şarkısı',
-        style: cached.style || domStyle || 'Özel Suno Stili',
+        style: cached.style || domStyle || metaStyle || 'Özel Suno Stili',
         lyrics: lyrics || 'Enstrümantal veya söz belirtilmemiş',
         model: cached.model || 'Suno AI',
         persona: artistName || 'Bilinmeyen Sanatçı',
@@ -678,48 +701,79 @@
       function cleanPrompt(raw) {
         if (!raw) return '';
         return raw
-          .replace(/\s*(Daha fazla göster|Daha az göster|Show more|Show less)\s*\^?$/i, '')
-          .replace(/\s*\^$/, '')
+          .replace(/\s*(Daha fazla göster|Daha az göster|Show more|Show less|Daha fazla|Daha az)\s*[\^v]?$/i, '')
+          .replace(/[\^v]$/, '')
           .trim();
       }
 
       function extractFromUserEl(userEl) {
         if (!userEl) return '';
-        const textEl = userEl.querySelector('.whitespace-pre-wrap') || userEl;
+        // "Daha fazla göster" butonu varsa tıkla (tam metni aç)
+        const expandBtn = Array.from(userEl.querySelectorAll('button, [role="button"]')).find(b => {
+          const t = (b.textContent || '').trim().toLowerCase();
+          return t.includes('daha fazla') || t.includes('show more');
+        });
+        if (expandBtn) {
+          try { expandBtn.click(); } catch(e) {}
+        }
+
+        const textEl = userEl.querySelector('.whitespace-pre-wrap, .font-user-message, div[class*="text"], p') || userEl;
         const clone = textEl.cloneNode(true);
         // "Daha az göster ^", "Copy", kopyalama ve düzenleme butonlarını DOM klonundan temizle
-        clone.querySelectorAll('button, svg, [role="button"]').forEach(b => b.remove());
-        return cleanPrompt(clone.innerText || clone.textContent || '');
+        clone.querySelectorAll('button, svg, [role="button"], [aria-hidden="true"]').forEach(b => b.remove());
+        const full = clone.textContent || clone.innerText || '';
+        return cleanPrompt(full);
       }
 
-      // 1. Görselin bulunduğu asistana ait turn'den önceki kullanıcı mesajını bul
+      // 1. Görselin bulunduğu turn'den geriye doğru en yakın kullanıcı mesajını bul
       if (img) {
-        const turn = img.closest('article, [data-message-author-role="assistant"], [data-message-id]');
+        const turn = img.closest('article, [data-message-author-role="assistant"], [data-message-id], [data-testid*="conversation-turn"]');
         if (turn) {
-          let prev = turn.previousElementSibling;
-          while (prev) {
-            const userEl = prev.matches?.('[data-message-author-role="user"]') 
-              ? prev 
-              : prev.querySelector?.('[data-message-author-role="user"]');
-            if (userEl) {
-              promptText = extractFromUserEl(userEl);
-              if (promptText) break;
+          const allTurns = Array.from(document.querySelectorAll('article, [data-message-id], [data-testid*="conversation-turn"]'));
+          const myIdx = allTurns.indexOf(turn);
+          if (myIdx > 0) {
+            for (let i = myIdx - 1; i >= 0; i--) {
+              const cand = allTurns[i];
+              const isUser = cand.matches('[data-message-author-role="user"]') ||
+                             cand.querySelector('[data-message-author-role="user"], .font-user-message, [data-testid*="user-message"]');
+              if (isUser) {
+                promptText = extractFromUserEl(cand);
+                if (promptText) break;
+              }
             }
-            prev = prev.previousElementSibling;
           }
         }
       }
 
-      // 2. Bulunamazsa veya kayan buton tıklandıysa: Sohbetteki en son kullanıcı mesajını al
+      // 2. Bulunamazsa veya kayan buton tıklandıysa: Sohbetteki tüm kullanıcı mesajlarını tara ve en sonuncusunu al
       if (!promptText) {
-        const allUserEls = Array.from(document.querySelectorAll('[data-message-author-role="user"]'));
+        const userSelectors = [
+          '[data-message-author-role="user"]',
+          '[data-testid*="user-message"]',
+          '[data-testid*="conversation-turn-user"]',
+          '.font-user-message',
+          '.user-message-bubble-color'
+        ];
+        const allUserEls = Array.from(document.querySelectorAll(userSelectors.join(',')));
         if (allUserEls.length > 0) {
           const lastEl = allUserEls[allUserEls.length - 1];
           promptText = extractFromUserEl(lastEl);
         }
       }
 
-      // 3. Sohbet balonu bulunamazsa görselin alt etiketine bak
+      // 3. Fallback: Sayfadaki herhangi bir .whitespace-pre-wrap kullanıcısı
+      if (!promptText) {
+        const preWraps = Array.from(document.querySelectorAll('.whitespace-pre-wrap'));
+        for (let i = preWraps.length - 1; i >= 0; i--) {
+          const el = preWraps[i];
+          if (!el.closest('[data-message-author-role="assistant"]')) {
+            promptText = extractFromUserEl(el);
+            if (promptText) break;
+          }
+        }
+      }
+
+      // 4. Sohbet balonu bulunamazsa görselin alt etiketine bak
       if (!promptText && img && img.alt && !img.alt.toLowerCase().startsWith('generated image')) {
         promptText = cleanPrompt(img.alt);
       }
@@ -858,40 +912,57 @@
       function cleanPrompt(raw) {
         if (!raw) return '';
         return raw
-          .replace(/\s*(Daha fazla göster|Daha az göster|Show more|Show less)\s*\^?$/i, '')
-          .replace(/\s*\^$/, '')
+          .replace(/\s*(Daha fazla göster|Daha az göster|Show more|Show less|Daha fazla|Daha az)\s*[\^v]?$/i, '')
+          .replace(/[\^v]$/, '')
           .trim();
       }
 
       function extractFromQueryEl(q) {
         if (!q) return '';
+        // "Daha fazla göster" butonu varsa tıkla ve tam metni aç
+        const expandBtn = Array.from(q.querySelectorAll('button, [role="button"]')).find(b => {
+          const t = (b.textContent || '').trim().toLowerCase();
+          return t.includes('daha fazla') || t.includes('show more') || t.includes('read more');
+        });
+        if (expandBtn) {
+          try { expandBtn.click(); } catch(e) {}
+        }
+
         const clone = q.cloneNode(true);
         // Düzenle, kopyala, daha az göster butonlarını temizle
-        clone.querySelectorAll('button, mat-icon, svg, [role="button"], read-more-wrapper button').forEach(b => b.remove());
-        return cleanPrompt(clone.innerText || clone.textContent || '');
+        clone.querySelectorAll('button, mat-icon, svg, [role="button"], read-more-wrapper button, [aria-hidden="true"]').forEach(b => b.remove());
+        const full = clone.textContent || clone.innerText || '';
+        return cleanPrompt(full);
       }
 
       if (img) {
         const turn = img.closest('conversation-turn, model-response, .model-response, [data-message-author-role="model"], .turn-container');
         if (turn) {
-          let prev = turn.previousElementSibling;
-          while (prev) {
-            const q = prev.querySelector?.('.user-query-container, .user-query, .query-text, [data-message-author-role="user"], user-query');
-            if (q) {
-              promptText = extractFromQueryEl(q);
-              if (promptText) break;
+          const allTurns = Array.from(document.querySelectorAll('conversation-turn, model-response, .turn-container, [data-message-id]'));
+          const myIdx = allTurns.indexOf(turn);
+          if (myIdx > 0) {
+            for (let i = myIdx - 1; i >= 0; i--) {
+              const cand = allTurns[i];
+              const q = cand.querySelector('.user-query-container, .user-query, .query-text, [data-message-author-role="user"], user-query');
+              if (q) {
+                promptText = extractFromQueryEl(q);
+                if (promptText) break;
+              }
             }
-            if (prev.matches?.('.user-query-container, .user-query, .query-text, [data-message-author-role="user"], user-query')) {
-              promptText = extractFromQueryEl(prev);
-              if (promptText) break;
-            }
-            prev = prev.previousElementSibling;
           }
         }
       }
 
       if (!promptText) {
-        const allQueries = Array.from(document.querySelectorAll('.user-query-container, .user-query, .query-text, [data-message-author-role="user"], user-query'));
+        const querySelectors = [
+          'user-query',
+          '.user-query-container',
+          '.user-query',
+          '.query-text',
+          '.query-content',
+          '[data-message-author-role="user"]'
+        ];
+        const allQueries = Array.from(document.querySelectorAll(querySelectors.join(',')));
         if (allQueries.length > 0) {
           const lastQ = allQueries[allQueries.length - 1];
           promptText = extractFromQueryEl(lastQ);
@@ -905,29 +976,32 @@
       return promptText || 'Gemini Generated Image';
     }
 
-    // Shadow DOM da dahil Gemini görsellerini bul
+    // Hızlı ve güvenli Gemini görsellerini bulma (Freezing korumalı)
     function findGeminiImages() {
       const results = [];
-      function scan(root) {
-        if (!root) return;
-        const imgs = root.querySelectorAll('img');
-        for (const img of imgs) {
-          const w = img.naturalWidth || img.width || 0;
-          const h = img.naturalHeight || img.height || 0;
-          if ((w > 0 && w < 120) || (h > 0 && h < 120)) continue;
-          const src = img.src || '';
-          if (!src || src.startsWith('data:image/svg')) continue;
-          const alt = (img.alt || '').toLowerCase();
-          if (alt.includes('avatar') || alt.includes('logo') || alt.includes('icon')) continue;
-          if (img.closest?.('.avatar, [aria-label*="avatar" i], [class*="avatar" i], .user-icon')) continue;
-          results.push(img);
-        }
-        const all = root.querySelectorAll('*');
-        for (const el of all) {
-          if (el.shadowRoot) scan(el.shadowRoot);
-        }
+      const selectors = [
+        'img[src*="googleusercontent"]',
+        'img[src*="blob:"]',
+        'img[src*="data:image"]',
+        'conversation-turn img',
+        'model-response img',
+        '.model-response img',
+        '[data-message-author-role="model"] img',
+        '.image-container img',
+        'img.image'
+      ];
+      const imgs = Array.from(document.querySelectorAll(selectors.join(',')));
+      for (const img of imgs) {
+        const w = img.naturalWidth || img.width || 0;
+        const h = img.naturalHeight || img.height || 0;
+        if ((w > 0 && w < 120) || (h > 0 && h < 120)) continue;
+        const src = img.src || '';
+        if (!src || src.startsWith('data:image/svg')) continue;
+        const alt = (img.alt || '').toLowerCase();
+        if (alt.includes('avatar') || alt.includes('logo') || alt.includes('icon')) continue;
+        if (img.closest?.('.avatar, [aria-label*="avatar" i], [class*="avatar" i], .user-icon')) continue;
+        results.push(img);
       }
-      scan(document);
       return results;
     }
 

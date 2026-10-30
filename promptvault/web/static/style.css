@@ -45,6 +45,8 @@ label.inline input[type=number] { width: 90px; }
 .card .cap { padding: 6px 8px; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card .gen { position: absolute; top: 6px; left: 6px; background: #000a; padding: 1px 7px; border-radius: 6px; font-size: 11px; }
 .card .fav { position: absolute; top: 4px; right: 8px; color: var(--gold); font-size: 16px; }
+.card .card-ws-badge { position: absolute; top: 6px; right: 6px; padding: 1px 6px; border-radius: 6px; font-size: 10.5px; font-weight: 600; backdrop-filter: blur(4px); max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card:has(.fav) .card-ws-badge { right: 28px; }
 .card.selected { outline: 3px solid var(--accent2); }
 .card .chk {
   position: absolute; bottom: 34px; right: 8px; width: 24px; height: 24px; border-radius: 6px;

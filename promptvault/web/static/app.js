@@ -45,6 +45,7 @@ function showTab(name) {
   $$("#tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
   $$(".tab").forEach((t) => t.classList.toggle("active", t.id === "tab-" + name));
   if (name === "gallery" && G.items.length === 0) loadGallery();
+  if (name === "workspaces") loadImageWorkspaces();
   if (name === "tags") loadTags();
   if (name === "matrix") loadMatrices();
   if (name === "wildcards") loadWildcards();
@@ -88,14 +89,14 @@ async function loadStats() {
 }
 
 /* ---------------------------------------------------------- gallery */
-const G = { items: [], total: 0, offset: 0, limit: 60, selecting: false, selected: new Set(), current: -1 };
+const G = { items: [], total: 0, offset: 0, limit: 60, selecting: false, selected: new Set(), current: -1, workspaceId: null };
 let lastSelectedIdx = null;
 
 function quoteTag(name) { return /\s/.test(name) ? `tag:"${name}"` : `tag:${name}`; }
 function searchFor(q) { $("#q").value = q; showTab("gallery"); closeModal(); loadGallery(); }
 
 let isGalleryLoading = false;
-async function loadGallery(append = false, retries = 5) {
+async function loadGallery(append = false, retries = 8) {
   if (isGalleryLoading && !append) return;
   isGalleryLoading = true;
   try {
@@ -104,6 +105,9 @@ async function loadGallery(append = false, retries = 5) {
     const qVal = qEl ? qEl.value.trim() : "";
     const sortVal = $("#sort") ? $("#sort").value : "added";
     const params = new URLSearchParams({ q: qVal, sort: sortVal, limit: G.limit, offset: G.offset });
+    if (G.workspaceId !== null && G.workspaceId !== undefined && G.workspaceId !== "") {
+      params.set("workspace_id", G.workspaceId);
+    }
     const res = await api("/api/images?" + params);
     if (!res || !Array.isArray(res.items)) {
       throw new Error("Sunucudan geçersiz veri döndü");
@@ -123,10 +127,14 @@ async function loadGallery(append = false, retries = 5) {
   } catch (e) {
     console.warn("loadGallery error:", e);
     if (retries > 0) {
+      const delay = Math.min(2500, 300 + (8 - retries) * 300);
+      if ($("#resultInfo") && G.items.length === 0) {
+        $("#resultInfo").textContent = window.currentLang === "en" ? "Connecting to vault server..." : "Kasa sunucusuna bağlanılıyor...";
+      }
       setTimeout(() => {
         isGalleryLoading = false;
         loadGallery(append, retries - 1);
-      }, 500);
+      }, delay);
       return;
     }
     if ($("#resultInfo")) $("#resultInfo").textContent = e.message || "Yüklenemedi";
@@ -142,9 +150,13 @@ function cardHTML(it, idx) {
     ? esc(it.prompt.slice(0, 140))
     : `<i>${window.currentLang === "en" ? "no prompt" : "prompt yok"}</i>`;
   const isSel = G.selected.has(it.id);
+  const wsBadge = it.workspace_name
+    ? `<span class="card-ws-badge" style="background:${esc(it.workspace_color || '#8b5cf6')}33; color:${esc(it.workspace_color || '#8b5cf6')}; border:1px solid ${esc(it.workspace_color || '#8b5cf6')}66;" title="${esc(it.workspace_name)}">${esc(it.workspace_icon || '📁')} ${esc(it.workspace_name)}</span>`
+    : '';
   return `<div class="card ${isSel ? "selected" : ""}" data-idx="${idx}" data-id="${it.id}">
     <img loading="lazy" src="/api/images/${it.id}/thumb" alt="">
     <span class="gen">${esc(it.generator || "?")}</span>${it.favorite ? '<span class="fav">★</span>' : ""}
+    ${wsBadge}
     <span class="chk" title="Seç (Shift ile aralık seçebilirsiniz)">${isSel ? "✓" : ""}</span>
     <div class="cap" title="${esc(it.prompt)}">${cap}</div></div>`;
 }
@@ -241,6 +253,10 @@ $("#grid").addEventListener("click", (e) => {
 
 $("#q").addEventListener("input", debounce(() => loadGallery(), 350));
 $("#sort").onchange = () => loadGallery();
+$("#imgWsFilter")?.addEventListener("change", (e) => {
+  G.workspaceId = e.target.value ? parseInt(e.target.value, 10) : null;
+  loadGallery();
+});
 $("#more").onclick = () => loadGallery(true);
 
 // Otomatik sonsuz kaydırma (Infinite Scroll) - butona sürekli basma zorunluluğunu kaldırır
@@ -290,6 +306,27 @@ $("#bulkApply").onclick = async () => {
   $("#bulkTags").value = "";
   loadStats();
 };
+
+$("#bulkMoveWs")?.addEventListener("click", async () => {
+  const ids = Array.from(G.selected);
+  if (!ids.length) return toast(window.currentLang === "en" ? "Select images first" : "Lütfen önce görsel seçin");
+  const wsVal = $("#bulkWorkspaceSelect")?.value;
+  const wsId = wsVal ? parseInt(wsVal, 10) : null;
+  try {
+    const res = await api("/api/images/bulk-workspace", {
+      method: "POST",
+      body: { ids, workspace_id: wsId }
+    });
+    toast(window.currentLang === "en" ? `Moved ${res.updated} images to workspace` : `${res.updated} görsel projeye taşındı!`);
+    G.selected.clear();
+    updateBulk();
+    loadGallery();
+    loadImageWorkspaces();
+    if (typeof window.loadWorkspaces === "function") window.loadWorkspaces();
+  } catch (e) {
+    toast("Hata: " + e.message);
+  }
+});
 
 $("#bulkDelete").onclick = async () => {
   if (!G.selected.size) return toast("Lütfen silinecek görselleri seçin");
@@ -412,6 +449,14 @@ function renderDetail(d) {
     <h4>${window.t ? window.t("detail_tags") : "Etiketler"} <span class="muted small" style="text-transform:none">${window.t ? window.t("detail_tags_hint") : "(tıkla = ara)"}</span></h4>
     <div class="chips" id="dTags">${d.tags.map(tagChip).join("")}</div>
     <div class="row"><input id="dTagInput" placeholder="${window.t ? window.t("detail_add_tag_ph") : "kullanıcı etiketi ekle (virgülle)"}" style="flex:1"><button id="dTagAdd" class="ghost">${window.t ? window.t("detail_add_tag_btn") : "Ekle"}</button></div>
+    
+    <div class="row" style="margin: 10px 0; align-items: center; gap: 8px; background:var(--panel2); padding:8px 12px; border-radius:6px;">
+      <label style="margin:0; font-weight:600; font-size:12px; color:var(--muted);">${window.t ? window.t("detail_workspace") : "🏢 Proje / Alan:"}</label>
+      <select id="dWorkspace" style="flex:1; padding:4px 8px; font-size:12.5px; border-radius:4px;">
+        ${imageWorkspaces.map(w => `<option value="${w.id}" ${w.id === d.workspace_id ? "selected" : ""}>${esc(w.icon || '📁')} ${esc(w.name)}</option>`).join("")}
+      </select>
+    </div>
+
     <h4>${window.t ? window.t("detail_notes") : "Notlar"}</h4><textarea id="dNotes" rows="3" placeholder="${window.t ? window.t("detail_notes_ph") : "Bu görsel hakkında not..."}">${esc(d.notes)}</textarea>
     <details><summary class="muted small">${window.t ? window.t("detail_raw_meta") : "Ham metadata"} (${Object.keys(d.raw || {}).length} chunk)</summary><pre class="raw">${esc(JSON.stringify(d.raw, null, 2))}</pre></details>`;
 
@@ -453,6 +498,21 @@ function renderDetail(d) {
 
   const dNotes = $("#dNotes");
   if (dNotes) dNotes.onchange = (e) => patch({ notes: e.target.value }).then(() => toast("Not kaydedildi"));
+
+  const dWs = $("#dWorkspace");
+  if (dWs) {
+    dWs.onchange = async () => {
+      const newWsId = dWs.value ? parseInt(dWs.value, 10) : null;
+      try {
+        await patch({ workspace_id: newWsId });
+        renderGrid(G.items, false);
+        loadImageWorkspaces();
+        toast(window.currentLang === "en" ? "Workspace updated" : "Çalışma alanı güncellendi");
+      } catch (err) {
+        toast("Hata: " + err.message);
+      }
+    };
+  }
 
   const dCopyP = $("#dCopyP");
   if (dCopyP) dCopyP.onclick = () => copy(d.prompt);
@@ -654,6 +714,8 @@ $("#uSubmit").onclick = async () => {
   const generator = $("#uGenerator") ? $("#uGenerator").value : "";
   const tags = $("#uTags").value;
   const notes = $("#uNotes").value;
+  const wsVal = $("#uWorkspace") ? $("#uWorkspace").value : "";
+  const workspace_id = wsVal ? parseInt(wsVal, 10) : null;
 
   if (selectedUploadFile) {
     const fd = new FormData();
@@ -664,6 +726,7 @@ $("#uSubmit").onclick = async () => {
     if (generator) fd.append("generator", generator);
     if (tags) fd.append("tags", tags);
     if (notes) fd.append("notes", notes);
+    if (workspace_id) fd.append("workspace_id", workspace_id);
 
     try {
       const res = await api("/api/upload", { method: "POST", body: fd });
@@ -671,6 +734,7 @@ $("#uSubmit").onclick = async () => {
       closeUploadModal();
       loadStats();
       loadGallery();
+      loadImageWorkspaces();
     } catch (e) {
       toast("Hata: " + e.message);
     }
@@ -681,12 +745,13 @@ $("#uSubmit").onclick = async () => {
       const tagList = tags.split(",").map((s) => s.trim()).filter(Boolean);
       await api("/api/manual-add", {
         method: "POST",
-        body: { prompt, negative, model, generator, tags: tagList, notes }
+        body: { prompt, negative, model, generator, tags: tagList, notes, workspace_id }
       });
       toast("Kayıt kasaya eklendi!");
       closeUploadModal();
       loadStats();
       loadGallery();
+      loadImageWorkspaces();
     } catch (e) {
       toast("Hata: " + e.message);
     }
@@ -827,6 +892,161 @@ function sendToMatrix(d) {
   toast("Prompt matrise aktarıldı – değişecek kısımları {a|b} ile işaretleyin");
 }
 
+/* -------------------------------------------------------- workspaces */
+let imageWorkspaces = [];
+
+async function loadImageWorkspaces() {
+  try {
+    const list = await api("/api/workspaces");
+    imageWorkspaces = list || [];
+    populateImageWorkspaceDropdowns();
+    renderImageWorkspacesGrid();
+  } catch (e) {
+    console.warn("loadImageWorkspaces error:", e);
+  }
+}
+window.loadImageWorkspaces = loadImageWorkspaces;
+
+function populateImageWorkspaceDropdowns() {
+  const currentWs = G.workspaceId;
+  const allWord = window.t ? window.t("all_workspaces") : "🏢 Tüm Projeler / Workspaces";
+
+  // Gallery filter dropdown
+  const filterSel = $("#imgWsFilter");
+  if (filterSel) {
+    filterSel.innerHTML = `<option value="">${allWord}</option>` +
+      imageWorkspaces.map(w => `<option value="${w.id}">${esc(w.icon || '📁')} ${esc(w.name)} (${w.image_count || 0})</option>`).join("");
+    if (currentWs) filterSel.value = String(currentWs);
+  }
+
+  // Bulk bar move dropdown
+  const bulkSel = $("#bulkWorkspaceSelect");
+  if (bulkSel) {
+    bulkSel.innerHTML = `<option value="">${window.currentLang === "en" ? "Select Target Workspace..." : "Hedef Proje Seçin..."}</option>` +
+      imageWorkspaces.map(w => `<option value="${w.id}">${esc(w.icon || '📁')} ${esc(w.name)}</option>`).join("");
+  }
+
+  // Upload modal dropdown
+  const uSel = $("#uWorkspace");
+  if (uSel) {
+    uSel.innerHTML = imageWorkspaces.map(w => `<option value="${w.id}">${esc(w.icon || '📁')} ${esc(w.name)}</option>`).join("");
+    const genel = imageWorkspaces.find(w => w.name === "Genel");
+    if (genel) uSel.value = String(genel.id);
+  }
+
+  // Quick import dropdowns
+  const qiSel = $("#qiImageWorkspace");
+  if (qiSel) {
+    qiSel.innerHTML = imageWorkspaces.map(w => `<option value="${w.id}">${esc(w.icon || '📁')} ${esc(w.name)}</option>`).join("");
+    const genel = imageWorkspaces.find(w => w.name === "Genel");
+    if (genel) qiSel.value = String(genel.id);
+  }
+
+  const qiMusicSel = $("#qiMusicWorkspace");
+  if (qiMusicSel) {
+    qiMusicSel.innerHTML = imageWorkspaces.map(w => `<option value="${w.id}">${esc(w.icon || '📁')} ${esc(w.name)}</option>`).join("");
+    const genel = imageWorkspaces.find(w => w.name === "Genel");
+    if (genel) qiMusicSel.value = String(genel.id);
+  }
+}
+
+function renderImageWorkspacesGrid() {
+  const grid = $("#imageWorkspacesGrid");
+  if (!grid) return;
+  grid.innerHTML = "";
+  const imgWord = window.t ? window.t("ws_images_count") : "görsel";
+  const songWord = window.t ? window.t("ws_songs_count") : "şarkı";
+  const filterBtnWord = window.t ? window.t("ws_filter_btn") : "Görselleri Filtrele";
+  const editWord = window.t ? window.t("ws_edit") : "Düzenle";
+  const delWord = window.t ? window.t("ws_delete") : "Sil";
+
+  imageWorkspaces.forEach(w => {
+    const card = document.createElement("div");
+    card.className = "workspace-card";
+    card.style.borderColor = w.color || "var(--line)";
+
+    const isGenel = w.name === "Genel";
+    card.innerHTML = `
+      <div class="ws-header">
+        <span class="ws-icon" style="background:${w.color || '#8b5cf6'}22; color:${w.color || '#8b5cf6'}">${esc(w.icon || '🎨')}</span>
+        <div class="ws-info">
+          <h3 class="ws-name">${esc(w.name)}</h3>
+          <p class="ws-desc muted small">${esc(w.description || (window.currentLang === "en" ? "No description" : "Açıklama yok"))}</p>
+        </div>
+        <span class="ws-badge" style="background:${w.color || '#8b5cf6'}22; color:${w.color || '#8b5cf6'}; border:1px solid ${w.color || '#8b5cf6'}66;">
+          🎨 ${w.image_count || 0} ${imgWord} · 🎵 ${w.song_count || 0} ${songWord}
+        </span>
+      </div>
+      <div class="ws-actions">
+        <button class="btn-ws-filter ghost small" data-id="${w.id}">🔍 ${filterBtnWord}</button>
+        <div style="flex:1"></div>
+        <button class="btn-ws-edit ghost small" data-id="${w.id}">✏ ${editWord}</button>
+        ${isGenel ? '' : `<button class="btn-ws-del ghost small danger" data-id="${w.id}">🗑 ${delWord}</button>`}
+      </div>
+    `;
+
+    card.querySelector(".btn-ws-filter")?.addEventListener("click", () => {
+      G.workspaceId = w.id;
+      const sel = $("#imgWsFilter");
+      if (sel) sel.value = String(w.id);
+      showTab("gallery");
+      loadGallery();
+    });
+
+    card.querySelector(".btn-ws-edit")?.addEventListener("click", () => {
+      if (typeof window.openWorkspaceModal === "function") {
+        window.openWorkspaceModal(w);
+      } else {
+        openImageWorkspaceModal(w);
+      }
+    });
+
+    card.querySelector(".btn-ws-del")?.addEventListener("click", async () => {
+      const confirmMsg = window.currentLang === "en"
+        ? `Are you sure you want to delete "${w.name}" workspace? (Items inside will be moved to Genel)`
+        : `"${w.name}" çalışma alanını silmek istiyor musunuz? (İçindeki görsel ve şarkılar Genel alanına geçer)`;
+      if (!confirm(confirmMsg)) return;
+      try {
+        await api(`/api/workspaces/${w.id}`, { method: "DELETE" });
+        toast(window.currentLang === "en" ? "Workspace deleted" : "Çalışma alanı silindi");
+        loadImageWorkspaces();
+        if (typeof window.loadWorkspaces === "function") window.loadWorkspaces();
+        if (G.workspaceId === w.id) {
+          G.workspaceId = null;
+          loadGallery();
+        }
+      } catch (e) {
+        toast("Silinemedi: " + e.message, true);
+      }
+    });
+
+    grid.appendChild(card);
+  });
+}
+
+function openImageWorkspaceModal(ws = null) {
+  const modal = $("#workspaceModal");
+  if (!modal) return;
+  if ($("#wsModalId")) $("#wsModalId").value = ws ? ws.id : "";
+  if ($("#wsModalTitle")) $("#wsModalTitle").textContent = ws
+    ? (window.currentLang === "en" ? "✏ Edit Workspace" : "✏ Çalışma Alanını Düzenle")
+    : (window.currentLang === "en" ? "➕ New Workspace / Project" : "➕ Yeni Çalışma Alanı / Proje");
+  if ($("#wsName")) $("#wsName").value = ws ? ws.name : "";
+  if ($("#wsDesc")) $("#wsDesc").value = ws ? ws.description : "";
+  if ($("#wsColor")) $("#wsColor").value = ws ? ws.color : "#8b5cf6";
+  if ($("#wsIcon")) $("#wsIcon").value = ws ? ws.icon : "🎨";
+  modal.classList.remove("hidden");
+}
+window.openImageWorkspaceModal = openImageWorkspaceModal;
+
+$("#btnNewImageWs")?.addEventListener("click", () => {
+  if (typeof window.openWorkspaceModal === "function") {
+    window.openWorkspaceModal();
+  } else {
+    openImageWorkspaceModal();
+  }
+});
+
 /* -------------------------------------------------------- wildcards */
 let wildcards = {};
 async function loadWildcards(select) {
@@ -950,8 +1170,10 @@ syncMode();
 addParamRow("steps", "");
 
 async function initPromptVault() {
+  if ($("#q")) $("#q").value = "";
   Promise.allSettled([
-    loadGallery(false, 5),
+    loadGallery(false, 8),
+    loadImageWorkspaces(),
     loadStats(),
     loadGDriveStatus(),
     loadQuickImportStatus()
@@ -964,12 +1186,18 @@ if (document.readyState === "loading") {
   initPromptVault();
 }
 
-// Güvenlik yedekleri: load ve pageshow tetikleyicileri
+// Güvenlik yedekleri: load, pageshow, focus ve visibilitychange tetikleyicileri
 window.addEventListener("load", () => {
-  if (G.items.length === 0) loadGallery(false, 3);
+  if (G.items.length === 0) loadGallery(false, 5);
 });
 window.addEventListener("pageshow", () => {
+  if (G.items.length === 0) loadGallery(false, 5);
+});
+window.addEventListener("focus", () => {
   if (G.items.length === 0) loadGallery(false, 3);
+});
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && G.items.length === 0) loadGallery(false, 3);
 });
 api("/api/scan").then((s) => {
   if (s && s.running) {
@@ -1273,12 +1501,19 @@ window.onLanguageChange = (lang) => {
     $("#resultInfo").textContent = `${G.total} ${resWord}`;
     updateBulk();
   }
-  if (G.current !== -1 && !$("#detailModal")?.classList.contains("hidden")) {
+  if (G.items.length > 0) {
+    renderGrid(G.items, false);
+  }
+  if (G.current !== -1 && !$("#modal")?.classList.contains("hidden")) {
     renderDetail(G.items[G.current]);
   }
   if (typeof window.renderMusicStats === "function") {
     window.renderMusicStats();
   }
+  if (typeof window.loadSongs === "function") {
+    window.loadSongs();
+  }
+  renderImageWorkspacesGrid();
 };
 
 /* -------------------------------------------------------- quick import modal */
@@ -1326,6 +1561,8 @@ $("#qiMusicSubmit")?.addEventListener("click", async () => {
   const artist = $("#qiMusicArtist").value.trim();
   const style = $("#qiMusicStyle").value.trim();
   const lyrics = $("#qiMusicLyrics").value.trim();
+  const wsVal = $("#qiMusicWorkspace")?.value;
+  const workspace_id = wsVal ? parseInt(wsVal, 10) : undefined;
 
   if (!url && !title && !style && !lyrics) {
     return toast("Lütfen bir şarkı linki, başlık veya söz/stil girin!");
@@ -1336,16 +1573,19 @@ $("#qiMusicSubmit")?.addEventListener("click", async () => {
   btn.disabled = true;
 
   try {
+    const payload = {
+      suno_url: url,
+      title: title || (url ? "Suno Şarkısı" : "İsimsiz Şarkı"),
+      style,
+      lyrics,
+      artist,
+      generator: "suno"
+    };
+    if (workspace_id) payload.workspace_id = workspace_id;
+
     const res = await api("/api/quick-import/music", {
       method: "POST",
-      body: {
-        suno_url: url,
-        title: title || (url ? "Suno Şarkısı" : "İsimsiz Şarkı"),
-        style,
-        lyrics,
-        artist,
-        generator: "suno"
-      }
+      body: payload
     });
     toast(`✓ "${res.title || title}" şarkısı kasaya aktarıldı! 🎵`);
     closeQuickImportModal();
@@ -1355,6 +1595,7 @@ $("#qiMusicSubmit")?.addEventListener("click", async () => {
     $("#qiMusicStyle").value = "";
     $("#qiMusicLyrics").value = "";
     if (window.loadSongs) window.loadSongs();
+    loadImageWorkspaces();
   } catch (e) {
     toast("Hata: " + e.message);
   } finally {
@@ -1369,6 +1610,8 @@ $("#qiImageSubmit")?.addEventListener("click", async () => {
   const image_url = $("#qiImageUrl").value.trim();
   const generator = $("#qiImageGen").value;
   const model = $("#qiImageModel").value.trim();
+  const wsVal = $("#qiImageWorkspace")?.value;
+  const workspace_id = wsVal ? parseInt(wsVal, 10) : undefined;
 
   if (!prompt && !image_url) {
     return toast("Lütfen en azından bir prompt veya görsel linki girin!");
@@ -1384,6 +1627,7 @@ $("#qiImageSubmit")?.addEventListener("click", async () => {
       generator,
       model: model || generator
     };
+    if (workspace_id) payload.workspace_id = workspace_id;
     if (image_url.startsWith("data:image")) {
       payload.image_b64 = image_url;
     } else if (image_url) {
@@ -1400,6 +1644,7 @@ $("#qiImageSubmit")?.addEventListener("click", async () => {
     $("#qiImageModel").value = "";
     loadGallery(false);
     loadStats();
+    loadImageWorkspaces();
   } catch (e) {
     toast("Hata: " + e.message);
   } finally {

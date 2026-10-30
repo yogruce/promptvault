@@ -327,3 +327,49 @@ def test_cli_delete(tmp_path):
     # Original file is preserved by default
     assert img_file.exists()
     lib.close()
+
+
+def test_image_workspaces(tmp_path):
+    db_file = tmp_path / "ws_test.db"
+    lib = Library(db_file)
+    # Default 'Genel' workspace exists
+    workspaces = lib.list_workspaces()
+    assert any(w["name"] == "Genel" for w in workspaces)
+
+    # Add image, should be assigned to Genel
+    img = lib.add_bytes(make_blank_png(16, 16), "test.png", prompt="futuristic city")
+    img_id = img["id"]
+    item = lib.get(img_id)
+    assert item["workspace_name"] == "Genel"
+
+    # Create new workspace
+    new_ws = lib.create_workspace("Cyberpunk", description="Sci-fi game project", color="#ff0055", icon="🚀")
+    assert new_ws["name"] == "Cyberpunk"
+
+    # Move image to new workspace
+    lib.update(img_id, workspace_id=new_ws["id"])
+    item = lib.get(img_id)
+    assert item["workspace_name"] == "Cyberpunk"
+
+    # Search with workspace_id filter
+    total, items = lib.search(workspace_id=new_ws["id"])
+    assert total == 1 and items[0]["id"] == img_id
+
+    # Search with ws: query token
+    total, items = lib.search("ws:Cyberpunk")
+    assert total == 1
+
+    # Search in Genel should now be empty
+    genel_ws = next(w for w in workspaces if w["name"] == "Genel")
+    total, items = lib.search(workspace_id=genel_ws["id"])
+    assert total == 0
+
+    # Bulk workspace move
+    lib.set_images_workspace([img_id], genel_ws["id"])
+    assert lib.get(img_id)["workspace_name"] == "Genel"
+
+    # Deleting workspace moves items to Genel and removes workspace
+    lib.update(img_id, workspace_id=new_ws["id"])
+    assert lib.delete_workspace(new_ws["id"]) is True
+    assert lib.get(img_id)["workspace_name"] == "Genel"
+    lib.close()
