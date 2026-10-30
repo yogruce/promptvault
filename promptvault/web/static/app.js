@@ -94,31 +94,45 @@ let lastSelectedIdx = null;
 function quoteTag(name) { return /\s/.test(name) ? `tag:"${name}"` : `tag:${name}`; }
 function searchFor(q) { $("#q").value = q; showTab("gallery"); closeModal(); loadGallery(); }
 
-async function loadGallery(append = false, retries = 3) {
-  if (!append) { G.offset = 0; G.items = []; }
-  const qEl = $("#q");
-  const qVal = qEl ? qEl.value.trim() : "";
-  const sortVal = $("#sort") ? $("#sort").value : "added";
-  const params = new URLSearchParams({ q: qVal, sort: sortVal, limit: G.limit, offset: G.offset });
-  let res;
+let isGalleryLoading = false;
+async function loadGallery(append = false, retries = 5) {
+  if (isGalleryLoading && !append) return;
+  isGalleryLoading = true;
   try {
-    res = await api("/api/images?" + params);
+    if (!append) { G.offset = 0; G.items = []; }
+    const qEl = $("#q");
+    const qVal = qEl ? qEl.value.trim() : "";
+    const sortVal = $("#sort") ? $("#sort").value : "added";
+    const params = new URLSearchParams({ q: qVal, sort: sortVal, limit: G.limit, offset: G.offset });
+    const res = await api("/api/images?" + params);
+    if (!res || !Array.isArray(res.items)) {
+      throw new Error("Sunucudan geçersiz veri döndü");
+    }
+    G.total = typeof res.total === "number" ? res.total : res.items.length;
+    if (append) {
+      G.items.push(...res.items);
+    } else {
+      G.items = [...res.items];
+    }
+    G.offset = G.items.length;
+    renderGrid(append ? res.items : G.items, append);
+    const resWord = window.t ? window.t("results_count") : "sonuç";
+    if ($("#resultInfo")) $("#resultInfo").textContent = `${G.total} ${resWord}`;
+    if ($("#more")) $("#more").classList.toggle("hidden", G.items.length >= G.total);
+    if ($("#empty")) $("#empty").classList.toggle("hidden", G.total > 0 || qVal !== "");
   } catch (e) {
+    console.warn("loadGallery error:", e);
     if (retries > 0) {
-      setTimeout(() => loadGallery(append, retries - 1), 500);
+      setTimeout(() => {
+        isGalleryLoading = false;
+        loadGallery(append, retries - 1);
+      }, 500);
       return;
     }
-    $("#resultInfo").textContent = e.message;
-    return;
+    if ($("#resultInfo")) $("#resultInfo").textContent = e.message || "Yüklenemedi";
+  } finally {
+    isGalleryLoading = false;
   }
-  G.total = res.total;
-  G.items.push(...res.items);
-  G.offset += res.items.length;
-  renderGrid(append ? res.items : G.items, append);
-  const resWord = window.t ? window.t("results_count") : "sonuç";
-  $("#resultInfo").textContent = `${G.total} ${resWord}`;
-  $("#more").classList.toggle("hidden", G.items.length >= G.total);
-  $("#empty").classList.toggle("hidden", G.total > 0 || qVal !== "");
 }
 window.loadGallery = loadGallery;
 window.G = G;
@@ -936,10 +950,12 @@ syncMode();
 addParamRow("steps", "");
 
 async function initPromptVault() {
-  try { await loadStats(); } catch (e) { console.warn("loadStats error", e); }
-  try { await loadGallery(); } catch (e) { console.warn("loadGallery error", e); }
-  try { await loadGDriveStatus(); } catch (e) { console.warn("loadGDriveStatus error", e); }
-  try { await loadQuickImportStatus(); } catch (e) { console.warn("loadQuickImportStatus error", e); }
+  Promise.allSettled([
+    loadGallery(false, 5),
+    loadStats(),
+    loadGDriveStatus(),
+    loadQuickImportStatus()
+  ]);
 }
 
 if (document.readyState === "loading") {
@@ -948,8 +964,12 @@ if (document.readyState === "loading") {
   initPromptVault();
 }
 
+// Güvenlik yedekleri: load ve pageshow tetikleyicileri
 window.addEventListener("load", () => {
-  if (G.items.length === 0) loadGallery();
+  if (G.items.length === 0) loadGallery(false, 3);
+});
+window.addEventListener("pageshow", () => {
+  if (G.items.length === 0) loadGallery(false, 3);
 });
 api("/api/scan").then((s) => {
   if (s && s.running) {

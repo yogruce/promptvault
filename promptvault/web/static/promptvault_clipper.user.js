@@ -1,11 +1,13 @@
 // ==UserScript==
 // @name         PromptVault Universal Clipper (1-Click Send to Vault)
 // @namespace    http://tampermonkey.net/
-// @version      1.2.0
-// @description  Gemini, ChatGPT, Flow/ImageFX ve Suno AI'dan tek tuşla görsel, prompt, şarkı ve üst verileri yerel PromptVault kasasına aktarır.
+// @version      1.3.0
+// @description  ChatGPT, Google Gemini, Flow/ImageFX ve Suno AI'dan tek tuşla görsel, tam prompt, şarkı ve sözleri yerel PromptVault kasasına aktarır. (Chrome, Edge, Firefox uyumlu)
 // @author       PromptVault
 // @match        *://gemini.google.com/*
 // @match        *://*.gemini.google.com/*
+// @match        *://aistudio.google.com/*
+// @match        *://*.aistudio.google.com/*
 // @match        *://chatgpt.com/*
 // @match        *://*.chatgpt.com/*
 // @match        *://suno.com/*
@@ -16,6 +18,7 @@
 // @match        *://aitestkitchen.withgoogle.com/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
+// @grant        unsafeWindow
 // @connect      127.0.0.1
 // @connect      localhost
 // @connect      *
@@ -29,23 +32,61 @@
   const songCache = {};
 
   // ===================================================================
-  // 1. SUNO AI: ARKA PLAN FETCH TRAFİĞİNİ YAKALAMA (document-start)
+  // 1. SUNO AI: GELİŞMİŞ ÇİFT KATMANLI VERİ YAKALAMA (Chrome, Edge, Firefox)
   // ===================================================================
   if (window.location.hostname.includes('suno.com') || window.location.hostname.includes('suno.ai')) {
-    const originalFetch = window.fetch;
-    window.fetch = async function(...args) {
-      const response = await originalFetch.apply(this, args);
+    // A) Tampermonkey Sandbox / UnsafeWindow katmanı
+    const win = (typeof unsafeWindow !== 'undefined') ? unsafeWindow : window;
+    if (win) {
       try {
-        const url = args[0] ? args[0].toString() : '';
-        if (url.includes('/api/') || url.includes('clip') || url.includes('feed') || url.includes('song')) {
-          const clone = response.clone();
-          clone.json().then(data => {
-            extractSongsFromData(data);
-          }).catch(() => {});
-        }
+        const origFetch = win.fetch;
+        win.fetch = async function(...args) {
+          const res = await origFetch.apply(this, args);
+          try {
+            const url = args[0] ? args[0].toString() : '';
+            if (url.includes('/api/') || url.includes('clip') || url.includes('feed') || url.includes('song')) {
+              const clone = res.clone();
+              clone.json().then(data => {
+                extractSongsFromData(data);
+              }).catch(() => {});
+            }
+          } catch (e) {}
+          return res;
+        };
       } catch (e) {}
-      return response;
-    };
+    }
+
+    // B) Sayfa Ana Dünyasına (Main World) Doğrudan Script Enjeksiyonu (Manifest V3 Chromium Uyumlu)
+    try {
+      const injectScript = document.createElement('script');
+      injectScript.textContent = `
+        (function() {
+          const orig = window.fetch;
+          window.fetch = async function(...args) {
+            const r = await orig.apply(this, args);
+            try {
+              const u = args[0] ? args[0].toString() : '';
+              if (u.includes('/api/') || u.includes('clip') || u.includes('feed') || u.includes('song')) {
+                const c = r.clone();
+                c.json().then(d => {
+                  window.postMessage({ type: 'PV_SUNO_DATA', data: d }, '*');
+                }).catch(() => {});
+              }
+            } catch(e) {}
+            return r;
+          };
+        })();
+      `;
+      (document.head || document.documentElement).appendChild(injectScript);
+      injectScript.remove();
+    } catch (e) {}
+
+    // Ana dünyadan gelen mesajları dinle
+    window.addEventListener('message', (e) => {
+      if (e.data && e.data.type === 'PV_SUNO_DATA' && e.data.data) {
+        extractSongsFromData(e.data.data);
+      }
+    });
   }
 
   function extractSongsFromData(obj) {
@@ -89,90 +130,113 @@
   // 2. ORTAK YARDIMCI FONKSİYONLAR
   // ===================================================================
 
-  // DOM Yüklendiğinde Başlatma
-  function onReady(fn) {
-    if (document.readyState === 'interactive' || document.readyState === 'complete') {
+  // Güvenli Body Hazır Olma Bekleyicisi (document-start için)
+  function whenBodyReady(fn) {
+    if (document.body) {
       fn();
     } else {
-      window.addEventListener('DOMContentLoaded', fn, { once: true });
+      const check = setInterval(() => {
+        if (document.body) {
+          clearInterval(check);
+          fn();
+        }
+      }, 50);
+      document.addEventListener('DOMContentLoaded', () => {
+        clearInterval(check);
+        if (document.body) fn();
+      }, { once: true });
     }
   }
 
   // Floating Toast Bildirimi
   function showToast(msg, isSuccess = true) {
-    let t = document.getElementById('pv-clipper-toast');
-    if (!t) {
-      t = document.createElement('div');
-      t.id = 'pv-clipper-toast';
-      t.style.cssText = `
-        position: fixed;
-        bottom: 24px;
-        right: 24px;
-        z-index: 2147483647;
-        background: #18181b;
-        color: #fff;
-        padding: 12px 18px;
-        border-radius: 8px;
-        font-family: system-ui, -apple-system, sans-serif;
-        font-size: 13.5px;
-        box-shadow: 0 8px 30px rgba(0,0,0,0.55);
-        border: 1px solid ${isSuccess ? '#10b981' : '#ef4444'};
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        transition: opacity 0.25s, transform 0.25s;
-        opacity: 0;
-        transform: translateY(10px);
-        pointer-events: none;
-      `;
-      document.body.appendChild(t);
-    }
-    t.innerHTML = `${isSuccess ? '✅' : '❌'} <span>${msg}</span>`;
-    t.style.borderColor = isSuccess ? '#10b981' : '#ef4444';
-    t.style.opacity = '1';
-    t.style.transform = 'translateY(0)';
-    clearTimeout(t._tm);
-    t._tm = setTimeout(() => {
-      t.style.opacity = '0';
-      t.style.transform = 'translateY(10px)';
-    }, 4000);
-  }
-
-  // PromptVault API İstek Gönderici
-  function sendToVault(endpoint, payload, onSuccess, onError) {
-    GM_xmlhttpRequest({
-      method: 'POST',
-      url: `${VAULT_URL}/api/quick-import/${endpoint}`,
-      headers: { 'Content-Type': 'application/json' },
-      data: JSON.stringify(payload),
-      timeout: 25000,
-      onload: function(res) {
-        if (res.status >= 200 && res.status < 300) {
-          try {
-            const data = JSON.parse(res.responseText);
-            onSuccess(data);
-          } catch (e) {
-            onSuccess({ ok: true });
-          }
-        } else {
-          let err = `Hata (${res.status})`;
-          try {
-            const j = JSON.parse(res.responseText);
-            if (j.detail) err = j.detail;
-          } catch {}
-          onError(err);
-        }
-      },
-      onerror: function() {
-        onError('PromptVault sunucusuna ulaşılamadı! Programın açık (http://127.0.0.1:7860) olduğundan emin olun.');
-      },
-      ontimeout: function() {
-        onError('İstek zaman aşımına uğradı.');
+    whenBodyReady(() => {
+      let t = document.getElementById('pv-clipper-toast');
+      if (!t) {
+        t = document.createElement('div');
+        t.id = 'pv-clipper-toast';
+        t.style.cssText = `
+          position: fixed;
+          bottom: 24px;
+          right: 24px;
+          z-index: 2147483647;
+          background: #18181b;
+          color: #fff;
+          padding: 12px 18px;
+          border-radius: 8px;
+          font-family: system-ui, -apple-system, sans-serif;
+          font-size: 13.5px;
+          box-shadow: 0 8px 30px rgba(0,0,0,0.55);
+          border: 1px solid ${isSuccess ? '#10b981' : '#ef4444'};
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          transition: opacity 0.25s, transform 0.25s;
+          opacity: 0;
+          transform: translateY(10px);
+          pointer-events: none;
+        `;
+        (document.body || document.documentElement).appendChild(t);
       }
+      t.innerHTML = `${isSuccess ? '✅' : '❌'} <span>${msg}</span>`;
+      t.style.borderColor = isSuccess ? '#10b981' : '#ef4444';
+      t.style.opacity = '1';
+      t.style.transform = 'translateY(0)';
+      clearTimeout(t._tm);
+      t._tm = setTimeout(() => {
+        t.style.opacity = '0';
+        t.style.transform = 'translateY(10px)';
+      }, 4000);
     });
   }
 
-  // Güvenli Görsel -> Base64 Data URL Çevirici (CORS & Blob Destekli)
+  // PromptVault API İstek Gönderici (GM_xmlhttpRequest - Mixed Content ve CORS'u aşar)
+  function sendToVault(endpoint, payload, onSuccess, onError) {
+    if (typeof GM_xmlhttpRequest !== 'undefined') {
+      GM_xmlhttpRequest({
+        method: 'POST',
+        url: `${VAULT_URL}/api/quick-import/${endpoint}`,
+        headers: { 'Content-Type': 'application/json' },
+        data: JSON.stringify(payload),
+        timeout: 25000,
+        onload: function(res) {
+          if (res.status >= 200 && res.status < 300) {
+            try {
+              const data = JSON.parse(res.responseText);
+              onSuccess(data);
+            } catch (e) {
+              onSuccess({ ok: true });
+            }
+          } else {
+            let err = `Hata (${res.status})`;
+            try {
+              const j = JSON.parse(res.responseText);
+              if (j.detail) err = j.detail;
+            } catch {}
+            onError(err);
+          }
+        },
+        onerror: function() {
+          onError('PromptVault sunucusuna ulaşılamadı! Programın açık (http://127.0.0.1:7860) olduğundan emin olun.');
+        },
+        ontimeout: function() {
+          onError('İstek zaman aşımına uğradı.');
+        }
+      });
+    } else {
+      // Standart fetch yedeği
+      fetch(`${VAULT_URL}/api/quick-import/${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      .then(r => r.json())
+      .then(onSuccess)
+      .catch(e => onError('Sunucuya ulaşılamadı: ' + e.message));
+    }
+  }
+
+  // Güvenli Görsel -> Base64 Data URL Çevirici
   async function imageToDataUrl(imgElement) {
     if (!imgElement) return null;
     const src = imgElement.src || '';
@@ -189,9 +253,7 @@
           reader.onerror = reject;
           reader.readAsDataURL(blob);
         });
-      } catch (e) {
-        console.warn('PromptVault: Blob URL fetch hatası, canvas deneniyor...', e);
-      }
+      } catch (e) {}
     }
 
     // 2. HTTP/HTTPS URL ise GM_xmlhttpRequest ile CORS engelini aşarak al
@@ -210,7 +272,7 @@
                 reader.onerror = reject;
                 reader.readAsDataURL(res.response);
               } else {
-                reject(new Error('GM_xmlhttpRequest status: ' + res.status));
+                reject(new Error('Status: ' + res.status));
               }
             },
             onerror: reject,
@@ -218,9 +280,7 @@
           });
         });
         if (b64 && b64.startsWith('data:image/')) return b64;
-      } catch (e) {
-        console.warn('PromptVault: GM_xmlhttpRequest fetch hatası, canvas deneniyor...', e);
-      }
+      } catch (e) {}
     }
 
     // 3. Canvas yedeği
@@ -232,7 +292,6 @@
       ctx.drawImage(imgElement, 0, 0);
       return canvas.toDataURL('image/png');
     } catch (e) {
-      console.warn('PromptVault: Canvas dönüştürme başarısız (CORS koruması):', e);
       return src;
     }
   }
@@ -257,7 +316,7 @@
       align-items: center;
       gap: 5px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.45);
-      transition: transform 0.15s, filter 0.15s, opacity 0.15s;
+      transition: transform 0.15s, filter 0.15s;
       user-select: none;
       line-height: 1.2;
     `;
@@ -278,165 +337,172 @@
   function initSuno() {
     if (!window.location.hostname.includes('suno.com') && !window.location.hostname.includes('suno.ai')) return;
 
-    // Sayfa kaynağından, scriptlerden ve DOM'dan temiz veri çıkarma
+    // Şarkı Verilerini Çıkar (Cache + Dahili API Doğrudan Çağrı + DOM)
     async function getSongData(songId) {
-      let scriptStyle = '';
-      let scriptModel = '';
-      let scriptPersona = '';
-      let scriptCreatedAt = '';
-      let scriptAudioUrl = '';
+      let cached = songCache[songId] || {};
 
-      // A) Next.js script verilerini tara
+      // 1. Suno dahili API'lerini tara (Feed v2, feed, clip)
+      if (!cached.style || !cached.lyrics || cached.style === 'Stil belirtilmemiş') {
+        const endpoints = [
+          `/api/feed/v2?ids=${songId}`,
+          `/api/feed/?ids=${songId}`,
+          `/api/clip/${songId}`
+        ];
+        const fetchFn = (typeof unsafeWindow !== 'undefined' && unsafeWindow.fetch) ? unsafeWindow.fetch : window.fetch;
+        for (const ep of endpoints) {
+          try {
+            const apiRes = await fetchFn(ep);
+            if (apiRes && apiRes.ok) {
+              const data = await apiRes.json();
+              const clipObj = Array.isArray(data) ? data.find(c => c && c.id === songId) : (data && data.clips ? data.clips.find(c => c && c.id === songId) : data);
+              if (clipObj && clipObj.id) {
+                const meta = (clipObj.metadata && typeof clipObj.metadata === 'object') ? clipObj.metadata : {};
+                const fullStyle = meta.tags || meta.gpt_description_prompt || clipObj.display_tags || '';
+                const lyricsText = (meta.prompt && !meta.prompt.startsWith('$')) ? meta.prompt : '';
+                let modelName = clipObj.major_model_version || '';
+                if (meta.model_badges?.songcard?.display_name) {
+                  modelName = meta.model_badges.songcard.display_name;
+                }
+                const personaName = (clipObj.persona && clipObj.persona.name) ? clipObj.persona.name : '';
+                const audioUrl = clipObj.audio_url || clipObj.source_audio_url || '';
+
+                cached = {
+                  id: clipObj.id,
+                  title: clipObj.title || cached.title || '',
+                  style: fullStyle || cached.style || '',
+                  lyrics: lyricsText || cached.lyrics || '',
+                  model: modelName || cached.model || 'Suno AI',
+                  persona: personaName || cached.persona || '',
+                  created_at: clipObj.created_at || cached.created_at || '',
+                  audio_url: audioUrl || cached.audio_url || ''
+                };
+                songCache[songId] = cached;
+                if (cached.style && cached.lyrics) break;
+              }
+            }
+          } catch (e) {}
+        }
+      }
+
+      // 2. Next.js Script chunk tarama (Yedek)
+      if (!cached.style || !cached.lyrics) {
+        try {
+          const scripts = Array.from(document.querySelectorAll('script'));
+          for (const s of scripts) {
+            const rawText = s.textContent || '';
+            if (!rawText.includes(songId)) continue;
+            const unescaped = rawText.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+            const idIndex = unescaped.indexOf(`"id":"${songId}"`);
+            const targetChunk = idIndex !== -1 ? unescaped.substring(Math.max(0, idIndex - 500), idIndex + 4500) : unescaped;
+
+            const tagsMatch = targetChunk.match(/"tags"\s*:\s*"([^"]+)"/) || targetChunk.match(/"display_tags"\s*:\s*"([^"]+)"/);
+            if (tagsMatch && tagsMatch[1] && !cached.style) cached.style = tagsMatch[1].trim();
+
+            const promptMatch = targetChunk.match(/"prompt"\s*:\s*"([^"]+)"/);
+            if (promptMatch && promptMatch[1] && !promptMatch[1].startsWith('$') && !cached.lyrics) {
+              cached.lyrics = promptMatch[1].replace(/\\n/g, '\n').trim();
+            }
+
+            const modelMatch = targetChunk.match(/"display_name"\s*:\s*"(V\d+[^"]*)"/i) || targetChunk.match(/"major_model_version"\s*:\s*"([^"]+)"/i);
+            if (modelMatch && modelMatch[1] && !cached.model) cached.model = modelMatch[1].toUpperCase();
+
+            const personaMatch = targetChunk.match(/"persona"\s*:\s*\{[^}]*"name"\s*:\s*"([^"]+)"/);
+            if (personaMatch && personaMatch[1] && !cached.persona) cached.persona = personaMatch[1].trim();
+          }
+        } catch (e) {}
+      }
+
+      // 3. DOM (Ekran) üzerinden Tam Stil Yakalama (Show Summary tıkla)
+      const allElements = Array.from(document.querySelectorAll('div, p, span, a, button, pre, textarea'));
+      let domStyle = '';
       try {
-        const scripts = Array.from(document.querySelectorAll('script'));
-        for (const s of scripts) {
-          const rawText = s.textContent || '';
-          if (!rawText.includes(songId)) continue;
-
-          const unescaped = rawText.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
-          const idIndex = unescaped.indexOf(`"id":"${songId}"`);
-          const targetChunk = idIndex !== -1
-            ? unescaped.substring(Math.max(0, idIndex - 500), idIndex + 4000)
-            : unescaped;
-
-          // Tam stili ("tags":"...") yakala
-          const tagsMatch = targetChunk.match(/"tags"\s*:\s*"([^"]+)"/);
-          if (tagsMatch && tagsMatch[1]) {
-            scriptStyle = tagsMatch[1].trim();
+        const summaryToggleEl = allElements.find(el =>
+          el.children.length === 0 &&
+          el.innerText &&
+          (el.innerText.includes('Show Summary') || el.innerText.includes('Hide Summary'))
+        );
+        if (summaryToggleEl) {
+          if (summaryToggleEl.innerText.includes('Hide Summary')) {
+            summaryToggleEl.click();
+            await new Promise(r => setTimeout(r, 150));
           }
-
-          // Model sürümünü yakala
-          const badgeMatch = targetChunk.match(/"display_name"\s*:\s*"(V\d+[^"]*)"/i) ||
-                             targetChunk.match(/"major_model_version"\s*:\s*"([^"]+)"/i);
-          if (badgeMatch && badgeMatch[1]) {
-            scriptModel = badgeMatch[1].toUpperCase();
-          }
-
-          // Persona adını yakala
-          const personaMatch = targetChunk.match(/"persona"\s*:\s*\{[^}]*"name"\s*:\s*"([^"]+)"/);
-          if (personaMatch && personaMatch[1]) {
-            scriptPersona = personaMatch[1].trim();
-          }
-
-          // Oluşturulma tarihi
-          const dateMatch = targetChunk.match(/"created_at"\s*:\s*"([^"]+)"/);
-          if (dateMatch && dateMatch[1]) {
-            scriptCreatedAt = new Date(dateMatch[1]).toLocaleString('tr-TR');
-          }
-
-          // Ses dosyası URL'i
-          const audioMatch = targetChunk.match(/"audio_url"\s*:\s*"([^"]+)"/);
-          if (audioMatch && audioMatch[1]) {
-            scriptAudioUrl = audioMatch[1].trim();
+          let current = summaryToggleEl;
+          for (let i = 0; i < 6; i++) {
+            if (!current.parentElement) break;
+            current = current.parentElement;
+            const fullText = current.innerText || '';
+            if (fullText.includes('Show Summary') || fullText.includes('Hide Summary')) {
+              const lines = fullText.split('\n').map(l => l.trim()).filter(l =>
+                l.length > 0 &&
+                !l.includes('Show Summary') &&
+                !l.includes('Hide Summary') &&
+                !l.includes('Add a Caption') &&
+                !l.includes('{"')
+              );
+              lines.sort((a, b) => b.length - a.length);
+              if (lines.length > 0 && lines[0].length > domStyle.length && lines[0].length < 1000) {
+                domStyle = lines[0];
+              }
+            }
           }
         }
       } catch (e) {}
 
-      // B) DOM (Ekran) üzerinden Tam Stil Yakalama (Yedek)
-      const allElements = Array.from(document.querySelectorAll('div, p, span, a, button, pre, textarea'));
-      let domStyle = '';
-
-      const summaryToggleEl = allElements.find(el =>
-        el.children.length === 0 &&
-        el.innerText &&
-        (el.innerText.includes('Show Summary') || el.innerText.includes('Hide Summary'))
-      );
-
-      if (summaryToggleEl) {
-        if (summaryToggleEl.innerText.includes('Hide Summary')) {
-          summaryToggleEl.click();
-          await new Promise(r => setTimeout(r, 150));
-        }
-
-        let current = summaryToggleEl;
-        for (let i = 0; i < 6; i++) {
-          if (!current.parentElement) break;
-          current = current.parentElement;
-
-          const fullText = current.innerText || '';
-          if (fullText.includes('Show Summary') || fullText.includes('Hide Summary')) {
-            const lines = fullText.split('\n').map(l => l.trim()).filter(l =>
-              l.length > 0 &&
-              !l.includes('Show Summary') &&
-              !l.includes('Hide Summary') &&
-              !l.includes('Add a Caption') &&
-              !l.includes('{"')
-            );
-            lines.sort((a, b) => b.length - a.length);
-            if (lines.length > 0 && lines[0].length > domStyle.length && lines[0].length < 1000) {
-              domStyle = lines[0];
-            }
-          }
+      // Sanatçı / Kullanıcı Adı (Persona yoksa @username bul)
+      let artistName = (cached.persona || '').replace(/^Yok$/i, '').trim();
+      if (!artistName) {
+        const userLink = document.querySelector('a[href^="/@"], a[href*="suno.com/@"]');
+        if (userLink) {
+          artistName = (userLink.innerText || userLink.textContent || '').replace(/^@/, '').trim();
         }
       }
 
-      // Stil adaylarından en temiz ve uzun olanı seç
-      const cached = songCache[songId] || {};
-      const cleanCandidates = [cached.style, scriptStyle, domStyle]
-        .filter(Boolean)
-        .map(s => s.split('","')[0].trim())
-        .filter(s => s.length > 5 && !s.includes('{"'));
-
-      cleanCandidates.sort((a, b) => b.length - a.length);
-      const finalStyle = cleanCandidates[0] || 'Stil belirtilmemiş';
-
-      // C) Şarkı Adını Temizle
+      // DOM Başlık Taraması
       const titleEl = document.querySelector('h1') || document.querySelector('title');
       let rawTitle = cached.title || (titleEl ? titleEl.innerText : 'Suno Şarkısı');
-      rawTitle = rawTitle
-        .replace(/\s*\|\s*Suno.*$/i, '')
-        .replace(/\s+by\s+[a-zA-Z0-9_.-]+$/i, '')
-        .trim();
+      rawTitle = rawTitle.replace(/\s*\|\s*Suno.*$/i, '').replace(/\s+by\s+[a-zA-Z0-9_.-]+$/i, '').trim();
 
-      // D) Şarkı Sözlerini Yakala
+      // DOM Sözler Taraması
       let lyrics = cached.lyrics || '';
-      if (!lyrics || lyrics === 'Bulunamadı' || lyrics.startsWith('$')) {
-        let maxNewlines = 0;
+      if (!lyrics) {
+        let maxLines = 0;
         allElements.forEach(el => {
           if (el.children.length === 0 && el.innerText) {
             const txt = el.innerText.trim();
             const lines = txt.split('\n').length;
-            if (lines > maxNewlines && lines > 3 && !txt.includes('Create') && !txt.includes('Library') && txt !== finalStyle && !txt.includes('{"')) {
-              maxNewlines = lines;
+            if (lines > maxLines && lines > 3 && !txt.includes('Create') && !txt.includes('Library') && !txt.includes('{"')) {
+              maxLines = lines;
               lyrics = txt;
             }
           }
         });
-
         if (!lyrics) {
           const containers = Array.from(document.querySelectorAll('div, pre, textarea'));
           containers.forEach(el => {
             const txt = (el.innerText || '').trim();
             const lines = txt.split('\n').length;
-            if ((txt.includes('[Verse') || txt.includes('[Chorus') || txt.includes('[Intro')) && lines > maxNewlines && txt.length < 6000) {
-              if (!txt.includes('Show Summary') && !txt.includes('Add a Caption') && !txt.includes('{"')) {
-                maxNewlines = lines;
-                lyrics = txt;
-              }
+            if ((txt.includes('[Verse') || txt.includes('[Chorus') || txt.includes('[Intro')) && lines > maxLines && txt.length < 6000) {
+              maxLines = lines;
+              lyrics = txt;
             }
           });
         }
       }
 
-      // E) Ses Dosyası
-      let audioUrl = cached.audio_url || scriptAudioUrl || '';
+      let audioUrl = cached.audio_url || '';
       if (!audioUrl) {
         const audioEl = document.querySelector('audio source, audio[src]');
         if (audioEl) audioUrl = audioEl.src || '';
       }
 
-      const finalPersona = (cached.persona || scriptPersona || '').replace(/^Yok$/i, '').trim();
-      const finalModel = cached.model || scriptModel || 'Suno AI';
-      const finalCreatedAt = (cached.created_at ? new Date(cached.created_at).toLocaleString('tr-TR') : '') || scriptCreatedAt || new Date().toLocaleString('tr-TR');
-
       return {
         id: songId,
         title: rawTitle || 'Suno Şarkısı',
-        style: finalStyle,
+        style: cached.style || domStyle || 'Özel Suno Stili',
         lyrics: lyrics || 'Enstrümantal veya söz belirtilmemiş',
-        model: finalModel,
-        persona: finalPersona,
-        created_at: finalCreatedAt,
+        model: cached.model || 'Suno AI',
+        persona: artistName || 'Bilinmeyen Sanatçı',
+        created_at: cached.created_at ? new Date(cached.created_at).toLocaleString('tr-TR') : new Date().toLocaleString('tr-TR'),
         audio_url: audioUrl
       };
     }
@@ -456,7 +522,6 @@
       try {
         const song = await getSongData(songId);
 
-        // Standart TXT formatı oluştur
         const headerLines = [
           `=========================================`,
           `ŞARKI ADI   : ${song.title}`,
@@ -479,10 +544,8 @@
           `=========================================`
         );
 
-        const content = headerLines.join('\n');
-
         sendToVault('music', {
-          metadata_txt: content,
+          metadata_txt: headerLines.join('\n'),
           title: song.title,
           style: song.style,
           lyrics: song.lyrics,
@@ -492,7 +555,7 @@
           suno_id: song.id,
           suno_url: `https://suno.com/song/${song.id}`,
           audio_url: song.audio_url || ''
-        }, (res) => {
+        }, () => {
           if (btnElement) btnElement.innerHTML = '✓ Aktarıldı!';
           showToast(`"${song.title}" başarıyla müzik kasasına aktarıldı! 🎵`);
           setTimeout(() => {
@@ -520,13 +583,12 @@
       }
     }
 
-    // Suno Sayfasındaki Butonları Ekle
+    // Butonları Yerleştir
     function attachSunoButtons() {
       // 1. Şarkı Detay Sayfasındaki Buton
       const match = window.location.pathname.match(/\/song\/([a-f0-9\-]+)/i);
       if (match && match[1]) {
         const songId = match[1];
-        // Üst panel veya aksiyon butonları
         const actionArea = document.querySelector('button[aria-label="More actions"], button[aria-label="Share"], div[class*="actions"]');
         if (actionArea && !document.getElementById('pv-suno-page-btn')) {
           const btn = createVaultButton('⚡ Vault\'a Aktar');
@@ -543,7 +605,7 @@
         }
       }
 
-      // 2. Şarkı Listesi Satırlarına Küçük "⚡ Vault" Butonu
+      // 2. Şarkı Listesi Satırlarına Buton
       const songLinks = document.querySelectorAll('a[href*="/song/"]:not([data-pv-row-injected])');
       songLinks.forEach(link => {
         link.dataset.pvRowInjected = 'true';
@@ -551,56 +613,53 @@
         if (!hrefMatch || !hrefMatch[1]) return;
         const rowSongId = hrefMatch[1];
 
-        // Sadece şarkı adı veya satır içindeyse buton ekle
         const row = link.closest('div[role="row"], div[data-testid="song-row"], div[class*="row"], tr');
         if (row && !row.querySelector('.pv-suno-row-btn')) {
           const rowBtn = createVaultButton('⚡ Vault', true);
           rowBtn.className += ' pv-suno-row-btn';
-          rowBtn.title = 'PromptVault Müzik Kasasına Aktar';
           rowBtn.onclick = (e) => {
             e.stopPropagation();
             e.preventDefault();
             exportSongToVault(rowSongId, rowBtn);
           };
-          // Satırın sonuna ekle
           row.appendChild(rowBtn);
         }
       });
 
-      // 3. Sağ Alttaki Sabit Kayan Buton (Suno'nun alt çalarını engellemeyecek şekilde bottom: 90px)
-      if (!document.getElementById('pv-suno-floating-btn')) {
-        const floatBtn = createVaultButton('⚡ Suno\'yu Vault\'a Aktar');
-        floatBtn.id = 'pv-suno-floating-btn';
-        floatBtn.style.position = 'fixed';
-        floatBtn.style.bottom = '90px';
-        floatBtn.style.right = '20px';
-        floatBtn.style.zIndex = '999999';
-        floatBtn.style.padding = '10px 16px';
-        floatBtn.style.fontSize = '13px';
-        floatBtn.style.fontWeight = 'bold';
-        floatBtn.style.boxShadow = '0 6px 20px rgba(0,0,0,0.6)';
-        floatBtn.onclick = () => {
-          // Önce mevcut URL'deki song ID'ye bak
-          const m = window.location.pathname.match(/\/song\/([a-f0-9\-]+)/i);
-          let targetSongId = m ? m[1] : '';
+      // 3. Sabit Kayan Buton (Suno alt çalarını engellemeyecek şekilde bottom: 90px)
+      whenBodyReady(() => {
+        if (!document.getElementById('pv-suno-floating-btn')) {
+          const floatBtn = createVaultButton('⚡ Suno\'yu Vault\'a Aktar');
+          floatBtn.id = 'pv-suno-floating-btn';
+          floatBtn.style.position = 'fixed';
+          floatBtn.style.bottom = '90px';
+          floatBtn.style.right = '20px';
+          floatBtn.style.zIndex = '999999';
+          floatBtn.style.padding = '10px 16px';
+          floatBtn.style.fontSize = '13px';
+          floatBtn.style.fontWeight = 'bold';
+          floatBtn.style.boxShadow = '0 6px 20px rgba(0,0,0,0.6)';
+          floatBtn.onclick = () => {
+            const m = window.location.pathname.match(/\/song\/([a-f0-9\-]+)/i);
+            let targetSongId = m ? m[1] : '';
 
-          // Değilse çalan şarkının linkine bak
-          if (!targetSongId) {
-            const playerLink = document.querySelector('footer a[href*="/song/"], [data-testid="player"] a[href*="/song/"], a[href*="/song/"]');
-            if (playerLink) {
-              const pm = playerLink.href.match(/\/song\/([a-f0-9\-]+)/i);
-              if (pm) targetSongId = pm[1];
+            if (!targetSongId) {
+              const playerLink = document.querySelector('footer a[href*="/song/"], [data-testid="player"] a[href*="/song/"], a[href*="/song/"]');
+              if (playerLink) {
+                const pm = playerLink.href.match(/\/song\/([a-f0-9\-]+)/i);
+                if (pm) targetSongId = pm[1];
+              }
             }
-          }
 
-          if (targetSongId) {
-            exportSongToVault(targetSongId, floatBtn);
-          } else {
-            showToast('Lütfen önce bir şarkı sayfasına girin veya bir şarkı çalın!', false);
-          }
-        };
-        document.body.appendChild(floatBtn);
-      }
+            if (targetSongId) {
+              exportSongToVault(targetSongId, floatBtn);
+            } else {
+              showToast('Lütfen önce bir şarkı sayfasına girin veya bir şarkı çalın!', false);
+            }
+          };
+          (document.body || document.documentElement).appendChild(floatBtn);
+        }
+      });
     }
 
     setInterval(attachSunoButtons, 2000);
@@ -612,21 +671,73 @@
   function initChatGPT() {
     if (!window.location.hostname.includes('chatgpt.com')) return;
 
+    // ChatGPT Kullanıcı Mesajını (TAM VE KESİNTİSİZ PROMPT) Çıkar
+    function extractChatGPTPrompt(img) {
+      let promptText = '';
+
+      function cleanPrompt(raw) {
+        if (!raw) return '';
+        return raw
+          .replace(/\s*(Daha fazla göster|Daha az göster|Show more|Show less)\s*\^?$/i, '')
+          .replace(/\s*\^$/, '')
+          .trim();
+      }
+
+      function extractFromUserEl(userEl) {
+        if (!userEl) return '';
+        const textEl = userEl.querySelector('.whitespace-pre-wrap') || userEl;
+        const clone = textEl.cloneNode(true);
+        // "Daha az göster ^", "Copy", kopyalama ve düzenleme butonlarını DOM klonundan temizle
+        clone.querySelectorAll('button, svg, [role="button"]').forEach(b => b.remove());
+        return cleanPrompt(clone.innerText || clone.textContent || '');
+      }
+
+      // 1. Görselin bulunduğu asistana ait turn'den önceki kullanıcı mesajını bul
+      if (img) {
+        const turn = img.closest('article, [data-message-author-role="assistant"], [data-message-id]');
+        if (turn) {
+          let prev = turn.previousElementSibling;
+          while (prev) {
+            const userEl = prev.matches?.('[data-message-author-role="user"]') 
+              ? prev 
+              : prev.querySelector?.('[data-message-author-role="user"]');
+            if (userEl) {
+              promptText = extractFromUserEl(userEl);
+              if (promptText) break;
+            }
+            prev = prev.previousElementSibling;
+          }
+        }
+      }
+
+      // 2. Bulunamazsa veya kayan buton tıklandıysa: Sohbetteki en son kullanıcı mesajını al
+      if (!promptText) {
+        const allUserEls = Array.from(document.querySelectorAll('[data-message-author-role="user"]'));
+        if (allUserEls.length > 0) {
+          const lastEl = allUserEls[allUserEls.length - 1];
+          promptText = extractFromUserEl(lastEl);
+        }
+      }
+
+      // 3. Sohbet balonu bulunamazsa görselin alt etiketine bak
+      if (!promptText && img && img.alt && !img.alt.toLowerCase().startsWith('generated image')) {
+        promptText = cleanPrompt(img.alt);
+      }
+
+      return promptText || 'ChatGPT Generated Image';
+    }
+
     function attachChatGPTButtons() {
-      // ChatGPT'de üretilen DALL-E görsellerini bul
       const images = Array.from(document.querySelectorAll('img:not([data-pv-injected])'));
       images.forEach(img => {
-        // İkon, logo ve kullanıcı avatarlarını atla
         const w = img.naturalWidth || img.width || 0;
         const h = img.naturalHeight || img.height || 0;
         if ((w > 0 && w < 140) || (h > 0 && h < 140)) return;
         if (!img.src || img.src.startsWith('data:image/svg')) return;
-        if (img.closest('.avatar, [alt*="Avatar" i], [alt*="Profile" i]')) return;
+        if (img.closest('.avatar, [alt*="Avatar" i], [alt*="Profile" i], [data-message-author-role="user"]')) return;
 
         img.dataset.pvInjected = 'true';
 
-        // ASLA img etiketini wrap.appendChild(img) ile taşımıyoruz!
-        // Doğrudan ebeveynine (img.parentElement) relative pozisyon verip butonu absolute ekliyoruz.
         const parent = img.parentElement;
         if (!parent) return;
         if (parent.querySelector('.pv-vault-btn')) return;
@@ -650,31 +761,17 @@
           btn.textContent = '⏳ Gönderiliyor...';
           btn.disabled = true;
 
-          // Promptu çıkar: ChatGPT promptu img.alt içine koyar
-          let promptText = img.alt || '';
-          if (!promptText || promptText.toLowerCase() === 'generated image') {
-            const turn = img.closest('[data-message-author-role="assistant"], [data-message-id], article');
-            if (turn) {
-              let prev = turn.previousElementSibling;
-              while (prev) {
-                if (prev.getAttribute('data-message-author-role') === 'user' || prev.querySelector('[data-message-author-role="user"]')) {
-                  promptText = prev.textContent.trim();
-                  break;
-                }
-                prev = prev.previousElementSibling;
-              }
-            }
-          }
-
+          const promptText = extractChatGPTPrompt(img);
           const b64 = await imageToDataUrl(img);
+
           sendToVault('image', {
-            prompt: promptText || 'ChatGPT Generated Image',
+            prompt: promptText,
             generator: 'chatgpt',
             image_b64: b64,
             source_url: window.location.href,
           }, () => {
             btn.innerHTML = '✓ Eklendi!';
-            showToast('ChatGPT görseli ve promptu kasaya kaydedildi! 🎨');
+            showToast('ChatGPT görseli ve tam promptu kasaya kaydedildi! 🎨');
             setTimeout(() => {
               btn.innerHTML = '⚡ Vault\'a Gönder';
               btn.disabled = false;
@@ -693,114 +790,153 @@
       });
 
       // Sabit Sol Alt Kayan Buton
-      if (!document.getElementById('pv-chatgpt-floating-btn')) {
-        const floatBtn = createVaultButton('⚡ ChatGPT\'yi Vault\'a Gönder');
-        floatBtn.id = 'pv-chatgpt-floating-btn';
-        floatBtn.style.position = 'fixed';
-        floatBtn.style.bottom = '24px';
-        floatBtn.style.left = '24px';
-        floatBtn.style.zIndex = '99999';
-        floatBtn.style.padding = '10px 18px';
-        floatBtn.style.fontSize = '13.5px';
-        floatBtn.style.fontWeight = 'bold';
-        floatBtn.style.boxShadow = '0 6px 25px rgba(0,0,0,0.7)';
-        floatBtn.onclick = async () => {
-          const allImgs = [...document.querySelectorAll('img')].filter(i => {
-            const w = i.naturalWidth || i.width || 0;
-            return (w > 150) && !i.src.startsWith('data:image/svg') && !i.closest('.avatar');
-          });
-          const lastImg = allImgs[allImgs.length - 1];
-          if (!lastImg) {
-            showToast('Sayfada aktarılacak ChatGPT görseli bulunamadı!', false);
-            return;
-          }
-          floatBtn.textContent = '⏳ Gönderiliyor...';
-          floatBtn.disabled = true;
-          const b64 = await imageToDataUrl(lastImg);
-          const promptText = lastImg.alt || 'ChatGPT Generated Image';
-          sendToVault('image', {
-            prompt: promptText,
-            generator: 'chatgpt',
-            image_b64: b64,
-            source_url: window.location.href,
-          }, () => {
-            floatBtn.innerHTML = '✓ Aktarıldı!';
-            showToast('ChatGPT görseli ve promptu kasaya kaydedildi! 🎨');
-            setTimeout(() => { floatBtn.innerHTML = '⚡ ChatGPT\'yi Vault\'a Gönder'; floatBtn.disabled = false; }, 3000);
-          }, (err) => {
-            floatBtn.innerHTML = '❌ Hata';
-            showToast(err, false);
-            setTimeout(() => { floatBtn.innerHTML = '⚡ ChatGPT\'yi Vault\'a Gönder'; floatBtn.disabled = false; }, 3000);
-          });
-        };
-        document.body.appendChild(floatBtn);
-      }
+      whenBodyReady(() => {
+        if (!document.getElementById('pv-chatgpt-floating-btn')) {
+          const floatBtn = createVaultButton('⚡ ChatGPT\'yi Vault\'a Gönder');
+          floatBtn.id = 'pv-chatgpt-floating-btn';
+          floatBtn.style.position = 'fixed';
+          floatBtn.style.bottom = '24px';
+          floatBtn.style.left = '24px';
+          floatBtn.style.zIndex = '99999';
+          floatBtn.style.padding = '10px 18px';
+          floatBtn.style.fontSize = '13.5px';
+          floatBtn.style.fontWeight = 'bold';
+          floatBtn.style.boxShadow = '0 6px 25px rgba(0,0,0,0.7)';
+          floatBtn.onclick = async () => {
+            // Kullanıcının yüklediği referans görseli değil, üretilen çıktıyı seç
+            const allImgs = [...document.querySelectorAll('article img, [data-message-author-role="assistant"] img, main img, img')].filter(i => {
+              const w = i.naturalWidth || i.width || 0;
+              const h = i.naturalHeight || i.height || 0;
+              const isUserUploaded = i.closest('[data-message-author-role="user"]');
+              const isAvatar = i.closest('.avatar, [alt*="Avatar" i], [alt*="Profile" i]');
+              return (w > 150 || h > 150) && !i.src.startsWith('data:image/svg') && !isUserUploaded && !isAvatar;
+            });
+            const lastImg = allImgs[allImgs.length - 1];
+            if (!lastImg) {
+              showToast('Sayfada aktarılacak ChatGPT görseli bulunamadı!', false);
+              return;
+            }
+            floatBtn.textContent = '⏳ Gönderiliyor...';
+            floatBtn.disabled = true;
+
+            const promptText = extractChatGPTPrompt(lastImg);
+            const b64 = await imageToDataUrl(lastImg);
+
+            sendToVault('image', {
+              prompt: promptText,
+              generator: 'chatgpt',
+              image_b64: b64,
+              source_url: window.location.href,
+            }, () => {
+              floatBtn.innerHTML = '✓ Aktarıldı!';
+              showToast('ChatGPT görseli ve tam promptu kasaya kaydedildi! 🎨');
+              setTimeout(() => { floatBtn.innerHTML = '⚡ ChatGPT\'yi Vault\'a Gönder'; floatBtn.disabled = false; }, 3000);
+            }, (err) => {
+              floatBtn.innerHTML = '❌ Hata';
+              showToast(err, false);
+              setTimeout(() => { floatBtn.innerHTML = '⚡ ChatGPT\'yi Vault\'a Gönder'; floatBtn.disabled = false; }, 3000);
+            });
+          };
+          (document.body || document.documentElement).appendChild(floatBtn);
+        }
+      });
     }
 
     setInterval(attachChatGPTButtons, 2000);
   }
 
   // ===================================================================
-  // 5. GOOGLE GEMINI ENTEGRASYONU (gemini.google.com)
+  // 5. GOOGLE GEMINI ENTEGRASYONU (gemini.google.com & aistudio)
   // ===================================================================
   function initGemini() {
-    if (!window.location.hostname.includes('gemini.google.com')) return;
+    if (!window.location.hostname.includes('gemini.google.com') && !window.location.hostname.includes('aistudio.google.com')) return;
 
-    // Gemini promptunu akıllıca tespit et
+    // Gemini Kullanıcı Sorusunu (TAM VE KESİNTİSİZ PROMPT) Çıkar
     function extractGeminiPrompt(img) {
-      // 1. Görselin alt veya aria-label bilgisi
-      if (img.alt && img.alt.length > 5 && !img.alt.toLowerCase().startsWith('generated image') && !img.alt.toLowerCase().includes('avatar')) {
-        return img.alt.trim();
+      let promptText = '';
+
+      function cleanPrompt(raw) {
+        if (!raw) return '';
+        return raw
+          .replace(/\s*(Daha fazla göster|Daha az göster|Show more|Show less)\s*\^?$/i, '')
+          .replace(/\s*\^$/, '')
+          .trim();
       }
 
-      // 2. Görselin ait olduğu mesaj turunu bul ve bir önceki kullanıcı sorusunu al
-      const turn = img.closest('conversation-turn, model-response, .model-response, [data-message-author-role="model"], .turn-container');
-      if (turn) {
-        let el = turn.previousElementSibling;
-        while (el) {
-          const q = el.querySelector('.user-query-container, .user-query, .query-text, [data-message-author-role="user"], user-query');
-          if (q && q.textContent.trim()) {
-            return q.textContent.trim();
+      function extractFromQueryEl(q) {
+        if (!q) return '';
+        const clone = q.cloneNode(true);
+        // Düzenle, kopyala, daha az göster butonlarını temizle
+        clone.querySelectorAll('button, mat-icon, svg, [role="button"], read-more-wrapper button').forEach(b => b.remove());
+        return cleanPrompt(clone.innerText || clone.textContent || '');
+      }
+
+      if (img) {
+        const turn = img.closest('conversation-turn, model-response, .model-response, [data-message-author-role="model"], .turn-container');
+        if (turn) {
+          let prev = turn.previousElementSibling;
+          while (prev) {
+            const q = prev.querySelector?.('.user-query-container, .user-query, .query-text, [data-message-author-role="user"], user-query');
+            if (q) {
+              promptText = extractFromQueryEl(q);
+              if (promptText) break;
+            }
+            if (prev.matches?.('.user-query-container, .user-query, .query-text, [data-message-author-role="user"], user-query')) {
+              promptText = extractFromQueryEl(prev);
+              if (promptText) break;
+            }
+            prev = prev.previousElementSibling;
           }
-          if (el.matches && el.matches('.user-query-container, .user-query, .query-text, [data-message-author-role="user"], user-query')) {
-            return el.textContent.trim();
-          }
-          el = el.previousElementSibling;
         }
       }
 
-      // 3. Genel en son kullanıcı sorusu
-      const allQueries = document.querySelectorAll('.user-query-container, .user-query, .query-text, [data-message-author-role="user"], user-query');
-      if (allQueries.length > 0) {
-        return allQueries[allQueries.length - 1].textContent.trim();
+      if (!promptText) {
+        const allQueries = Array.from(document.querySelectorAll('.user-query-container, .user-query, .query-text, [data-message-author-role="user"], user-query'));
+        if (allQueries.length > 0) {
+          const lastQ = allQueries[allQueries.length - 1];
+          promptText = extractFromQueryEl(lastQ);
+        }
       }
 
-      return 'Gemini Generated Image';
+      if (!promptText && img && img.alt && !img.alt.toLowerCase().startsWith('generated image') && !img.alt.toLowerCase().includes('avatar')) {
+        promptText = cleanPrompt(img.alt);
+      }
+
+      return promptText || 'Gemini Generated Image';
+    }
+
+    // Shadow DOM da dahil Gemini görsellerini bul
+    function findGeminiImages() {
+      const results = [];
+      function scan(root) {
+        if (!root) return;
+        const imgs = root.querySelectorAll('img');
+        for (const img of imgs) {
+          const w = img.naturalWidth || img.width || 0;
+          const h = img.naturalHeight || img.height || 0;
+          if ((w > 0 && w < 120) || (h > 0 && h < 120)) continue;
+          const src = img.src || '';
+          if (!src || src.startsWith('data:image/svg')) continue;
+          const alt = (img.alt || '').toLowerCase();
+          if (alt.includes('avatar') || alt.includes('logo') || alt.includes('icon')) continue;
+          if (img.closest?.('.avatar, [aria-label*="avatar" i], [class*="avatar" i], .user-icon')) continue;
+          results.push(img);
+        }
+        const all = root.querySelectorAll('*');
+        for (const el of all) {
+          if (el.shadowRoot) scan(el.shadowRoot);
+        }
+      }
+      scan(document);
+      return results;
     }
 
     function attachGeminiButtons() {
-      // Gemini'de üretilen görselleri yakala (googleusercontent, blob, generativeai)
-      const images = Array.from(document.querySelectorAll('img:not([data-pv-injected])'));
+      const images = findGeminiImages();
       images.forEach(img => {
-        const w = img.naturalWidth || img.width || 0;
-        const h = img.naturalHeight || img.height || 0;
-        if ((w > 0 && w < 120) || (h > 0 && h < 120)) return;
-        if (!img.src || img.src.startsWith('data:image/svg')) return;
-
-        // Avatar ve UI logolarını atla
-        const alt = (img.alt || '').toLowerCase();
-        if (alt.includes('avatar') || alt.includes('logo') || alt.includes('icon')) return;
-        if (img.closest('.avatar, [aria-label*="avatar" i], [class*="avatar" i], .user-icon')) return;
-
-        // Model cevabı veya Google CDN/Blob görseli mi?
-        const isModel = img.closest('model-response, conversation-turn, .model-response, [data-message-author-role="model"], .turn-container, main');
-        const isCdn = img.src.includes('googleusercontent.com') || img.src.includes('usercontent.goog') || img.src.startsWith('blob:') || img.src.includes('generativeai');
-
-        if (!isModel && !isCdn && w < 180) return;
-
+        if (img.dataset.pvInjected) return;
         img.dataset.pvInjected = 'true';
 
-        // ASLA img etiketini wrap.appendChild(img) ile taşımıyoruz!
         const parent = img.parentElement;
         if (!parent) return;
         if (parent.querySelector('.pv-vault-btn')) return;
@@ -834,7 +970,7 @@
             source_url: window.location.href,
           }, () => {
             btn.innerHTML = '✓ Eklendi!';
-            showToast('Gemini görseli ve promptu kasaya kaydedildi! 🎨');
+            showToast('Gemini görseli ve tam promptu kasaya kaydedildi! 🎨');
             setTimeout(() => {
               btn.innerHTML = '⚡ Vault\'a Gönder';
               btn.disabled = false;
@@ -853,48 +989,47 @@
       });
 
       // Sabit Sol Alt Kayan Buton
-      if (!document.getElementById('pv-gemini-floating-btn')) {
-        const floatBtn = createVaultButton('⚡ Gemini\'yi Vault\'a Gönder');
-        floatBtn.id = 'pv-gemini-floating-btn';
-        floatBtn.style.position = 'fixed';
-        floatBtn.style.bottom = '24px';
-        floatBtn.style.left = '24px';
-        floatBtn.style.zIndex = '99999';
-        floatBtn.style.padding = '10px 18px';
-        floatBtn.style.fontSize = '13.5px';
-        floatBtn.style.fontWeight = 'bold';
-        floatBtn.style.boxShadow = '0 6px 25px rgba(0,0,0,0.7)';
-        floatBtn.onclick = async () => {
-          const allImgs = [...document.querySelectorAll('img')].filter(i => {
-            const w = i.naturalWidth || i.width || 0;
-            return (w > 140) && !i.src.startsWith('data:image/svg') && !i.closest('.avatar');
-          });
-          const lastImg = allImgs[allImgs.length - 1];
-          if (!lastImg) {
-            showToast('Sayfada aktarılacak Gemini görseli bulunamadı!', false);
-            return;
-          }
-          floatBtn.textContent = '⏳ Gönderiliyor...';
-          floatBtn.disabled = true;
-          const promptText = extractGeminiPrompt(lastImg);
-          const b64 = await imageToDataUrl(lastImg);
-          sendToVault('image', {
-            prompt: promptText,
-            generator: 'gemini',
-            image_b64: b64,
-            source_url: window.location.href,
-          }, () => {
-            floatBtn.innerHTML = '✓ Aktarıldı!';
-            showToast('Gemini görseli ve promptu kasaya kaydedildi! 🎨');
-            setTimeout(() => { floatBtn.innerHTML = '⚡ Gemini\'yi Vault\'a Gönder'; floatBtn.disabled = false; }, 3000);
-          }, (err) => {
-            floatBtn.innerHTML = '❌ Hata';
-            showToast(err, false);
-            setTimeout(() => { floatBtn.innerHTML = '⚡ Gemini\'yi Vault\'a Gönder'; floatBtn.disabled = false; }, 3000);
-          });
-        };
-        document.body.appendChild(floatBtn);
-      }
+      whenBodyReady(() => {
+        if (!document.getElementById('pv-gemini-floating-btn')) {
+          const floatBtn = createVaultButton('⚡ Gemini\'yi Vault\'a Gönder');
+          floatBtn.id = 'pv-gemini-floating-btn';
+          floatBtn.style.position = 'fixed';
+          floatBtn.style.bottom = '24px';
+          floatBtn.style.left = '24px';
+          floatBtn.style.zIndex = '99999';
+          floatBtn.style.padding = '10px 18px';
+          floatBtn.style.fontSize = '13.5px';
+          floatBtn.style.fontWeight = 'bold';
+          floatBtn.style.boxShadow = '0 6px 25px rgba(0,0,0,0.7)';
+          floatBtn.onclick = async () => {
+            const allImgs = findGeminiImages();
+            const lastImg = allImgs[allImgs.length - 1];
+            if (!lastImg) {
+              showToast('Sayfada aktarılacak Gemini görseli bulunamadı!', false);
+              return;
+            }
+            floatBtn.textContent = '⏳ Gönderiliyor...';
+            floatBtn.disabled = true;
+            const promptText = extractGeminiPrompt(lastImg);
+            const b64 = await imageToDataUrl(lastImg);
+            sendToVault('image', {
+              prompt: promptText,
+              generator: 'gemini',
+              image_b64: b64,
+              source_url: window.location.href,
+            }, () => {
+              floatBtn.innerHTML = '✓ Aktarıldı!';
+              showToast('Gemini görseli ve tam promptu kasaya kaydedildi! 🎨');
+              setTimeout(() => { floatBtn.innerHTML = '⚡ Gemini\'yi Vault\'a Gönder'; floatBtn.disabled = false; }, 3000);
+            }, (err) => {
+              floatBtn.innerHTML = '❌ Hata';
+              showToast(err, false);
+              setTimeout(() => { floatBtn.innerHTML = '⚡ Gemini\'yi Vault\'a Gönder'; floatBtn.disabled = false; }, 3000);
+            });
+          };
+          (document.body || document.documentElement).appendChild(floatBtn);
+        }
+      });
     }
 
     setInterval(attachGeminiButtons, 2000);
@@ -973,11 +1108,9 @@
   // ===================================================================
   // 7. SİTEYE ÖZEL BAŞLATMA
   // ===================================================================
-  onReady(() => {
-    initSuno();
-    initChatGPT();
-    initGemini();
-    initFlow();
-  });
+  initSuno();
+  initChatGPT();
+  initGemini();
+  initFlow();
 
 })();

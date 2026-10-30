@@ -256,35 +256,108 @@
         URL.revokeObjectURL(url);
     }
 
-    // 4. AŞAMA: Arayüz Butonu
+    // 4. AŞAMA: Arayüz Butonları (İndirici + PromptVault'a Aktarıcı)
     function createUI() {
         if (document.getElementById('suno-meta-dl-btn')) return;
 
-        const btn = document.createElement('button');
-        btn.id = 'suno-meta-dl-btn';
-        btn.innerText = '📥 Tam Metadata İndir (.txt)';
-        btn.style.cssText = `
+        // Container
+        const container = document.createElement('div');
+        container.id = 'pv-suno-buttons-bar';
+        container.style.cssText = `
             position: fixed;
             bottom: 90px;
             right: 20px;
             z-index: 999999;
+            display: flex;
+            gap: 10px;
+            font-family: sans-serif;
+        `;
+
+        // 1. Vault'a Aktar Butonu
+        const vaultBtn = document.createElement('button');
+        vaultBtn.id = 'suno-vault-quick-btn';
+        vaultBtn.innerText = '⚡ Vault\'a Aktar';
+        vaultBtn.style.cssText = `
+            background: linear-gradient(135deg, #7c3aed, #4f46e5);
+            color: white;
+            border: none;
+            padding: 12px 18px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(124,58,237,0.4);
+            transition: transform 0.15s;
+        `;
+        vaultBtn.onmouseover = () => vaultBtn.style.transform = 'scale(1.05)';
+        vaultBtn.onmouseout = () => vaultBtn.style.transform = 'scale(1)';
+
+        vaultBtn.onclick = async () => {
+            const match = window.location.pathname.match(/\/song\/([a-f0-9-]+)/i);
+            let songId = match ? match[1] : '';
+            if (!songId) {
+                const playerLink = document.querySelector('footer a[href*="/song/"], [data-testid="player"] a[href*="/song/"]');
+                if (playerLink) {
+                    const pm = playerLink.href.match(/\/song\/([a-f0-9-]+)/i);
+                    if (pm) songId = pm[1];
+                }
+            }
+            if (!songId) {
+                alert('Lütfen bir şarkı sayfasına girin veya bir şarkı çalın!');
+                return;
+            }
+            vaultBtn.innerText = '⏳ Aktarılıyor...';
+            vaultBtn.disabled = true;
+            try {
+                const song = await getSongData(songId);
+                const res = await fetch('http://127.0.0.1:7860/api/quick-import/music', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title: song.title,
+                        artist: (song.persona && song.persona !== 'Yok') ? song.persona : 'Suno AI',
+                        style: song.style,
+                        lyrics: song.lyrics,
+                        model: song.model,
+                        source_url: `https://suno.com/song/${songId}`
+                    })
+                });
+                if (res.ok) {
+                    vaultBtn.innerText = '✓ Kasaya Aktarıldı!';
+                    setTimeout(() => { vaultBtn.innerText = '⚡ Vault\'a Aktar'; vaultBtn.disabled = false; }, 3000);
+                } else {
+                    const err = await res.json().catch(() => ({ detail: 'Sunucu hatası' }));
+                    alert('Hata: ' + (err.detail || res.statusText));
+                    vaultBtn.innerText = '❌ Hata';
+                    setTimeout(() => { vaultBtn.innerText = '⚡ Vault\'a Aktar'; vaultBtn.disabled = false; }, 3000);
+                }
+            } catch (e) {
+                alert('PromptVault sunucusuna bağlanılamadı. PromptVault çalışıyor mu? (http://127.0.0.1:7860)');
+                vaultBtn.innerText = '⚡ Vault\'a Aktar';
+                vaultBtn.disabled = false;
+            }
+        };
+
+        // 2. TXT İndir Butonu
+        const dlBtn = document.createElement('button');
+        dlBtn.id = 'suno-meta-dl-btn';
+        dlBtn.innerText = '📥 Metadata (.txt)';
+        dlBtn.style.cssText = `
             background: linear-gradient(135deg, #ff512f, #dd2476);
             color: white;
             border: none;
             padding: 12px 18px;
             border-radius: 8px;
-            font-family: sans-serif;
             font-size: 14px;
             font-weight: bold;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-            transition: transform 0.2s;
+            box-shadow: 0 4px 14px rgba(221,36,118,0.4);
+            transition: transform 0.15s;
         `;
+        dlBtn.onmouseover = () => dlBtn.style.transform = 'scale(1.05)';
+        dlBtn.onmouseout = () => dlBtn.style.transform = 'scale(1)';
 
-        btn.onmouseover = () => btn.style.transform = 'scale(1.05)';
-        btn.onmouseout = () => btn.style.transform = 'scale(1)';
-
-        btn.onclick = async () => {
+        dlBtn.onclick = async () => {
             const match = window.location.pathname.match(/\/song\/([a-f0-9-]+)/i);
             if (match && match[1]) {
                 const songId = match[1];
@@ -295,7 +368,9 @@
             }
         };
 
-        document.body.appendChild(btn);
+        container.appendChild(vaultBtn);
+        container.appendChild(dlBtn);
+        (document.body || document.documentElement).appendChild(container);
     }
 
     if (document.readyState === 'loading') {
