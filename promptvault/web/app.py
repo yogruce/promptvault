@@ -260,7 +260,9 @@ def create_app(
             if thumb.exists():
                 return FileResponse(thumb, media_type="image/webp")
             raise HTTPException(404, "Dosya kasada veya diskte bulunamadı")
-        return FileResponse(p, media_type="image/png")
+        ext = p.suffix.lower()
+        media_type = "image/jpeg" if ext in (".jpg", ".jpeg", ".jfif") else ("image/webp" if ext == ".webp" else "image/png")
+        return FileResponse(p, media_type=media_type)
 
     @app.get("/api/images/{image_id}/thumb")
     def image_thumb(image_id: int):

@@ -17,6 +17,8 @@ from .parsers import ParsedMeta, parse_metadata
 from .pngmeta import PNGError, make_blank_png, read_png_info
 from .tokens import extract_tags, normalize_tag
 
+IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".jfif"}
+
 SCHEMA = """
 PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS workspaces (
@@ -285,7 +287,8 @@ class Library:
         """Store image bytes or file in the vault storage directory."""
         dest_dir = self.vault_dir / sha1[:2]
         dest_dir.mkdir(parents=True, exist_ok=True)
-        dest_file = dest_dir / f"{sha1}.png"
+        ext = src_path.suffix.lower() if (src_path and src_path.suffix) else ".png"
+        dest_file = dest_dir / f"{sha1}{ext}"
         if not dest_file.exists():
             if data is not None:
                 dest_file.write_bytes(data)
@@ -365,37 +368,79 @@ class Library:
     # -------------------------------------------------------------- import
     def add_file(self, path: str | Path, force: bool = False, copy_to_vault: bool | None = None,
                  workspace_id: int | None = None) -> str:
-        """Index one PNG. Returns 'added' | 'updated' | 'moved' | 'skipped' | 'error'."""
+        """Index one image (PNG, JPEG, WebP, etc.). Returns 'added' | 'updated' | 'moved' | 'skipped' | 'error'."""
         p = Path(path).resolve()
         try:
             st = p.stat()
         except OSError:
             return "error"
         c = self.conn
-        row = c.execute("SELECT id, size, mtime, vault_path FROM images WHERE path=?", (str(p),)).fetchone()
+        row = c.execute("SELECT id, size, mtime, vault_path, workspace_id FROM images WHERE path=?", (str(p),)).fetchone()
         if row and not force and row["size"] == st.st_size and abs((row["mtime"] or 0) - st.st_mtime) < 1e-3:
-            if workspace_id is not None and row.get("workspace_id") != workspace_id:
+            if workspace_id is not None and row["workspace_id"] != workspace_id:
                 with self._write_lock:
                     c.execute("UPDATE images SET workspace_id=? WHERE id=?", (workspace_id, row["id"]))
                     c.commit()
             return "skipped"
+
         try:
-            info = read_png_info(p)
             sha1 = file_sha1(p)
-        except (PNGError, OSError, ValueError):
+        except (OSError, ValueError):
             return "error"
+
+        width, height = 0, 0
+        raw_text: dict[str, Any] = {}
+        meta: ParsedMeta | None = None
+
+        if p.suffix.lower() == ".png":
+            try:
+                info = read_png_info(p)
+                width, height = info.width, info.height
+                raw_text = info.text
+                meta = parse_metadata(raw_text)
+            except Exception:
+                pass
+
+        if meta is None:
+            try:
+                from PIL import Image
+                with Image.open(p) as im:
+                    width, height = im.size
+                    for k in ("parameters", "prompt", "Comment", "Description", "UserComment"):
+                        if k in im.info and isinstance(im.info[k], str):
+                            raw_text[k] = im.info[k]
+                    try:
+                        exif = im.getexif()
+                        desc = exif.get(0x010e) or exif.get(0x9286)
+                        if isinstance(desc, bytes):
+                            desc = desc.decode("utf-8", errors="ignore")
+                        if desc and isinstance(desc, str):
+                            raw_text["Description"] = desc.strip()
+                    except Exception:
+                        pass
+                    meta = parse_metadata(raw_text) if raw_text else ParsedMeta()
+            except Exception:
+                return "error"
+
+        final_prompt = meta.prompt
+        final_generator = meta.generator
+        if not final_prompt and p.stem:
+            cleaned = re.sub(r'_[a-f0-9]{8}$', '', p.stem, flags=re.IGNORECASE).replace('_', ' ').strip()
+            if len(cleaned) > 2:
+                final_prompt = cleaned
+                if final_generator == "none":
+                    final_generator = "auto"
 
         do_vault = self.auto_vault if copy_to_vault is None else copy_to_vault
         vault_path = str(self._store_in_vault(sha1, src_path=p)) if do_vault else (row["vault_path"] if row else None)
 
-        meta = parse_metadata(info.text)
         seed = meta.params.get("seed")
         values = dict(vault_path=vault_path, sha1=sha1, size=st.st_size, mtime=st.st_mtime,
-                      width=info.width, height=info.height,
-                      generator=meta.generator, prompt=meta.prompt, negative=meta.negative, model=meta.model,
+                      width=width, height=height,
+                      generator=final_generator, prompt=final_prompt, negative=meta.negative, model=meta.model,
                       seed=seed if isinstance(seed, int) and abs(seed) < 2 ** 63 else None,
                       params=json.dumps(meta.params, ensure_ascii=False, default=str),
-                      raw=json.dumps(meta.raw, ensure_ascii=False), updated_at=_now())
+                      raw=json.dumps(meta.raw or raw_text, ensure_ascii=False), updated_at=_now())
         status = "updated"
         with self._write_lock:
             if row is None:
@@ -421,7 +466,15 @@ class Library:
                     c.execute("UPDATE images SET workspace_id=? WHERE id=?", (workspace_id, image_id))
             c.execute(f"UPDATE images SET {', '.join(f'{k}=?' for k in values)} WHERE id=?",
                       (*values.values(), image_id))
-            self._set_auto_tags(image_id, meta)
+            meta_for_tags = ParsedMeta(
+                generator=final_generator,
+                prompt=final_prompt,
+                negative=meta.negative,
+                params=meta.params,
+                loras=meta.loras,
+                raw=meta.raw or raw_text
+            )
+            self._set_auto_tags(image_id, meta_for_tags)
             c.commit()
         return status
 
@@ -523,7 +576,7 @@ class Library:
             raise FileNotFoundError(f"Klasör bulunamadı: {folder}")
         files = [folder] if folder.is_file() else \
             sorted(p for p in (folder.rglob("*") if recursive else folder.glob("*"))
-                   if p.is_file() and p.suffix.lower() == ".png")
+                   if p.is_file() and p.suffix.lower() in IMAGE_EXTENSIONS)
         stats: dict[str, Any] = {"total": len(files), "done": 0, "added": 0, "updated": 0,
                                  "moved": 0, "skipped": 0, "error": 0}
         for f in files:

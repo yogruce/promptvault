@@ -240,6 +240,26 @@ def test_moved_file_keeps_user_data(lib_with_files):
     assert img["path"].endswith("renamed.png") and any(t["name"] == "keeper" for t in img["tags"])
 
 
+def test_scan_jpeg_and_metadata_derivation(tmp_path):
+    from PIL import Image
+    lib = Library(tmp_path / "lib.db")
+    img_dir = tmp_path / "jpegs"
+    img_dir.mkdir()
+    im = Image.new("RGB", (64, 64), color="blue")
+    jpg_path = img_dir / "neon_cyber_city_a1b2c3d4.jpg"
+    im.save(jpg_path, "JPEG")
+
+    res = lib.scan(img_dir)
+    assert res["total"] == 1
+    assert res["added"] == 1
+
+    item = lib.get(1)
+    assert item["width"] == 64
+    assert item["height"] == 64
+    assert item["prompt"] == "neon cyber city"
+    lib.close()
+
+
 def test_wildcards_and_matrices(lib_with_files, tmp_path):
     lib, folder = lib_with_files
     wdir = tmp_path / "wc"
