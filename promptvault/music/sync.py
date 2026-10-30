@@ -92,3 +92,45 @@ def parse_lrc(lrc_content: str) -> list[dict[str, Any]]:
             items[i]["end"] = items[i]["start"] + 3.5
 
     return items
+
+
+INSTRUMENTAL_CUE_RE = re.compile(
+    r"^\s*\((?:instrumental|guitar\s+solo|solo|intro|outro|bridge|verse\s*\d*|chorus|drop|beat\s+drop|instrumental\s+break|fade\s+out|applause)[^)]*\)\s*$",
+    re.IGNORECASE,
+)
+METADATA_HEADER_RE = re.compile(
+    r"^(?:şarkı\s+adı|şarkı\s+ıd|şarkı\s+id|model|persona|tarih|link|title|song\s+id|date|url)\s*:",
+    re.IGNORECASE,
+)
+BRACKET_TAG_RE = re.compile(r"\[[^\]]*\]")
+
+
+def clean_lyrics_for_sync(text: str) -> list[str]:
+    """Cleans lyrics by stripping Suno AI structure/prompt tags (e.g. [Verse 1 | Cues], [Chorus], [Intro]).
+    
+    Returns only actual singable lyric lines.
+    """
+    if not text:
+        return []
+
+    lines: list[str] = []
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        if line.startswith(("===", "---", "___")):
+            continue
+        if METADATA_HEADER_RE.match(line):
+            continue
+        if INSTRUMENTAL_CUE_RE.match(line):
+            continue
+
+        # Strip all [Tag] or [Section | Cue] bracketed elements from line
+        stripped = BRACKET_TAG_RE.sub("", line).strip()
+        stripped = re.sub(r"\s+", " ", stripped)
+
+        if stripped:
+            lines.append(stripped)
+
+    return lines
+

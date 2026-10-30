@@ -4,6 +4,7 @@ from .parser import extract_lyric_sections, extract_style_tags, parse_suno_txt
 from .db import MusicLibrary
 from .router import create_music_router
 from .sync import (
+    clean_lyrics_for_sync,
     fmt_lrc,
     fmt_srt,
     generate_lrc,
@@ -21,6 +22,7 @@ __all__ = [
     "extract_lyric_sections",
     "MusicLibrary",
     "create_music_router",
+    "clean_lyrics_for_sync",
     "fmt_lrc",
     "fmt_srt",
     "generate_lrc",

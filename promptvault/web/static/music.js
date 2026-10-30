@@ -642,6 +642,32 @@
     timer: null,
   };
 
+  function cleanLyricsForSync(text) {
+    if (!text) return [];
+    const rawLines = text.split(/\r?\n/);
+    const cleaned = [];
+
+    const instrumentalCueRegex = /^\s*\((?:instrumental|guitar\s+solo|solo|intro|outro|bridge|verse\s*\d*|chorus|drop|beat\s+drop|instrumental\s+break|fade\s+out|applause)[^)]*\)\s*$/i;
+    const metaHeaderRegex = /^(?:şarkı\s+adı|şarkı\s+ıd|şarkı\s+id|model|persona|tarih|link|title|song\s+id|date|url)\s*:/i;
+
+    for (let raw of rawLines) {
+      let line = raw.trim();
+      if (!line) continue;
+      if (line.startsWith('===') || line.startsWith('---') || line.startsWith('___')) continue;
+      if (metaHeaderRegex.test(line)) continue;
+      if (instrumentalCueRegex.test(line)) continue;
+
+      // Remove bracketed Suno AI tags like [Verse 1], [Chorus | ...], [Intro], etc.
+      let stripped = line.replace(/\[[^\]]*\]/g, '').trim();
+      stripped = stripped.replace(/\s+/g, ' ');
+
+      if (stripped.length > 0) {
+        cleaned.push(stripped);
+      }
+    }
+    return cleaned;
+  }
+
   function openSyncModal(song) {
     if (!song.has_audio) {
       toast('Bu şarkının henüz ses dosyası (.mp3 / .wav) yok! Önce ses dosyası yükleyin.', true);
@@ -655,16 +681,32 @@
     $('#msTitle').textContent = `🎙️ Senkronlayıcı: ${song.title}`;
     $('#msSubtitle').textContent = (song.persona ? `🎭 ${song.persona}` : (song.artist ? `👤 ${song.artist}` : '')) + ` · ${song.model || 'Suno AI'}`;
 
-    // Clean lyrics into individual lines (filter empty lines)
-    const rawLines = (song.lyrics || '')
-      .split(/\r?\n/)
-      .map(l => l.trim())
-      .filter(l => l.length > 0 && !l.startsWith('==='));
+    // Clean lyrics by stripping Suno AI structure & prompt tags ([Verse 1 | ...], [Chorus], etc.)
+    const cleanLines = cleanLyricsForSync(song.lyrics || '');
 
-    sync.lines = rawLines;
-    sync.starts = new Array(rawLines.length).fill(null);
-    sync.ends = new Array(rawLines.length).fill(null);
-    sync.idx = 0;
+    // Check if song already has saved sync items
+    let savedSync = null;
+    if (song.synced_lyrics) {
+      try {
+        const parsed = JSON.parse(song.synced_lyrics);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          savedSync = parsed;
+        }
+      } catch {}
+    }
+
+    if (savedSync) {
+      sync.lines = savedSync.map(it => it.text);
+      sync.starts = savedSync.map(it => it.start);
+      sync.ends = savedSync.map(it => it.end);
+      sync.idx = sync.lines.length;
+    } else {
+      sync.lines = cleanLines;
+      sync.starts = new Array(cleanLines.length).fill(null);
+      sync.ends = new Array(cleanLines.length).fill(null);
+      sync.idx = 0;
+    }
+
     sync.held = false;
     sync.active = false;
     sync.paused = false;
@@ -673,7 +715,20 @@
     $('#msLatencyVal').textContent = sync.latency;
 
     renderSyncStream();
-    resetSyncUI();
+    if (savedSync) {
+      $('#msBtnPlay').disabled = false;
+      $('#msBtnPlay').textContent = '▶ Yeniden Senkronla';
+      $('#msBtnPause').disabled = true;
+      $('#msBtnBack').disabled = true;
+      $('#msBtnRestart').disabled = false;
+      $('#msBtnSaveVault').disabled = false;
+      $('#msDlLrc').disabled = false;
+      $('#msDlSrt').disabled = false;
+      $('#msDlTxt').disabled = false;
+      $('#msStatusMsg').textContent = `✓ Bu şarkı için kayıtlı ${savedSync.length} satır senkron mevcut. Dilerseniz hemen indirebilir veya yeniden senkronlayabilirsiniz.`;
+    } else {
+      resetSyncUI();
+    }
 
     $('#musicSyncModal').classList.remove('hidden');
   }
@@ -683,20 +738,25 @@
     stream.innerHTML = '';
     sync.lines.forEach((line, i) => {
       const row = document.createElement('div');
-      row.className = 'sync-line' + (i === sync.idx ? ' cur' : '');
+      const isDone = sync.starts[i] !== null;
+      const isCur = i === sync.idx && !isDone;
+      row.className = 'sync-line' + (isCur ? ' cur' : '') + (isDone ? ' done' : '');
       row.dataset.idx = i;
+      const timeStr = isDone ? fmtClock(sync.starts[i]) : '--:--.--';
       row.innerHTML = `
         <span class="line-idx">${i + 1}</span>
-        <span class="line-time">--:--.--</span>
+        <span class="line-time">${timeStr}</span>
         <span class="line-text">${escapeHtml(line)}</span>
       `;
       stream.appendChild(row);
     });
-    $('#msCounter').textContent = `0 / ${sync.lines.length} Satır`;
+    const doneCount = sync.starts.filter(s => s !== null).length;
+    $('#msCounter').textContent = `${doneCount} / ${sync.lines.length} Satır`;
   }
 
   function resetSyncUI() {
     $('#msBtnPlay').disabled = false;
+    $('#msBtnPlay').textContent = '▶ Senkrona Başla';
     $('#msBtnPause').disabled = true;
     $('#msBtnPause').textContent = '⏸ Duraklat (Esc)';
     $('#msBtnBack').disabled = true;
@@ -716,6 +776,12 @@
     if (!sync.lines.length) {
       toast('Senkronlanacak şarkı sözü bulunamadı! "Sözleri Düzenle" butonundan ekleyebilirsiniz.', true);
       return;
+    }
+    if (sync.idx >= sync.lines.length) {
+      sync.starts = new Array(sync.lines.length).fill(null);
+      sync.ends = new Array(sync.lines.length).fill(null);
+      sync.idx = 0;
+      renderSyncStream();
     }
     sync.active = true;
     sync.paused = false;
@@ -1092,14 +1158,19 @@
 
     $('#msBtnSaveLyrics')?.addEventListener('click', () => {
       const text = $('#msLyricsText').value;
-      sync.lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-      sync.starts = new Array(sync.lines.length).fill(null);
-      sync.ends = new Array(sync.lines.length).fill(null);
+      const cleanLines = cleanLyricsForSync(text);
+      if (!cleanLines.length) {
+        toast('Söz bulunamadı veya tüm satırlar etiket!', true);
+        return;
+      }
+      sync.lines = cleanLines;
+      sync.starts = new Array(cleanLines.length).fill(null);
+      sync.ends = new Array(cleanLines.length).fill(null);
       sync.idx = 0;
       renderSyncStream();
       $('#msLyricsEditView').classList.add('hidden');
       $('#msSyncStream').classList.remove('hidden');
-      toast('Sözler güncellendi, senkrona hazır!');
+      toast(`Sözler temizlendi ve senkrona hazırlandı (${cleanLines.length} satır)!`);
     });
 
     // Global Key Events for Synchronizer

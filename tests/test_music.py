@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from promptvault.music import (
     MusicLibrary,
     ParsedSong,
+    clean_lyrics_for_sync,
     extract_lyric_sections,
     extract_style_tags,
     fmt_lrc,
@@ -320,3 +321,42 @@ def test_music_api_client(tmp_path: Path):
     r = client.delete(f"/api/music/songs/{song_id}")
     assert r.status_code == 200
     assert r.json()["deleted"] is True
+
+
+def test_clean_lyrics_for_sync_strips_suno_tags():
+    raw_lyrics = """
+[Intro | Prominent melodic lead bass; clean melancholic guitar arpeggios; establishing atmosphere]
+
+[Verse 1 | Intimate female vocal; gentle dynamics]
+Yüreğimizde bilmediğimiz bir yer var.
+Günün birinde duyarız oradaki sesi.
+
+[Pre-Chorus]
+Her adım hedefe hemen ulaşmıyor.
+
+(Instrumental Break)
+
+[Chorus | Powerful mezzo-soprano projection]
+Yalnızlıktı, duyguların isim babası.
+Sonunda bulundu dört yapraklı yonca.
+
+(Guitar solo)
+
+[Outro | Instrumental only]
+"""
+    cleaned = clean_lyrics_for_sync(raw_lyrics)
+
+    # Verify no bracketed tags or cues leaked into lyrics
+    assert all("[" not in line and "]" not in line for line in cleaned)
+    assert all("instrumental" not in line.lower() for line in cleaned)
+    assert all("guitar solo" not in line.lower() for line in cleaned)
+
+    # Verify actual lyrics are intact
+    assert cleaned == [
+        "Yüreğimizde bilmediğimiz bir yer var.",
+        "Günün birinde duyarız oradaki sesi.",
+        "Her adım hedefe hemen ulaşmıyor.",
+        "Yalnızlıktı, duyguların isim babası.",
+        "Sonunda bulundu dört yapraklı yonca.",
+    ]
+
