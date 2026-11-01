@@ -62,7 +62,14 @@ def create_team_app(data_dir: str | Path | None = None) -> FastAPI:
     def root():
         index_file = static_dir / "index.html"
         if index_file.exists():
-            return FileResponse(str(index_file))
+            return FileResponse(
+                str(index_file),
+                headers={
+                    "Cache-Control": "no-cache, no-store, must-revalidate",
+                    "Pragma": "no-cache",
+                    "Expires": "0",
+                },
+            )
         return {
             "name": "PromptVault Team Edition",
             "version": "2.0.0-team",
