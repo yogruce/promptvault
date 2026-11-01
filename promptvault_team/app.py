@@ -1,4 +1,4 @@
-"""FastAPI main application for PromptVault Team Edition."""
+"""FastAPI main application for PromptVault Team Edition with Auth & Visual Vault."""
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .api import (
+    create_auth_router,
     create_entities_router,
     create_execution_router,
     create_gdrive_router,
@@ -22,23 +23,21 @@ from .gdrive_service import CorporateGDriveSync
 def create_team_app(data_dir: str | Path | None = None) -> FastAPI:
     lib = TeamLibrary(data_dir=data_dir)
     gdrive_sync = CorporateGDriveSync(lib=lib)
-    static_dir = Path(__file__).parent / "static"
+    static_dir = Path(__file__).resolve().parent / "static"
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        # Startup
         yield
-        # Graceful shutdown: stop background worker cleanly
         gdrive_sync.stop_worker()
 
     app = FastAPI(
         title="PromptVault Team API",
         version="2.0.0-team",
-        description="Team-wide AI Prompt & Personas Vault for ChatGPT, Gemini, Claude, and Corporate Drive Sync.",
+        description="Team-wide AI Prompt & Visual Vault with Real Auth, ChatGPT, Gemini, Claude and Drive Sync.",
         lifespan=lifespan,
     )
 
-    # Enable CORS for browser extensions, userscripts, and web UI
+    # Enable CORS
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -48,13 +47,14 @@ def create_team_app(data_dir: str | Path | None = None) -> FastAPI:
     )
 
     # Include routers
+    app.include_router(create_auth_router(lib))
     app.include_router(create_entities_router(lib))
     app.include_router(create_prompts_router(lib))
     app.include_router(create_workspaces_router(lib))
     app.include_router(create_gdrive_router(gdrive_sync))
     app.include_router(create_execution_router(lib))
 
-    # Mount static files and serve index.html
+    # Mount static directory
     if static_dir.exists():
         app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
@@ -64,6 +64,7 @@ def create_team_app(data_dir: str | Path | None = None) -> FastAPI:
         if index_file.exists():
             return FileResponse(
                 str(index_file),
+                media_type="text/html",
                 headers={
                     "Cache-Control": "no-cache, no-store, must-revalidate",
                     "Pragma": "no-cache",

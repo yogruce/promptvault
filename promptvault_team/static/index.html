@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PromptVault Team ◈ Ekip Kasası</title>
+  <title>PromptVault Team ◈ Ekip Kasası & Görsel Galeri</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -34,9 +34,9 @@
       flex-direction: column;
     }
 
-    /* TOP HEADER */
+    /* HEADER */
     header {
-      background: rgba(15, 23, 42, 0.9);
+      background: rgba(15, 23, 42, 0.95);
       backdrop-filter: blur(16px);
       border-bottom: 1px solid var(--card-border);
       padding: 12px 28px;
@@ -47,11 +47,7 @@
       top: 0;
       z-index: 50;
     }
-    .logo-group {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
+    .logo-group { display: flex; align-items: center; gap: 12px; }
     .logo-badge {
       background: linear-gradient(135deg, #6366f1, #a855f7);
       width: 36px;
@@ -63,11 +59,7 @@
       font-size: 18px;
       box-shadow: 0 4px 12px var(--primary-glow);
     }
-    .brand-title {
-      font-size: 18px;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-    }
+    .brand-title { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; }
     .brand-title span {
       background: linear-gradient(90deg, #818cf8, #c084fc);
       -webkit-background-clip: text;
@@ -98,60 +90,38 @@
       gap: 8px;
       transition: all 0.2s;
     }
-    .nav-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.04); }
-    .nav-btn.active {
-      background: #1e293b;
-      color: #fff;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-    }
+    .nav-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.05); }
+    .nav-btn.active { background: #1e293b; color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
 
-    /* USER & AUTH PILL */
-    .user-auth-pill {
+    .user-auth-btn {
+      background: #1e293b;
+      border: 1px solid var(--card-border);
+      color: #fff;
+      padding: 7px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 10px;
-      background: #111827;
-      border: 1px solid var(--card-border);
-      padding: 6px 14px;
-      border-radius: 24px;
-      cursor: pointer;
+      gap: 8px;
       transition: all 0.2s;
     }
-    .user-auth-pill:hover {
-      border-color: var(--primary);
-      background: #1e293b;
-    }
-    .user-avatar {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #38bdf8, #6366f1);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 13px;
-      font-weight: 700;
-      color: #fff;
-    }
-    .user-meta {
-      display: flex;
-      flex-direction: column;
-      line-height: 1.2;
-      text-align: left;
-    }
-    .user-name { font-size: 13px; font-weight: 600; color: #fff; }
-    .user-role { font-size: 11px; color: #10b981; font-weight: 500; }
+    .user-auth-btn:hover { border-color: var(--primary); background: #27354a; }
+    .role-badge { font-size: 11px; padding: 2px 8px; border-radius: 6px; font-weight: 700; text-transform: uppercase; }
+    .role-admin { background: rgba(99, 102, 241, 0.25); color: #a5b4fc; }
+    .role-editor { background: rgba(16, 185, 129, 0.25); color: #6ee7b7; }
+    .role-viewer { background: rgba(148, 163, 184, 0.25); color: #cbd5e1; }
 
     /* MAIN CONTAINER */
     main {
       flex: 1;
-      max-width: 1400px;
+      max-width: 1440px;
       width: 100%;
       margin: 0 auto;
       padding: 24px;
     }
 
-    /* SECTION HEADER BANNER */
     .section-header {
       display: flex;
       align-items: center;
@@ -162,21 +132,9 @@
       border-bottom: 1px solid var(--card-border);
       flex-wrap: wrap;
     }
-    .section-title-group h1 {
-      font-size: 22px;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      margin-bottom: 4px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .section-title-group p {
-      font-size: 13.5px;
-      color: var(--text-muted);
-    }
+    .section-title-group h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 4px; }
+    .section-title-group p { font-size: 13.5px; color: var(--text-muted); }
 
-    /* BUTTONS */
     .btn {
       padding: 9px 18px;
       border-radius: 10px;
@@ -189,23 +147,11 @@
       border: 1px solid transparent;
       transition: all 0.2s;
     }
-    .btn-primary {
-      background: linear-gradient(135deg, var(--primary), #4f46e5);
-      color: #fff;
-      box-shadow: 0 4px 14px var(--primary-glow);
-    }
-    .btn-primary:hover {
-      background: linear-gradient(135deg, #4f46e5, #4338ca);
-      transform: translateY(-1px);
-    }
-    .btn-secondary {
-      background: #1e293b;
-      color: var(--text);
-      border-color: var(--card-border);
-    }
+    .btn-primary { background: linear-gradient(135deg, var(--primary), #4f46e5); color: #fff; box-shadow: 0 4px 14px var(--primary-glow); }
+    .btn-primary:hover { background: linear-gradient(135deg, #4f46e5, #4338ca); transform: translateY(-1px); }
+    .btn-secondary { background: #1e293b; color: var(--text); border-color: var(--card-border); }
     .btn-secondary:hover { background: #334155; }
 
-    /* TOOLBAR (SEARCH + FILTERS) */
     .toolbar {
       display: flex;
       align-items: center;
@@ -214,11 +160,7 @@
       margin-bottom: 24px;
       flex-wrap: wrap;
     }
-    .search-box {
-      flex: 1;
-      min-width: 280px;
-      position: relative;
-    }
+    .search-box { flex: 1; min-width: 280px; position: relative; }
     .search-box input {
       width: 100%;
       background: var(--card-bg);
@@ -228,26 +170,11 @@
       color: #fff;
       font-size: 14px;
       outline: none;
-      transition: all 0.2s;
     }
-    .search-box input:focus {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px var(--primary-glow);
-    }
-    .search-icon {
-      position: absolute;
-      left: 14px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: var(--text-muted);
-      font-size: 16px;
-    }
+    .search-box input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-glow); }
+    .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
 
-    .filter-pills {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
+    .filter-pills { display: flex; gap: 8px; flex-wrap: wrap; }
     .pill {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
@@ -257,15 +184,119 @@
       font-size: 13px;
       font-weight: 500;
       cursor: pointer;
-      transition: all 0.2s;
     }
-    .pill:hover, .pill.active {
-      background: #1e293b;
-      color: #fff;
-      border-color: var(--primary);
+    .pill:hover, .pill.active { background: #1e293b; color: #fff; border-color: var(--primary); }
+
+    /* VAULT GALLERY GRID (ORIJINAL PROMPTVAULT GİBİ) */
+    .vault-gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+    }
+    .vault-item {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: all 0.2s;
+      cursor: pointer;
+      position: relative;
+    }
+    .vault-item:hover {
+      transform: translateY(-4px);
+      border-color: #3b4d6e;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+    }
+    .vault-thumb-wrap {
+      width: 100%;
+      aspect-ratio: 1;
+      background: #060911;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .vault-thumb-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.3s;
+    }
+    .vault-item:hover .vault-thumb-wrap img { transform: scale(1.05); }
+    .vault-text-placeholder {
+      padding: 24px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: #94a3b8;
+      text-align: left;
+      line-height: 1.5;
+      max-height: 100%;
+      overflow: hidden;
     }
 
-    /* GRID & CARDS */
+    .thumb-badge {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+    }
+    .thumb-dim {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      padding: 3px 6px;
+      border-radius: 4px;
+      font-size: 10.5px;
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(0, 0, 0, 0.7);
+      color: #cbd5e1;
+    }
+
+    .vault-info {
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+    }
+    .vault-item-title {
+      font-size: 14.5px;
+      font-weight: 700;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .vault-item-prompt {
+      font-size: 12.5px;
+      color: #94a3b8;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      line-height: 1.4;
+    }
+    .vault-item-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: auto;
+      padding-top: 8px;
+      border-top: 1px solid #1a2333;
+      font-size: 11.5px;
+      color: #64748b;
+    }
+
+    /* GEMS GRID */
     .grid-cards {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
@@ -280,7 +311,6 @@
       flex-direction: column;
       gap: 14px;
       transition: all 0.2s;
-      position: relative;
     }
     .card:hover {
       transform: translateY(-3px);
@@ -288,32 +318,12 @@
       box-shadow: 0 10px 28px rgba(0,0,0,0.4);
       background: var(--card-hover);
     }
-    .card-header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 12px;
-    }
-    .card-title {
-      font-size: 16.5px;
-      font-weight: 700;
-      color: #fff;
-      line-height: 1.3;
-    }
-    .platform-badge {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      padding: 4px 10px;
-      border-radius: 8px;
-      letter-spacing: 0.04em;
-      white-space: nowrap;
-    }
+    .card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .card-title { font-size: 16.5px; font-weight: 700; color: #fff; }
+    .platform-badge { font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 4px 10px; border-radius: 8px; }
     .badge-gemini { background: rgba(56, 189, 248, 0.14); color: var(--accent-gemini); border: 1px solid rgba(56, 189, 248, 0.3); }
     .badge-chatgpt { background: rgba(16, 185, 129, 0.14); color: var(--accent-chatgpt); border: 1px solid rgba(16, 185, 129, 0.3); }
     .badge-claude { background: rgba(249, 115, 22, 0.14); color: var(--accent-claude); border: 1px solid rgba(249, 115, 22, 0.3); }
-    .badge-reasoning { background: rgba(192, 132, 252, 0.14); color: var(--accent-reasoning); border: 1px solid rgba(192, 132, 252, 0.3); }
-    .badge-opensource { background: rgba(148, 163, 184, 0.14); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3); }
 
     .card-body {
       background: #080c14;
@@ -329,96 +339,36 @@
       word-break: break-word;
       line-height: 1.55;
     }
-    .var-highlight {
-      color: #fbbf24;
-      font-weight: 600;
-      background: rgba(251, 191, 36, 0.15);
-      padding: 2px 6px;
-      border-radius: 4px;
-    }
-
-    .card-footer {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      margin-top: auto;
-      padding-top: 10px;
-      border-top: 1px solid var(--card-border);
-    }
-    .card-meta {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 12px;
-      color: var(--text-muted);
-    }
-    .btn-icon {
-      background: #1e293b;
-      border: 1px solid #334155;
-      color: #cbd5e1;
-      padding: 6px 12px;
-      border-radius: 8px;
-      font-size: 12.5px;
-      font-weight: 500;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      transition: all 0.2s;
-    }
-    .btn-icon:hover {
-      background: var(--primary);
-      color: #fff;
-      border-color: var(--primary);
-    }
-
-    /* EMPTY STATE */
-    .empty-state {
-      grid-column: 1 / -1;
-      text-align: center;
-      padding: 60px 20px;
-      background: var(--card-bg);
-      border: 1px dashed var(--card-border);
-      border-radius: 16px;
-    }
-    .empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.8; }
-    .empty-title { font-size: 17px; font-weight: 700; color: #fff; margin-bottom: 6px; }
-    .empty-desc { font-size: 13.5px; color: var(--text-muted); margin-bottom: 20px; }
+    .var-highlight { color: #fbbf24; font-weight: 600; background: rgba(251, 191, 36, 0.15); padding: 2px 6px; border-radius: 4px; }
+    .card-footer { display: flex; align-items: center; justify-content: space-between; margin-top: auto; padding-top: 10px; border-top: 1px solid var(--card-border); }
 
     /* MODAL */
     .modal-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.8);
+      background: rgba(0, 0, 0, 0.85);
       backdrop-filter: blur(8px);
       display: none;
       align-items: center;
       justify-content: center;
-      z-index: 100;
+      z-index: 1000;
       padding: 20px;
     }
-    .modal-overlay.open { display: flex; }
+    .modal-overlay.open { display: flex !important; }
     .modal-card {
       background: #111827;
       border: 1px solid #2d3748;
       border-radius: 20px;
-      max-width: 640px;
+      max-width: 680px;
       width: 100%;
       max-height: 90vh;
       overflow-y: auto;
       padding: 28px;
       box-shadow: 0 25px 60px rgba(0,0,0,0.7);
     }
-    .modal-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 20px;
-    }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
     .modal-title { font-size: 19px; font-weight: 700; color: #fff; }
-    .close-btn { background: none; border: none; color: var(--text-muted); font-size: 24px; cursor: pointer; line-height: 1; }
-    .close-btn:hover { color: #fff; }
+    .close-btn { background: none; border: none; color: var(--text-muted); font-size: 26px; cursor: pointer; }
     .form-group { margin-bottom: 16px; }
     .form-label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #cbd5e1; }
     .form-input, .form-textarea, .form-select {
@@ -430,10 +380,62 @@
       color: #fff;
       font-size: 14px;
       outline: none;
-      transition: all 0.2s;
     }
-    .form-textarea { resize: vertical; min-height: 110px; font-family: 'JetBrains Mono', monospace; font-size: 13px; }
-    .form-input:focus, .form-textarea:focus, .form-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-glow); }
+    .form-textarea { resize: vertical; min-height: 100px; font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+
+    /* DETAIL MODAL (ORIJINAL PROMPTVAULT DETAY GÖRÜNÜMÜ) */
+    .detail-card {
+      max-width: 1000px;
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      background: #111827;
+      border: 1px solid #2d3748;
+      border-radius: 20px;
+      padding: 24px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .detail-img-box {
+      width: 100%;
+      background: #080c14;
+      border: 1px solid #1a2333;
+      border-radius: 14px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .detail-img-box img { width: 100%; max-height: 520px; object-fit: contain; }
+    .detail-info { display: flex; flex-direction: column; gap: 14px; }
+    .detail-section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--primary); letter-spacing: 0.05em; }
+    .detail-text-box {
+      background: #080c14;
+      border: 1px solid #1a2333;
+      border-radius: 10px;
+      padding: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: #e2e8f0;
+      max-height: 140px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .param-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      font-size: 12px;
+      background: #080c14;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid #1a2333;
+    }
+    .param-item { display: flex; flex-direction: column; }
+    .param-label { color: #64748b; font-size: 11px; text-transform: uppercase; }
+    .param-val { color: #cbd5e1; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
 
     /* TOAST */
     .toast {
@@ -448,7 +450,7 @@
       font-weight: 600;
       box-shadow: 0 12px 30px rgba(0,0,0,0.5);
       display: none;
-      z-index: 200;
+      z-index: 2000;
     }
   </style>
 </head>
@@ -462,33 +464,66 @@
     </div>
 
     <nav class="header-nav">
-      <button class="nav-btn active" onclick="switchTab('gems')">🌟 Gems & Skills</button>
-      <button class="nav-btn" onclick="switchTab('prompts')">💬 Prompt Kasası</button>
-      <button class="nav-btn" onclick="switchTab('drive')">☁️ Kurumsal Drive</button>
-      <button class="nav-btn" onclick="switchTab('playground')">⚡ API Playground</button>
+      <button class="nav-btn active" id="nav-btn-vault" onclick="switchTab('vault')">🎨 Görsel & Prompt Kasası</button>
+      <button class="nav-btn" id="nav-btn-gems" onclick="switchTab('gems')">🌟 Gems & Skills</button>
+      <button class="nav-btn" id="nav-btn-drive" onclick="switchTab('drive')">☁️ Kurumsal Drive</button>
+      <button class="nav-btn" id="nav-btn-playground" onclick="switchTab('playground')">⚡ API Test</button>
     </nav>
 
-    <!-- USER & AUTHENTICATION PILL -->
-    <div class="user-auth-pill" onclick="openAuthModal()" title="Kullanıcı Profili ve Yetkileri Yönet">
-      <div class="user-avatar" id="header-user-avatar">Y</div>
-      <div class="user-meta">
-        <span class="user-name" id="header-user-name">Yönetici</span>
-        <span class="user-role" id="header-user-role">👑 Yönetici (Admin)</span>
-      </div>
-      <span style="font-size: 11px; color: var(--text-muted); margin-left: 2px;">⚙️</span>
-    </div>
+    <!-- AUTH USER BADGE -->
+    <button class="user-auth-btn" id="btn-auth-user" onclick="handleAuthClick()">
+      <span id="header-user-avatar">👤</span>
+      <span id="header-user-name">Giriş Yap</span>
+      <span class="role-badge role-editor" id="header-user-role" style="display: none;">ÜYE</span>
+    </button>
   </header>
 
   <!-- MAIN -->
   <main>
-    <!-- TAB 1: GEMS & SKILLS -->
-    <section id="tab-gems">
+    <!-- TAB 1: VISUAL VAULT & PROMPTS (ORİJİNAL PROMPTVAULT GİBİ GÖRSEL GALERİ) -->
+    <section id="tab-vault">
+      <div class="section-header">
+        <div class="section-title-group">
+          <h1>🎨 Görsel ve Prompt Kasası</h1>
+          <p>Yapay zeka modelleriyle üretilen tüm görseller, PNG metadata parametreleri ve metin promptları.</p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <input type="file" id="direct-image-upload" accept="image/png,image/jpeg,image/webp" style="display: none;" onchange="onDirectFileSelected(event)">
+          <button class="btn btn-secondary" onclick="document.getElementById('direct-image-upload').click()">
+            <span>⬆️ Görsel Yükle (Metadata Oku)</span>
+          </button>
+          <button class="btn btn-primary" onclick="openCreatePromptModal()">
+            <span>+ Yeni Prompt Ekle</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="vault-search" placeholder="Görsel metadata, prompt, etiket veya model ara..." oninput="filterVault()">
+        </div>
+        <div class="filter-pills">
+          <button class="pill active" onclick="filterVaultType('all')">Tümü</button>
+          <button class="pill" onclick="filterVaultType('images')">🖼️ Yalnızca Görseller</button>
+          <button class="pill" onclick="filterVaultType('texts')">📝 Metin Promptları</button>
+          <button class="pill" onclick="filterVaultPlatform('chatgpt')">ChatGPT</button>
+          <button class="pill" onclick="filterVaultPlatform('gemini')">Gemini</button>
+          <button class="pill" onclick="filterVaultPlatform('midjourney')">Midjourney</button>
+        </div>
+      </div>
+
+      <!-- GALLERY GRID -->
+      <div class="vault-gallery" id="vault-gallery"></div>
+    </section>
+
+    <!-- TAB 2: GEMS & SKILLS -->
+    <section id="tab-gems" style="display: none;">
       <div class="section-header">
         <div class="section-title-group">
           <h1>🌟 Gemini Gems, Custom GPTs & Claude Skills</h1>
-          <p>Ekibin ortak sistem yönergeleri, rol şablonları ve dinamik <code>{{degisken}}</code> destekli akıllı ajanları.</p>
+          <p>Ekibin ortak sistem yönergeleri, rol talimatları ve dinamik <code>{{degisken}}</code> şablonları.</p>
         </div>
-        <!-- CONTEXTUAL GEM ADD BUTTON -->
         <button class="btn btn-primary" onclick="openCreateGemModal()">
           <span>+ Yeni Gem / Skill Ekle</span>
         </button>
@@ -497,48 +532,17 @@
       <div class="toolbar">
         <div class="search-box">
           <span class="search-icon">🔍</span>
-          <input type="text" id="gems-search" placeholder="Gem, GPT adı, kural veya şablon ara..." oninput="filterGems()">
+          <input type="text" id="gems-search" placeholder="Gem, GPT adı veya şablon ara..." oninput="filterGems()">
         </div>
         <div class="filter-pills">
-          <button class="pill active" onclick="filterPlatform('all')">Tümü</button>
-          <button class="pill" onclick="filterPlatform('gemini')">Gemini Gems</button>
-          <button class="pill" onclick="filterPlatform('chatgpt')">Custom GPTs</button>
-          <button class="pill" onclick="filterPlatform('claude')">Claude Skills</button>
-          <button class="pill" onclick="filterPlatform('reasoning')">Reasoning</button>
+          <button class="pill active" onclick="filterGemPlatform('all')">Tümü</button>
+          <button class="pill" onclick="filterGemPlatform('gemini')">Gemini Gems</button>
+          <button class="pill" onclick="filterGemPlatform('chatgpt')">Custom GPTs</button>
+          <button class="pill" onclick="filterGemPlatform('claude')">Claude Skills</button>
         </div>
       </div>
 
       <div class="grid-cards" id="gems-grid"></div>
-    </section>
-
-    <!-- TAB 2: PROMPTS -->
-    <section id="tab-prompts" style="display: none;">
-      <div class="section-header">
-        <div class="section-title-group">
-          <h1>💬 Ekip Prompt Kasası</h1>
-          <p>ChatGPT, Gemini ve Claude modelleri için test edilmiş, doğrulanmış ekip prompt kütüphanesi.</p>
-        </div>
-        <!-- CONTEXTUAL PROMPT ADD BUTTON -->
-        <button class="btn btn-primary" onclick="openCreatePromptModal()">
-          <span>+ Yeni Prompt Ekle</span>
-        </button>
-      </div>
-
-      <div class="toolbar">
-        <div class="search-box">
-          <span class="search-icon">🔍</span>
-          <input type="text" id="prompts-search" placeholder="Prompt içeriği, etiket veya yazar ara..." oninput="filterPrompts()">
-        </div>
-        <div class="filter-pills">
-          <button class="pill active" onclick="filterPromptPlatform('all')">Tüm Modeller</button>
-          <button class="pill" onclick="filterPromptPlatform('chatgpt')">ChatGPT</button>
-          <button class="pill" onclick="filterPromptPlatform('gemini')">Gemini</button>
-          <button class="pill" onclick="filterPromptPlatform('claude')">Claude</button>
-          <button class="pill" onclick="filterPromptPlatform('reasoning')">Reasoning</button>
-        </div>
-      </div>
-
-      <div class="grid-cards" id="prompts-grid"></div>
     </section>
 
     <!-- TAB 3: GDRIVE -->
@@ -546,9 +550,9 @@
       <div class="section-header">
         <div class="section-title-group">
           <h1>☁️ Google Workspace Ortak Drive Senkronizasyonu</h1>
-          <p>Kasaya eklenen her prompt ve Gem/Skill, Service Account ile şirket Drive'ına anında yedeklenir.</p>
+          <p>Kasaya eklenen her görsel ve prompt, Service Account üzerinden şirket Drive'ına anında yedeklenir.</p>
         </div>
-        <button class="btn btn-secondary" onclick="openDriveModal()">⚙️ Drive Ayarlarını Düzenle</button>
+        <button class="btn btn-primary" onclick="openDriveModal()">⚙️ Drive Ayarları</button>
       </div>
 
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
@@ -561,7 +565,7 @@
           <div id="stat-drive-name" style="font-size: 17px; font-weight: 600; margin-top: 4px;">Standart Alan</div>
         </div>
         <div class="card" style="padding: 16px;">
-          <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Drive'a Eşitlenen Kayıt</div>
+          <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Eşitlenen Kayıt</div>
           <div id="stat-synced-count" style="font-size: 22px; font-weight: 800; color: #38bdf8; margin-top: 4px;">0</div>
         </div>
         <div class="card" style="padding: 16px;">
@@ -575,183 +579,223 @@
     <section id="tab-playground" style="display: none;">
       <div class="section-header">
         <div class="section-title-group">
-          <h1>⚡ API Playground & Şablon Testi</h1>
-          <p>Sistem ajanlarını ve değişkenli şablonları test edip doğrudan API çağrısına hazırlayın.</p>
+          <h1>⚡ API Playground & Test</h1>
+          <p>Sistem ajanlarını değişkenlerle test edin ve API çağrısına hazırlayın.</p>
         </div>
       </div>
-
-      <div class="card" style="max-width: 900px; margin: 0 auto; padding: 24px;">
+      <div class="card" style="max-width: 800px; margin: 0 auto; padding: 24px;">
         <div class="form-group">
-          <label class="form-label">Test Edilecek Sistem Ajanı (Gem / GPT / Skill):</label>
-          <select id="play-entity-select" class="form-select" onchange="onPlaygroundEntityChange()">
-            <option value="">-- Bir Gem veya Skill Seçin --</option>
-          </select>
+          <label class="form-label">Sistem Ajanı Seçin:</label>
+          <select id="play-entity-select" class="form-select" onchange="onPlaygroundEntityChange()"></select>
         </div>
         <div class="form-group">
-          <label class="form-label">Sistem Yönergesi (System Instructions):</label>
-          <textarea id="play-system-text" class="form-textarea" readonly style="opacity: 0.85;"></textarea>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Şablon (Değişkenler):</label>
+          <label class="form-label">Şablon:</label>
           <textarea id="play-prompt-template" class="form-textarea"></textarea>
         </div>
         <div id="play-variables-container"></div>
         <button class="btn btn-primary" onclick="testPreviewPayload()">🚀 Birleştir ve API Paketini Önizle</button>
-        <div style="margin-top: 20px;">
-          <label class="form-label">Hazırlanan API İstek Paketi (Sonraki Faz):</label>
-          <pre id="play-result-json" style="background: #080c14; border: 1px solid #1f2937; padding: 14px; border-radius: 10px; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #a5f3fc; overflow-x: auto; max-height: 250px;">Henüz test edilmedi.</pre>
+        <div style="margin-top: 16px;">
+          <pre id="play-result-json" style="background: #080c14; padding: 14px; border-radius: 10px; font-size: 13px; color: #a5f3fc; overflow-x: auto; max-height: 220px;">Henüz test edilmedi.</pre>
         </div>
       </div>
     </section>
   </main>
 
-  <!-- MODAL: CREATE GEM / SKILL -->
+  <!-- AUTH MODAL (LOGIN & REGISTER) -->
+  <div class="modal-overlay" id="modal-auth">
+    <div class="modal-card" style="max-width: 440px;">
+      <div class="modal-header">
+        <div class="modal-title" id="auth-modal-title">🔐 Giriş Yap</div>
+        <button class="close-btn" onclick="closeModal('modal-auth')">×</button>
+      </div>
+
+      <div id="auth-form-login">
+        <div class="form-group">
+          <label class="form-label">Şirket / Kullanıcı E-posta:</label>
+          <input type="email" id="login-email" class="form-input" placeholder="adiniz@sirket.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Şifre:</label>
+          <input type="password" id="login-password" class="form-input" placeholder="••••••••">
+        </div>
+        <button class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 8px;" onclick="submitLogin()">Giriş Yap</button>
+        <p style="text-align: center; font-size: 13px; color: var(--text-muted); margin-top: 16px;">
+          Hesabınız yok mu? <a href="#" style="color: var(--primary); font-weight: 600;" onclick="toggleAuthForm('register')">Hemen Kayıt Olun</a>
+        </p>
+      </div>
+
+      <div id="auth-form-register" style="display: none;">
+        <div class="form-group">
+          <label class="form-label">Adınız Soyadınız:</label>
+          <input type="text" id="reg-name" class="form-input" placeholder="Örn: Yiğit Can">
+        </div>
+        <div class="form-group">
+          <label class="form-label">E-posta Adresi:</label>
+          <input type="email" id="reg-email" class="form-input" placeholder="adiniz@sirket.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Şifre Belirleyin:</label>
+          <input type="password" id="reg-password" class="form-input" placeholder="••••••••">
+        </div>
+        <p style="font-size: 11.5px; color: #10b981; margin-bottom: 12px;">ℹ️ İlk kayıt olan kişi otomatik olarak Yönetici (Admin) atanır.</p>
+        <button class="btn btn-primary" style="width: 100%; justify-content: center;" onclick="submitRegister()">Hesap Oluştur</button>
+        <p style="text-align: center; font-size: 13px; color: var(--text-muted); margin-top: 16px;">
+          Zaten hesabınız var mı? <a href="#" style="color: var(--primary); font-weight: 600;" onclick="toggleAuthForm('login')">Giriş Yap</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- USER PROFILE MODAL -->
+  <div class="modal-overlay" id="modal-profile">
+    <div class="modal-card" style="max-width: 440px;">
+      <div class="modal-header">
+        <div class="modal-title">👤 Kullanıcı Profili</div>
+        <button class="close-btn" onclick="closeModal('modal-profile')">×</button>
+      </div>
+      <div style="background: #080c14; padding: 16px; border-radius: 12px; border: 1px solid #1f2937; margin-bottom: 20px;">
+        <div style="font-size: 16px; font-weight: 700; color: #fff;" id="prof-name">-</div>
+        <div style="font-size: 13px; color: var(--text-muted);" id="prof-email">-</div>
+        <div style="margin-top: 10px;">
+          <span class="role-badge" id="prof-role-badge">YÖNETİCİ</span>
+        </div>
+      </div>
+      <button class="btn btn-secondary" style="width: 100%; justify-content: center; color: #f87171; border-color: rgba(248,113,113,0.3);" onclick="logout()">Çıkış Yap</button>
+    </div>
+  </div>
+
+  <!-- DETAIL MODAL (ORİJİNAL PROMPTVAULT DETAY PENCERESİ) -->
+  <div class="modal-overlay" id="modal-detail">
+    <div class="detail-card">
+      <div class="detail-img-box">
+        <img id="detail-img" src="" alt="Prompt Image">
+      </div>
+      <div class="detail-info">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <h2 id="detail-title" style="font-size: 18px; font-weight: 700;">Görsel Detayı</h2>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;" id="detail-author">Ekleyen: Ekip</div>
+          </div>
+          <button class="close-btn" onclick="closeModal('modal-detail')">×</button>
+        </div>
+
+        <div>
+          <div class="detail-section-title">Pozitif Prompt</div>
+          <div class="detail-text-box" id="detail-prompt">-</div>
+          <button class="btn btn-secondary" style="margin-top: 6px; padding: 5px 12px; font-size: 12px;" onclick="copyDetailPrompt()">📋 Promptu Kopyala</button>
+        </div>
+
+        <div id="detail-neg-wrap" style="display: none;">
+          <div class="detail-section-title">Negatif Prompt</div>
+          <div class="detail-text-box" id="detail-neg-prompt" style="color: #f87171;">-</div>
+        </div>
+
+        <div>
+          <div class="detail-section-title">Üretim Parametreleri</div>
+          <div class="param-grid">
+            <div class="param-item"><span class="param-label">Model</span><span class="param-val" id="detail-param-model">-</span></div>
+            <div class="param-item"><span class="param-label">Sampler</span><span class="param-val" id="detail-param-sampler">-</span></div>
+            <div class="param-item"><span class="param-label">Steps</span><span class="param-val" id="detail-param-steps">-</span></div>
+            <div class="param-item"><span class="param-label">CFG Scale</span><span class="param-val" id="detail-param-cfg">-</span></div>
+            <div class="param-item"><span class="param-label">Seed</span><span class="param-val" id="detail-param-seed">-</span></div>
+            <div class="param-item"><span class="param-label">Çözünürlük</span><span class="param-val" id="detail-param-dim">-</span></div>
+          </div>
+        </div>
+
+        <div style="margin-top: auto; display: flex; gap: 8px;">
+          <a id="detail-download-btn" href="#" download class="btn btn-primary" style="flex: 1; justify-content: center; text-decoration: none;">⬇️ Orijinal Görseli İndir</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CREATE GEM MODAL -->
   <div class="modal-overlay" id="modal-create-gem">
     <div class="modal-card">
       <div class="modal-header">
-        <div class="modal-title">🌟 Yeni Gem / Custom GPT / Skill Ekle</div>
+        <div class="modal-title">🌟 Yeni Gem / Custom GPT Ekle</div>
         <button class="close-btn" onclick="closeModal('modal-create-gem')">×</button>
       </div>
       <div class="form-group">
-        <label class="form-label">Ajan / Gem Başlığı:</label>
-        <input type="text" id="gem-title" class="form-input" placeholder="Örn: SEO ve Blog Stratejisti, Kıdemli Python Mimarı...">
+        <label class="form-label">Başlık:</label>
+        <input type="text" id="gem-title" class="form-input" placeholder="Örn: SEO ve Blog Stratejisti">
       </div>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;" class="form-group">
         <div>
           <label class="form-label">Platform:</label>
           <select id="gem-platform" class="form-select">
-            <option value="gemini">Google Gemini (Gem)</option>
-            <option value="chatgpt">OpenAI ChatGPT (Custom GPT)</option>
-            <option value="claude">Anthropic Claude (Skill / Project)</option>
-            <option value="reasoning">Reasoning / Düşünme</option>
-            <option value="opensource">Açık Kaynak (Ollama vb.)</option>
+            <option value="gemini">Google Gemini</option>
+            <option value="chatgpt">OpenAI ChatGPT</option>
+            <option value="claude">Anthropic Claude</option>
           </select>
         </div>
         <div>
-          <label class="form-label">Varlık Türü:</label>
+          <label class="form-label">Tür:</label>
           <select id="gem-type" class="form-select">
             <option value="gem">Gemini Gem</option>
             <option value="custom_gpt">Custom GPT</option>
             <option value="skill">Claude Skill</option>
-            <option value="system">Genel Sistem Promptu</option>
           </select>
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Sistem Yönergeleri (Master Instructions / Rol & Kurallar):</label>
-        <textarea id="gem-instructions" class="form-textarea" placeholder="Bu ajanın kimliği, tonu, kuralları, kısıtlamaları ve beklenen çıktı formatı..."></textarea>
+        <label class="form-label">Sistem Yönergesi (Rol & Kurallar):</label>
+        <textarea id="gem-instructions" class="form-textarea" placeholder="Bu ajanın kimliği, tonu, kuralları..."></textarea>
       </div>
       <div class="form-group">
-        <label class="form-label">Kullanıcı Şablonu (Opsiyonel - {{degisken}} formatında):</label>
-        <textarea id="gem-template" class="form-textarea" placeholder="Örn: {{hedef_kitle}} için {{sektor}} odaklı satış metni hazırla."></textarea>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Etiketler (Virgülle ayırın):</label>
-        <input type="text" id="gem-tags" class="form-input" placeholder="seo, pazarlama, yazilim">
+        <label class="form-label">Şablon (Opsiyonel - {{degisken}} formatında):</label>
+        <textarea id="gem-template" class="form-textarea" placeholder="{{hedef_kitle}} için {{sektor}} odaklı içerik tasarla."></textarea>
       </div>
       <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
         <button class="btn btn-secondary" onclick="closeModal('modal-create-gem')">İptal</button>
-        <button class="btn btn-primary" onclick="submitCreateGem()">Kasaya Kaydet & Drive'a Eşitle</button>
+        <button class="btn btn-primary" onclick="submitCreateGem()">Kasaya Kaydet</button>
       </div>
     </div>
   </div>
 
-  <!-- MODAL: CREATE PROMPT -->
+  <!-- CREATE PROMPT MODAL -->
   <div class="modal-overlay" id="modal-create-prompt">
     <div class="modal-card">
       <div class="modal-header">
-        <div class="modal-title">💬 Yeni Ekip Promptu Ekle</div>
+        <div class="modal-title">💬 Yeni Prompt Ekle</div>
         <button class="close-btn" onclick="closeModal('modal-create-prompt')">×</button>
       </div>
       <div class="form-group">
-        <label class="form-label">Prompt Başlığı:</label>
-        <input type="text" id="prompt-title" class="form-input" placeholder="Örn: B2B E-posta Açılış Şablonu">
+        <label class="form-label">Başlık:</label>
+        <input type="text" id="prompt-title" class="form-input" placeholder="Örn: E-ticaret Ürün Açıklaması">
       </div>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;" class="form-group">
-        <div>
-          <label class="form-label">Hedef Platform:</label>
-          <select id="prompt-platform" class="form-select">
-            <option value="chatgpt">ChatGPT</option>
-            <option value="gemini">Google Gemini</option>
-            <option value="claude">Anthropic Claude</option>
-            <option value="reasoning">Reasoning</option>
-          </select>
-        </div>
-        <div>
-          <label class="form-label">Bağlı Sistem Ajanı (Opsiyonel):</label>
-          <select id="prompt-entity-id" class="form-select">
-            <option value="">-- Bağımsız Prompt --</option>
-          </select>
-        </div>
+      <div class="form-group">
+        <label class="form-label">Platform:</label>
+        <select id="prompt-platform" class="form-select">
+          <option value="chatgpt">ChatGPT</option>
+          <option value="gemini">Gemini</option>
+          <option value="claude">Claude</option>
+        </select>
       </div>
       <div class="form-group">
         <label class="form-label">Prompt Metni:</label>
-        <textarea id="prompt-text" class="form-textarea" placeholder="Ekip üyelerinin kopyalayıp kullanacağı tam prompt metni..."></textarea>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Etiketler:</label>
-        <input type="text" id="prompt-tags" class="form-input" placeholder="pazarlama, eposta, b2b">
+        <textarea id="prompt-text" class="form-textarea" placeholder="Tam prompt metnini buraya yazın..."></textarea>
       </div>
       <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
         <button class="btn btn-secondary" onclick="closeModal('modal-create-prompt')">İptal</button>
-        <button class="btn btn-primary" onclick="submitCreatePrompt()">Kasaya Kaydet & Drive'a Eşitle</button>
+        <button class="btn btn-primary" onclick="submitCreatePrompt()">Kasaya Kaydet</button>
       </div>
     </div>
   </div>
 
-  <!-- MODAL: USER & AUTHENTICATION (YETKİLENDİRME) -->
-  <div class="modal-overlay" id="modal-auth">
-    <div class="modal-card">
-      <div class="modal-header">
-        <div class="modal-title">👤 Ekip Kullanıcı & Yetkilendirme Paneli</div>
-        <button class="close-btn" onclick="closeModal('modal-auth')">×</button>
-      </div>
-      <p style="color: var(--text-muted); font-size: 13.5px; margin-bottom: 20px;">
-        PromptVault Team çok kullanıcılı çalışır. Aktif profilinizi ve yetki rolünüzü buradan yönetebilirsiniz.
-      </p>
-
-      <div class="form-group">
-        <label class="form-label">Kullanıcı Adı / İsim:</label>
-        <input type="text" id="auth-username" class="form-input" value="Yönetici">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Kullanıcı Rolü & Yetkileri:</label>
-        <select id="auth-role" class="form-select">
-          <option value="admin">👑 Yönetici (Admin) - Tüm yetkiler + Drive yönetimi</option>
-          <option value="editor">✏️ Editör (Editor) - Gem ve Prompt ekleme/düzenleme</option>
-          <option value="viewer">👁️ İzleyici (Viewer) - Yalnızca okuma ve kopyalama</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Aktif Departman / Çalışma Alanı (Workspace):</label>
-        <select id="auth-workspace" class="form-select">
-          <option value="1">🌐 Genel Çalışma Alanı</option>
-        </select>
-      </div>
-
-      <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px;">
-        <button class="btn btn-secondary" onclick="closeModal('modal-auth')">Kapat</button>
-        <button class="btn btn-primary" onclick="saveAuthProfile()">Profili Kaydet</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL: GDRIVE CONFIG -->
+  <!-- GDRIVE MODAL -->
   <div class="modal-overlay" id="modal-drive">
     <div class="modal-card">
       <div class="modal-header">
-        <div class="modal-title">🔑 Kurumsal Google Drive & Service Account Ayarı</div>
+        <div class="modal-title">🔑 Kurumsal Google Drive & Service Account</div>
         <button class="close-btn" onclick="closeModal('modal-drive')">×</button>
       </div>
-      <p style="color: var(--text-muted); font-size: 13.5px; margin-bottom: 16px;">
-        Google Cloud Console'dan indirdiğiniz <b>service_account.json</b> dosyasını yükleyin. Bu işlem %100 ücretsizdir.
-      </p>
       <div class="form-group">
         <label class="form-label">Service Account JSON Dosyası:</label>
         <input type="file" id="sa-file-input" class="form-input" accept=".json">
       </div>
       <div class="form-group">
-        <label class="form-label">Şirket Ortak Drive (Shared Drive) ID (Opsiyonel):</label>
+        <label class="form-label">Ortak Drive ID (Opsiyonel):</label>
         <input type="text" id="drive-shared-id" class="form-input" placeholder="Örn: 0ABcDeF12345678">
       </div>
       <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
@@ -762,59 +806,162 @@
   </div>
 
   <!-- TOAST -->
-  <div class="toast" id="toast">İşlem başarıyla tamamlandı!</div>
+  <div class="toast" id="toast">İşlem tamamlandı!</div>
 
   <script>
-    let currentTab = 'gems';
+    // App State
+    let currentTab = 'vault';
+    let vaultItems = [];
     let entitiesData = [];
-    let promptsData = [];
+    let currentUser = null;
+    let selectedDetailItem = null;
 
-    // Local Auth State
-    let currentUser = {
-      name: localStorage.getItem('pv_user_name') || 'Yönetici',
-      role: localStorage.getItem('pv_user_role') || 'admin'
-    };
+    const authToken = localStorage.getItem('pv_token') || '';
 
-    function updateHeaderUser() {
-      document.getElementById('header-user-name').textContent = currentUser.name;
+    // Auth Initialization
+    async function initAuth() {
+      if (!authToken) {
+        renderLoggedOut();
+        return;
+      }
+      try {
+        const res = await fetch('/api/team/auth/me', {
+          headers: { 'Authorization': 'Bearer ' + authToken }
+        });
+        if (res.ok) {
+          const d = await res.json();
+          currentUser = d.user;
+          renderLoggedIn();
+        } else {
+          localStorage.removeItem('pv_token');
+          renderLoggedOut();
+        }
+      } catch (e) {
+        renderLoggedOut();
+      }
+    }
+
+    function renderLoggedIn() {
       document.getElementById('header-user-avatar').textContent = (currentUser.name[0] || 'U').toUpperCase();
-      const roleMap = {
-        admin: '👑 Yönetici (Admin)',
-        editor: '✏️ Editör (Editor)',
-        viewer: '👁️ İzleyici (Viewer)'
-      };
-      document.getElementById('header-user-role').textContent = roleMap[currentUser.role] || 'Üye';
+      document.getElementById('header-user-name').textContent = currentUser.name;
+      const roleBadge = document.getElementById('header-user-role');
+      roleBadge.textContent = currentUser.role === 'admin' ? 'YÖNETİCİ' : (currentUser.role === 'editor' ? 'ÇALIŞAN' : 'İZLEYİCİ');
+      roleBadge.className = 'role-badge role-' + currentUser.role;
+      roleBadge.style.display = 'inline-block';
+
+      // Admin tabs visibility
+      const driveBtn = document.getElementById('nav-btn-drive');
+      if (driveBtn) driveBtn.style.display = currentUser.role === 'admin' ? 'inline-flex' : 'none';
     }
 
-    function openAuthModal() {
-      document.getElementById('auth-username').value = currentUser.name;
-      document.getElementById('auth-role').value = currentUser.role;
-      document.getElementById('modal-auth').classList.add('open');
+    function renderLoggedOut() {
+      currentUser = null;
+      document.getElementById('header-user-avatar').textContent = '👤';
+      document.getElementById('header-user-name').textContent = 'Giriş Yap';
+      document.getElementById('header-user-role').style.display = 'none';
+      const driveBtn = document.getElementById('nav-btn-drive');
+      if (driveBtn) driveBtn.style.display = 'none';
     }
 
-    function saveAuthProfile() {
-      currentUser.name = document.getElementById('auth-username').value.trim() || 'Üye';
-      currentUser.role = document.getElementById('auth-role').value;
-      localStorage.setItem('pv_user_name', currentUser.name);
-      localStorage.setItem('pv_user_role', currentUser.role);
-      updateHeaderUser();
-      closeModal('modal-auth');
-      showToast('👤 Profil ve yetkiler güncellendi!');
+    function handleAuthClick() {
+      if (currentUser) {
+        document.getElementById('prof-name').textContent = currentUser.name;
+        document.getElementById('prof-email').textContent = currentUser.email;
+        const b = document.getElementById('prof-role-badge');
+        b.textContent = currentUser.role.toUpperCase();
+        b.className = 'role-badge role-' + currentUser.role;
+        openModal('modal-profile');
+      } else {
+        toggleAuthForm('login');
+        openModal('modal-auth');
+      }
     }
 
-    // Switch Tabs
+    function toggleAuthForm(type) {
+      if (type === 'register') {
+        document.getElementById('auth-form-login').style.display = 'none';
+        document.getElementById('auth-form-register').style.display = 'block';
+        document.getElementById('auth-modal-title').textContent = '📝 Yeni Hesap Oluştur';
+      } else {
+        document.getElementById('auth-form-register').style.display = 'none';
+        document.getElementById('auth-form-login').style.display = 'block';
+        document.getElementById('auth-modal-title').textContent = '🔐 Giriş Yap';
+      }
+    }
+
+    async function submitLogin() {
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      if (!email || !password) return alert('E-posta ve şifrenizi girin.');
+
+      try {
+        const res = await fetch('/api/team/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const d = await res.json();
+        if (res.ok) {
+          localStorage.setItem('pv_token', d.token);
+          currentUser = d.user;
+          renderLoggedIn();
+          closeModal('modal-auth');
+          showToast(`Hoş geldiniz, ${currentUser.name}!`);
+        } else {
+          alert(d.detail || 'Giriş başarısız.');
+        }
+      } catch (e) {
+        alert('Sunucu hatası: ' + e);
+      }
+    }
+
+    async function submitRegister() {
+      const name = document.getElementById('reg-name').value.trim();
+      const email = document.getElementById('reg-email').value.trim();
+      const password = document.getElementById('reg-password').value;
+      if (!name || !email || !password) return alert('Lütfen tüm alanları doldurun.');
+
+      try {
+        const res = await fetch('/api/team/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, password })
+        });
+        const d = await res.json();
+        if (res.ok) {
+          localStorage.setItem('pv_token', d.token);
+          currentUser = d.user;
+          renderLoggedIn();
+          closeModal('modal-auth');
+          showToast(`Hesabınız oluşturuldu! Rol: ${currentUser.role}`);
+        } else {
+          alert(d.detail || 'Kayıt başarısız.');
+        }
+      } catch (e) {
+        alert('Sunucu hatası: ' + e);
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('pv_token');
+      renderLoggedOut();
+      closeModal('modal-profile');
+      showToast('Oturum kapatıldı.');
+    }
+
+    // Tab Switcher
     function switchTab(tabId) {
       currentTab = tabId;
-      document.querySelectorAll('main > section').forEach(s => s.style.display = 'none');
-      document.getElementById('tab-' + tabId).style.display = 'block';
+      ['vault', 'gems', 'drive', 'playground'].forEach(t => {
+        const el = document.getElementById('tab-' + t);
+        if (el) el.style.display = (t === tabId) ? 'block' : 'none';
+        const btn = document.getElementById('nav-btn-' + t);
+        if (btn) btn.classList.toggle('active', t === tabId);
+      });
 
-      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-      event?.target?.classList.add('active');
-
+      if (tabId === 'vault') loadVault();
       if (tabId === 'gems') loadEntities();
-      if (tabId === 'prompts') loadPrompts();
       if (tabId === 'drive') loadDriveStatus();
-      if (tabId === 'playground') initPlayground();
     }
 
     function showToast(msg) {
@@ -824,7 +971,158 @@
       setTimeout(() => { t.style.display = 'none'; }, 3000);
     }
 
-    // Load Gems & Skills
+    // Modal helpers
+    function openModal(id) { document.getElementById(id).classList.add('open'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+    function openCreateGemModal() { openModal('modal-create-gem'); }
+    function openCreatePromptModal() { openModal('modal-create-prompt'); }
+    function openDriveModal() { openModal('modal-drive'); }
+
+    // Load Visual Vault & Prompts
+    async function loadVault() {
+      try {
+        const res = await fetch('/api/team/prompts');
+        const data = await res.json();
+        vaultItems = data.items || [];
+        renderVault(vaultItems);
+      } catch (e) {
+        console.error('Vault load error:', e);
+      }
+    }
+
+    function renderVault(list) {
+      const grid = document.getElementById('vault-gallery');
+      if (!list || list.length === 0) {
+        grid.innerHTML = `
+          <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px; background: #111827; border-radius: 16px; border: 1px dashed #2d3748;">
+            <div style="font-size: 38px; margin-bottom: 8px;">🖼️</div>
+            <div style="font-size: 17px; font-weight: 700; color: #fff;">Kasada Henüz Görsel veya Prompt Yok</div>
+            <div style="font-size: 13.5px; color: #94a3b8; margin: 6px 0 16px;">Görsellerinizi sürükleyip bırakabilir veya üstteki "Görsel Yükle" butonunu kullanabilirsiniz.</div>
+            <button class="btn btn-primary" onclick="document.getElementById('direct-image-upload').click()">⬆️ İlk Görseli Yükle</button>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = list.map(item => {
+        const hasImg = Boolean(item.has_image && item.image_hash);
+        const thumbUrl = hasImg ? `/api/team/prompts/${item.id}/thumb` : '';
+        const dim = (item.image_width && item.image_height) ? `${item.image_width}x${item.image_height}` : '';
+
+        return `
+          <div class="vault-item" onclick="openDetailModal(${item.id})">
+            <div class="vault-thumb-wrap">
+              ${hasImg
+                ? `<img src="${thumbUrl}" alt="Thumb" loading="lazy">`
+                : `<div class="vault-text-placeholder">${escapeHtml(item.prompt)}</div>`
+              }
+              <span class="thumb-badge badge-${item.platform || 'chatgpt'}">${item.platform}</span>
+              ${dim ? `<span class="thumb-dim">${dim}</span>` : ''}
+            </div>
+            <div class="vault-info">
+              <div class="vault-item-title">${escapeHtml(item.title)}</div>
+              <div class="vault-item-prompt">${escapeHtml(item.prompt)}</div>
+              <div class="vault-item-footer">
+                <span>👤 ${escapeHtml(item.author || 'Ekip')}</span>
+                ${item.gdrive_file_id ? '<span style="color: #10b981;">☁️ Eşitlendi</span>' : '<span>⏳ Yerel</span>'}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Open Detail Modal (Orijinal PromptVault gibi)
+    function openDetailModal(id) {
+      const item = vaultItems.find(p => p.id === id);
+      if (!item) return;
+      selectedDetailItem = item;
+
+      document.getElementById('detail-title').textContent = item.title;
+      document.getElementById('detail-author').textContent = `Ekleyen: ${item.author || 'Ekip'} • ${item.created_at.slice(0, 10)}`;
+      document.getElementById('detail-prompt').textContent = item.prompt;
+
+      const imgBox = document.querySelector('.detail-img-box');
+      const imgEl = document.getElementById('detail-img');
+      const dlBtn = document.getElementById('detail-download-btn');
+
+      if (item.has_image && item.image_hash) {
+        const imgUrl = `/api/team/prompts/${item.id}/image`;
+        imgEl.src = imgUrl;
+        imgEl.style.display = 'block';
+        dlBtn.href = imgUrl;
+        dlBtn.style.display = 'inline-flex';
+      } else {
+        imgEl.style.display = 'none';
+        dlBtn.style.display = 'none';
+      }
+
+      const negWrap = document.getElementById('detail-neg-wrap');
+      if (item.negative_prompt) {
+        negWrap.style.display = 'block';
+        document.getElementById('detail-neg-prompt').textContent = item.negative_prompt;
+      } else {
+        negWrap.style.display = 'none';
+      }
+
+      document.getElementById('detail-param-model').textContent = item.model || item.platform || '-';
+      document.getElementById('detail-param-sampler').textContent = item.sampler || '-';
+      document.getElementById('detail-param-steps').textContent = item.steps || '-';
+      document.getElementById('detail-param-cfg').textContent = item.cfg_scale || '-';
+      document.getElementById('detail-param-seed').textContent = item.seed || '-';
+      document.getElementById('detail-param-dim').textContent = (item.image_width && item.image_height) ? `${item.image_width}x${item.image_height}` : '-';
+
+      openModal('modal-detail');
+    }
+
+    function copyDetailPrompt() {
+      if (selectedDetailItem) {
+        copyText(selectedDetailItem.prompt);
+      }
+    }
+
+    // Direct Image Upload (Drag & Drop or Button)
+    async function onDirectFileSelected(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      showToast('Görsel taranıyor ve metadata okunuyor...');
+
+      const fd = new FormData();
+      fd.append('file', file);
+
+      const headers = {};
+      if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
+
+      try {
+        const res = await fetch('/api/team/prompts/upload-asset', {
+          method: 'POST',
+          headers: headers,
+          body: fd
+        });
+        if (res.ok) {
+          showToast('✅ Görsel kasaya kaydedildi ve metadata indekslendi!');
+          loadVault();
+        } else {
+          alert('Görsel yüklenemedi.');
+        }
+      } catch (e) {
+        alert('Hata: ' + e);
+      }
+    }
+
+    // Drag and drop onto window
+    window.addEventListener('dragover', (e) => e.preventDefault());
+    window.addEventListener('drop', (e) => {
+      e.preventDefault();
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        const file = e.dataTransfer.files[0];
+        if (file.type.startsWith('image/')) {
+          onDirectFileSelected({ target: { files: [file] } });
+        }
+      }
+    });
+
+    // Load Gems
     async function loadEntities() {
       try {
         const res = await fetch('/api/team/entities');
@@ -839,100 +1137,23 @@
     function renderEntities(list) {
       const grid = document.getElementById('gems-grid');
       if (!list || list.length === 0) {
-        grid.innerHTML = `
-          <div class="empty-state">
-            <div class="empty-icon">🌟</div>
-            <div class="empty-title">Henüz Kayıtlı Gem veya Skill Yok</div>
-            <div class="empty-desc">Ekibiniz için ilk Gemini Gem veya Custom GPT'yi oluşturun.</div>
-            <button class="btn btn-primary" onclick="openCreateGemModal()">+ İlk Ajanı Oluştur</button>
-          </div>
-        `;
+        grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #64748b;">Henüz Gem veya Skill eklenmemiş.</div>';
         return;
       }
-
-      grid.innerHTML = list.map(item => {
-        const pClass = 'badge-' + (item.platform || 'gemini');
-        const highlighted = (item.template || item.system_instructions || '')
-          .replace(/\{\{([^}]+)\}\}/g, '<span class="var-highlight">{{$1}}</span>');
-
-        return `
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title">${escapeHtml(item.title)}</div>
-              <span class="platform-badge ${pClass}">${item.platform}</span>
-            </div>
-            <div class="card-body">${highlighted}</div>
-            <div class="card-footer">
-              <div class="card-meta">
-                <span>👤 ${escapeHtml(item.author || 'Ekip')}</span>
-                ${item.gdrive_file_id ? '<span style="color: #10b981;">☁️ Eşitlendi</span>' : '<span style="color: #94a3b8;">⏳ Yerel</span>'}
-              </div>
-              <div class="card-actions">
-                <button class="btn-icon" onclick="copyText('${escapeQuotes(item.template || item.system_instructions)}')">📋 Kopyala</button>
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    // Load Prompts
-    async function loadPrompts() {
-      try {
-        const res = await fetch('/api/team/prompts');
-        const data = await res.json();
-        promptsData = data.items || [];
-        renderPrompts(promptsData);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
-    function renderPrompts(list) {
-      const grid = document.getElementById('prompts-grid');
-      if (!list || list.length === 0) {
-        grid.innerHTML = `
-          <div class="empty-state">
-            <div class="empty-icon">💬</div>
-            <div class="empty-title">Henüz Prompt Kaydedilmemiş</div>
-            <div class="empty-desc">Ekibiniz için sık kullanılan ChatGPT veya Gemini promptlarını ekleyin.</div>
-            <button class="btn btn-primary" onclick="openCreatePromptModal()">+ İlk Promptu Ekle</button>
-          </div>
-        `;
-        return;
-      }
-
       grid.innerHTML = list.map(item => `
         <div class="card">
           <div class="card-header">
             <div class="card-title">${escapeHtml(item.title)}</div>
-            <span class="platform-badge badge-${item.platform || 'chatgpt'}">${item.platform}</span>
+            <span class="platform-badge badge-${item.platform}">${item.platform}</span>
           </div>
-          <div class="card-body">${escapeHtml(item.prompt)}</div>
+          <div class="card-body">${escapeHtml(item.template || item.system_instructions)}</div>
           <div class="card-footer">
-            <div class="card-meta">
-              <span>👤 ${escapeHtml(item.author || 'Ekip')}</span>
-              ${item.gdrive_file_id ? '<span style="color: #10b981;">☁️ Eşitlendi</span>' : '<span style="color: #94a3b8;">⏳ Yerel</span>'}
-            </div>
-            <div class="card-actions">
-              <button class="btn-icon" onclick="copyText('${escapeQuotes(item.prompt)}')">📋 Kopyala</button>
-            </div>
+            <span style="font-size: 12px; color: var(--text-muted);">👤 ${escapeHtml(item.author || 'Ekip')}</span>
+            <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px;" onclick="copyText('${escapeQuotes(item.template || item.system_instructions)}')">📋 Kopyala</button>
           </div>
         </div>
       `).join('');
     }
-
-    // Modal Helpers
-    function openCreateGemModal() { document.getElementById('modal-create-gem').classList.add('open'); }
-    function openCreatePromptModal() {
-      const sel = document.getElementById('prompt-entity-id');
-      sel.innerHTML = '<option value="">-- Bağımsız Prompt --</option>' + entitiesData.map(e => `
-        <option value="${e.id}">${escapeHtml(e.title)}</option>
-      `).join('');
-      document.getElementById('modal-create-prompt').classList.add('open');
-    }
-    function openDriveModal() { document.getElementById('modal-drive').classList.add('open'); }
-    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
     // Submit New Gem
     async function submitCreateGem() {
@@ -941,217 +1162,94 @@
       const entity_type = document.getElementById('gem-type').value;
       const system_instructions = document.getElementById('gem-instructions').value.trim();
       const template = document.getElementById('gem-template').value.trim();
-      const tags = document.getElementById('gem-tags').value.split(',').map(t => t.trim()).filter(Boolean);
 
-      if (!title || !system_instructions) {
-        alert('Lütfen başlık ve sistem yönergesi alanlarını doldurun.');
-        return;
-      }
+      if (!title || !system_instructions) return alert('Başlık ve yönerge zorunludur.');
+
+      const headers = { 'Content-Type': 'application/json' };
+      if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
 
       try {
         const res = await fetch('/api/team/entities', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title, platform, entity_type, system_instructions, template, tags,
-            author: currentUser.name
-          })
+          headers: headers,
+          body: JSON.stringify({ title, platform, entity_type, system_instructions, template })
         });
         if (res.ok) {
           closeModal('modal-create-gem');
-          showToast('🌟 Gem/Skill başarıyla kasaya eklendi ve Google Drive kuyruğuna alındı!');
+          showToast('🌟 Gem kasaya eklendi!');
           loadEntities();
         }
-      } catch (e) {
-        alert('Hata: ' + e);
-      }
+      } catch (e) { alert(e); }
     }
 
     // Submit New Prompt
     async function submitCreatePrompt() {
       const title = document.getElementById('prompt-title').value.trim();
       const platform = document.getElementById('prompt-platform').value;
-      const system_entity_id = parseInt(document.getElementById('prompt-entity-id').value) || null;
       const prompt = document.getElementById('prompt-text').value.trim();
-      const tags = document.getElementById('prompt-tags').value.split(',').map(t => t.trim()).filter(Boolean);
+      if (!prompt) return alert('Prompt metni girin.');
 
-      if (!prompt) {
-        alert('Lütfen prompt metnini girin.');
-        return;
-      }
+      const headers = { 'Content-Type': 'application/json' };
+      if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
 
       try {
         const res = await fetch('/api/team/prompts', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: title || 'İsimsiz Prompt',
-            platform,
-            prompt,
-            system_entity_id,
-            tags,
-            author: currentUser.name
-          })
+          headers: headers,
+          body: JSON.stringify({ title, platform, prompt })
         });
         if (res.ok) {
           closeModal('modal-create-prompt');
-          showToast('💬 Prompt kasaya kaydedildi ve Drive kuyruğuna alındı!');
-          loadPrompts();
+          showToast('💬 Prompt kasaya eklendi!');
+          loadVault();
         }
-      } catch (e) {
-        alert('Hata: ' + e);
-      }
-    }
-
-    // Submit Drive Config
-    async function submitDriveConfig() {
-      const fileInput = document.getElementById('sa-file-input');
-      const sharedId = document.getElementById('drive-shared-id').value.trim();
-
-      if (sharedId) {
-        await fetch('/api/team/gdrive/config', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ shared_drive_id: sharedId })
-        });
-      }
-
-      if (fileInput.files.length > 0) {
-        const fd = new FormData();
-        fd.append('file', fileInput.files[0]);
-        const res = await fetch('/api/team/gdrive/upload-service-account', {
-          method: 'POST',
-          body: fd
-        });
-        if (res.ok) {
-          showToast('✅ Service Account doğrulandı ve Drive senkronizasyonu aktif!');
-          closeModal('modal-drive');
-          loadDriveStatus();
-        } else {
-          alert('Geçersiz Service Account dosyası!');
-        }
-      } else {
-        closeModal('modal-drive');
-        loadDriveStatus();
-      }
-    }
-
-    // Load Drive Status
-    async function loadDriveStatus() {
-      try {
-        const res = await fetch('/api/team/gdrive/status');
-        const s = await res.json();
-        document.getElementById('stat-conn-status').textContent = s.is_connected ? '✅ Bağlı & Aktif' : '⚠️ Yapılandırılmadı';
-        document.getElementById('stat-conn-status').style.color = s.is_connected ? '#10b981' : '#f59e0b';
-        document.getElementById('stat-drive-name').textContent = s.shared_drive_name || 'Standart Drive';
-        document.getElementById('stat-synced-count').textContent = s.synced_count || 0;
-        document.getElementById('stat-pending-count').textContent = s.queue_pending || 0;
-      } catch (e) {
-        console.error(e);
-      }
+      } catch (e) { alert(e); }
     }
 
     // Filters
-    function filterPlatform(plat) {
-      document.querySelectorAll('#tab-gems .filter-pills .pill').forEach(p => p.classList.remove('active'));
+    function filterVaultType(type) {
+      document.querySelectorAll('#tab-vault .filter-pills .pill').forEach(p => p.classList.remove('active'));
       event?.target?.classList.add('active');
-      const filtered = plat === 'all' ? entitiesData : entitiesData.filter(e => e.platform === plat);
-      renderEntities(filtered);
+      if (type === 'images') renderVault(vaultItems.filter(p => p.has_image));
+      else if (type === 'texts') renderVault(vaultItems.filter(p => !p.has_image));
+      else renderVault(vaultItems);
     }
 
-    function filterGems() {
-      const q = document.getElementById('gems-search').value.toLowerCase();
-      const filtered = entitiesData.filter(e =>
-        (e.title || '').toLowerCase().includes(q) ||
-        (e.system_instructions || '').toLowerCase().includes(q) ||
-        (e.template || '').toLowerCase().includes(q)
-      );
-      renderEntities(filtered);
-    }
-
-    function filterPromptPlatform(plat) {
-      document.querySelectorAll('#tab-prompts .filter-pills .pill').forEach(p => p.classList.remove('active'));
+    function filterVaultPlatform(plat) {
+      document.querySelectorAll('#tab-vault .filter-pills .pill').forEach(p => p.classList.remove('active'));
       event?.target?.classList.add('active');
-      const filtered = plat === 'all' ? promptsData : promptsData.filter(p => p.platform === plat);
-      renderPrompts(filtered);
+      renderVault(vaultItems.filter(p => p.platform === plat));
     }
 
-    function filterPrompts() {
-      const q = document.getElementById('prompts-search').value.toLowerCase();
-      const filtered = promptsData.filter(p =>
+    function filterVault() {
+      const q = document.getElementById('vault-search').value.toLowerCase();
+      renderVault(vaultItems.filter(p =>
         (p.title || '').toLowerCase().includes(q) ||
         (p.prompt || '').toLowerCase().includes(q) ||
-        (p.author || '').toLowerCase().includes(q)
-      );
-      renderPrompts(filtered);
-    }
-
-    // Playground
-    async function initPlayground() {
-      if (entitiesData.length === 0) await loadEntities();
-      const sel = document.getElementById('play-entity-select');
-      sel.innerHTML = '<option value="">-- Bir Gem veya Skill Seçin --</option>' + entitiesData.map(e => `
-        <option value="${e.id}">${escapeHtml(e.title)} (${e.platform})</option>
-      `).join('');
-    }
-
-    function onPlaygroundEntityChange() {
-      const id = parseInt(document.getElementById('play-entity-select').value);
-      const ent = entitiesData.find(e => e.id === id);
-      if (!ent) return;
-      document.getElementById('play-system-text').value = ent.system_instructions;
-      document.getElementById('play-prompt-template').value = ent.template || '';
-      renderPlaygroundVariables(ent.variables || []);
-    }
-
-    function renderPlaygroundVariables(vars) {
-      const c = document.getElementById('play-variables-container');
-      if (!vars || vars.length === 0) {
-        c.innerHTML = '';
-        return;
-      }
-      c.innerHTML = '<label class="form-label">Şablon Değişkenlerini Doldurun:</label>' + vars.map(v => `
-        <div style="margin-bottom: 8px;">
-          <input type="text" class="form-input var-input" data-var="${v}" placeholder="{{${v}}} değerini girin...">
-        </div>
-      `).join('');
-    }
-
-    async function testPreviewPayload() {
-      const entId = parseInt(document.getElementById('play-entity-select').value) || null;
-      const prompt = document.getElementById('play-prompt-template').value;
-      const vars = {};
-      document.querySelectorAll('.var-input').forEach(inp => {
-        vars[inp.dataset.var] = inp.value;
-      });
-
-      const res = await fetch('/api/team/execute/preview', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ system_entity_id: entId, prompt, variables: vars })
-      });
-      const data = await res.json();
-      document.getElementById('play-result-json').textContent = JSON.stringify(data.assembled_payload, null, 2);
-      showToast('🚀 API istek paketi hazırlandı!');
+        (p.model || '').toLowerCase().includes(q)
+      ));
     }
 
     function copyText(str) {
       navigator.clipboard.writeText(str).then(() => showToast('📋 Panoya kopyalandı!'));
     }
 
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
+    function escapeHtml(t) {
+      if (!t) return '';
+      return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    function escapeQuotes(t) {
+      return (t || '').replace(/'/g, "\\'").replace(/\n/g, '\\n');
     }
 
-    function escapeQuotes(text) {
-      return (text || '').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '');
-    }
+    // Close on background click
+    document.querySelectorAll('.modal-overlay').forEach(o => {
+      o.addEventListener('click', (e) => { if (e.target === o) o.classList.remove('open'); });
+    });
 
     // Startup
-    updateHeaderUser();
-    loadEntities();
+    initAuth();
+    loadVault();
   </script>
 </body>
 </html>
