@@ -74,10 +74,10 @@ def test_team_api_endpoints(tmp_path):
     app = create_team_app(data_dir=tmp_path)
     client = TestClient(app)
 
-    # Root
+    # Root dashboard
     resp = client.get("/")
     assert resp.status_code == 200
-    assert resp.json()["status"] == "online"
+    assert "PromptVault" in resp.text
 
     # Create workspace
     resp = client.post("/api/team/workspaces", json={"name": "Yazılım Ekibi"})

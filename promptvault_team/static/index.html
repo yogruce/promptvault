@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PromptVault Team ◈ Ekip Kasası</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card-bg: #111827;
+      --card-border: #1f2937;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --accent-gemini: #38bdf8;
+      --accent-chatgpt: #10b981;
+      --accent-claude: #f97316;
+      --accent-reasoning: #a855f7;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* HEADER */
+    header {
+      background: rgba(17, 24, 39, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .logo-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .logo-badge {
+      background: linear-gradient(135deg, #6366f1, #a855f7);
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+    }
+    .brand-title {
+      font-size: 19px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .brand-title span {
+      background: linear-gradient(90deg, #818cf8, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-left: 6px;
+    }
+    .header-nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #0f172a;
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid var(--card-border);
+    }
+    .nav-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13.5px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+    .nav-btn:hover {
+      color: #fff;
+    }
+    .nav-btn.active {
+      background: #1e293b;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13.5px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+    .btn-secondary {
+      background: #1e293b;
+      color: var(--text);
+      border-color: var(--card-border);
+    }
+    .btn-secondary:hover {
+      background: #334155;
+    }
+
+    /* MAIN CONTAINER */
+    main {
+      flex: 1;
+      max-width: 1360px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 28px 24px;
+    }
+
+    /* SEARCH & FILTER BAR */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    .search-box {
+      flex: 1;
+      min-width: 280px;
+      position: relative;
+    }
+    .search-box input {
+      width: 100%;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 10px 16px 10px 40px;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-box input:focus {
+      border-color: var(--primary);
+    }
+    .search-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      font-size: 16px;
+    }
+
+    .filter-pills {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .pill {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .pill:hover, .pill.active {
+      background: #1e293b;
+      color: #fff;
+      border-color: var(--primary);
+    }
+
+    /* GRID & CARDS */
+    .grid-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+      gap: 20px;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      border-color: #374151;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #fff;
+      line-height: 1.3;
+    }
+    .platform-badge {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      padding: 4px 8px;
+      border-radius: 6px;
+      letter-spacing: 0.04em;
+    }
+    .badge-gemini { background: rgba(56, 189, 248, 0.15); color: var(--accent-gemini); border: 1px solid rgba(56, 189, 248, 0.3); }
+    .badge-chatgpt { background: rgba(16, 185, 129, 0.15); color: var(--accent-chatgpt); border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-claude { background: rgba(249, 115, 22, 0.15); color: var(--accent-claude); border: 1px solid rgba(249, 115, 22, 0.3); }
+    .badge-reasoning { background: rgba(168, 85, 247, 0.15); color: var(--accent-reasoning); border: 1px solid rgba(168, 85, 247, 0.3); }
+    .badge-opensource { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3); }
+
+    .card-body {
+      background: #0b0f19;
+      border: 1px solid #1f2937;
+      border-radius: 8px;
+      padding: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: #cbd5e1;
+      max-height: 140px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.5;
+    }
+    .var-highlight {
+      color: #f59e0b;
+      font-weight: 600;
+      background: rgba(245, 158, 11, 0.12);
+      padding: 1px 4px;
+      border-radius: 4px;
+    }
+
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: auto;
+      padding-top: 8px;
+      border-top: 1px solid #1f2937;
+    }
+    .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .card-actions {
+      display: flex;
+      gap: 6px;
+    }
+    .btn-icon {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #cbd5e1;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-icon:hover {
+      background: #3b82f6;
+      color: #fff;
+      border-color: #3b82f6;
+    }
+
+    /* GDRIVE DASHBOARD */
+    .sync-banner {
+      background: linear-gradient(135deg, #1e1b4b, #172554);
+      border: 1px solid #3730a3;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .sync-stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+    .stat-box {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .stat-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; }
+    .stat-val { font-size: 22px; font-weight: 700; color: #fff; }
+
+    /* MODAL */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-card {
+      background: var(--card-bg);
+      border: 1px solid #374151;
+      border-radius: 16px;
+      max-width: 620px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 24px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+    .modal-title { font-size: 18px; font-weight: 600; }
+    .close-btn { background: none; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; }
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: #cbd5e1; }
+    .form-input, .form-textarea, .form-select {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+    }
+    .form-textarea { resize: vertical; min-height: 100px; font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+    .form-input:focus, .form-textarea:focus, .form-select:focus { border-color: var(--primary); }
+
+    /* TOAST */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #10b981;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 500;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      display: none;
+      z-index: 200;
+      animation: slideIn 0.3s ease;
+    }
+    @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo-group">
+      <div class="logo-badge">◈</div>
+      <div class="brand-title">PromptVault<span>Team</span></div>
+    </div>
+
+    <nav class="header-nav">
+      <button class="nav-btn active" onclick="switchTab('gems')">🌟 Gems & Skills</button>
+      <button class="nav-btn" onclick="switchTab('prompts')">💬 Prompt Kasası</button>
+      <button class="nav-btn" onclick="switchTab('drive')">☁️ Kurumsal Drive</button>
+      <button class="nav-btn" onclick="switchTab('playground')">⚡ API Playground</button>
+    </nav>
+
+    <div class="header-actions">
+      <button class="btn btn-secondary" onclick="openDriveModal()">🔑 Service Account</button>
+      <button class="btn btn-primary" onclick="openCreateModal()">+ Yeni Ekle</button>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main>
+    <!-- TAB: GEMS & SKILLS -->
+    <section id="tab-gems">
+      <div class="toolbar">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="gems-search" placeholder="Gem, Custom GPT veya Claude Skill ara..." oninput="filterGems()">
+        </div>
+        <div class="filter-pills">
+          <button class="pill active" onclick="filterPlatform('all')">Tümü</button>
+          <button class="pill" onclick="filterPlatform('gemini')">Gemini Gems</button>
+          <button class="pill" onclick="filterPlatform('chatgpt')">Custom GPTs</button>
+          <button class="pill" onclick="filterPlatform('claude')">Claude Skills</button>
+        </div>
+      </div>
+      <div class="grid-cards" id="gems-grid">
+        <!-- Rendered via JS -->
+      </div>
+    </section>
+
+    <!-- TAB: PROMPTS -->
+    <section id="tab-prompts" style="display: none;">
+      <div class="toolbar">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="prompts-search" placeholder="Ekip promptları arasında ara..." oninput="filterPrompts()">
+        </div>
+        <div class="filter-pills">
+          <button class="pill active" onclick="filterPromptPlatform('all')">Tüm Modeller</button>
+          <button class="pill" onclick="filterPromptPlatform('chatgpt')">ChatGPT</button>
+          <button class="pill" onclick="filterPromptPlatform('gemini')">Gemini</button>
+          <button class="pill" onclick="filterPromptPlatform('claude')">Claude</button>
+          <button class="pill" onclick="filterPromptPlatform('reasoning')">Reasoning</button>
+        </div>
+      </div>
+      <div class="grid-cards" id="prompts-grid">
+        <!-- Rendered via JS -->
+      </div>
+    </section>
+
+    <!-- TAB: GDRIVE -->
+    <section id="tab-drive" style="display: none;">
+      <div class="sync-banner">
+        <div>
+          <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 6px;">Google Workspace Ortak Drive Senkronizasyonu</h2>
+          <p style="color: #94a3b8; font-size: 14px; max-width: 600px;">
+            Kasa arka planda <b>Olay Güdümlü (Event-Driven)</b> çalışır. Ekip üyelerinin eklediği her prompt ve Gem/Skill, Service Account üzerinden şirketin Ortak Drive'ına anında yedeklenir.
+          </p>
+        </div>
+        <button class="btn btn-primary" onclick="openDriveModal()">⚙️ Kurumsal Drive Ayarla</button>
+      </div>
+
+      <div class="sync-stat-grid">
+        <div class="stat-box">
+          <div class="stat-label">Bağlantı Durumu</div>
+          <div class="stat-val" id="stat-conn-status" style="color: #10b981;">Kontrol ediliyor...</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Ortak Drive Adı</div>
+          <div class="stat-val" id="stat-drive-name" style="font-size: 16px;">-</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Drive'a Eşitlenen Kayıt</div>
+          <div class="stat-val" id="stat-synced-count">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Bekleyen Senkron Kuyruğu</div>
+          <div class="stat-val" id="stat-pending-count">0</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB: PLAYGROUND -->
+    <section id="tab-playground" style="display: none;">
+      <div style="background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 24px;">
+        <h2 style="font-size: 18px; margin-bottom: 16px;">⚡ API Önizleme & Şablon Testi</h2>
+        <div class="form-group">
+          <label class="form-label">Sistem Varlığı Seçin (Gem / GPT / Skill):</label>
+          <select id="play-entity-select" class="form-select" onchange="onPlaygroundEntityChange()">
+            <option value="">-- Seçiniz --</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Sistem Yönergesi (System Instructions):</label>
+          <textarea id="play-system-text" class="form-textarea" readonly style="opacity: 0.8;"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Şablon ve Değişkenler:</label>
+          <textarea id="play-prompt-template" class="form-textarea" placeholder="Örn: {{konu}} hakkında {{kitle}} için yazı yaz."></textarea>
+        </div>
+        <div id="play-variables-container" style="margin-bottom: 16px;"></div>
+        <button class="btn btn-primary" onclick="testPreviewPayload()">🚀 Birleştir ve API Paketini Önizle</button>
+
+        <div style="margin-top: 20px;">
+          <label class="form-label">Oluşturulan API İstek Paketi (JSON):</label>
+          <pre id="play-result-json" style="background: #0b0f19; border: 1px solid #1f2937; padding: 14px; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #a5f3fc; overflow-x: auto; max-height: 250px;">Henüz test edilmedi.</pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- CREATE ENTITY MODAL -->
+  <div class="modal-overlay" id="modal-create">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">+ Yeni Sistem Ajanı / Gem / GPT Ekle</div>
+        <button class="close-btn" onclick="closeModal('modal-create')">×</button>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Başlık:</label>
+        <input type="text" id="new-entity-title" class="form-input" placeholder="Örn: SEO Uzmanı, Python Mimarisi, vb.">
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;" class="form-group">
+        <div>
+          <label class="form-label">Platform:</label>
+          <select id="new-entity-platform" class="form-select">
+            <option value="gemini">Google Gemini</option>
+            <option value="chatgpt">OpenAI ChatGPT</option>
+            <option value="claude">Anthropic Claude</option>
+            <option value="reasoning">Reasoning / Düşünme</option>
+            <option value="opensource">Açık Kaynak</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Tür:</label>
+          <select id="new-entity-type" class="form-select">
+            <option value="gem">Gemini Gem</option>
+            <option value="custom_gpt">Custom GPT</option>
+            <option value="skill">Claude Skill</option>
+            <option value="system">Genel Sistem Promptu</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Sistem Yönergeleri (Master Instructions):</label>
+        <textarea id="new-entity-instructions" class="form-textarea" placeholder="Rol, kurallar, kısıtlamalar ve beklenen çıktı formatı..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Şablon (Değişkenler için {{degisken_adi}} kullanın):</label>
+        <textarea id="new-entity-template" class="form-textarea" placeholder="Örn: {{musteri_adi}} için {{sektor}} odaklı içerik tasarla."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Etiketler (Virgülle ayırın):</label>
+        <input type="text" id="new-entity-tags" class="form-input" placeholder="seo, pazarlama, kod">
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+        <button class="btn btn-secondary" onclick="closeModal('modal-create')">İptal</button>
+        <button class="btn btn-primary" onclick="submitCreateEntity()">Kasaya Kaydet & Drive'a Eşitle</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GDRIVE CONFIG MODAL -->
+  <div class="modal-overlay" id="modal-drive">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">🔑 Kurumsal Google Drive & Service Account Ayarı</div>
+        <button class="close-btn" onclick="closeModal('modal-drive')">×</button>
+      </div>
+      <p style="color: #94a3b8; font-size: 13.5px; margin-bottom: 16px;">
+        Google Cloud Console'dan indirdiğiniz <b>service_account.json</b> dosyasını yükleyin. Bu işlem %100 ücretsizdir.
+      </p>
+      <div class="form-group">
+        <label class="form-label">Service Account JSON Dosyası:</label>
+        <input type="file" id="sa-file-input" class="form-input" accept=".json">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ortak Drive (Shared Drive) ID (Opsiyonel):</label>
+        <input type="text" id="drive-shared-id" class="form-input" placeholder="Örn: 0ABcDeF12345678">
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+        <button class="btn btn-secondary" onclick="closeModal('modal-drive')">Kapat</button>
+        <button class="btn btn-primary" onclick="submitDriveConfig()">Kaydet & Doğrula</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div class="toast" id="toast">İşlem başarıyla tamamlandı!</div>
+
+  <script>
+    let currentTab = 'gems';
+    let entitiesData = [];
+    let promptsData = [];
+
+    // Switch tabs
+    function switchTab(tabId) {
+      currentTab = tabId;
+      document.querySelectorAll('main > section').forEach(s => s.style.display = 'none');
+      document.getElementById('tab-' + tabId).style.display = 'block';
+
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      event?.target?.classList.add('active');
+
+      if (tabId === 'gems') loadEntities();
+      if (tabId === 'prompts') loadPrompts();
+      if (tabId === 'drive') loadDriveStatus();
+      if (tabId === 'playground') initPlayground();
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.display = 'block';
+      setTimeout(() => { t.style.display = 'none'; }, 3000);
+    }
+
+    // Load Gems & Skills
+    async function loadEntities() {
+      try {
+        const res = await fetch('/api/team/entities');
+        const data = await res.json();
+        entitiesData = data.items || [];
+        renderEntities(entitiesData);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function renderEntities(list) {
+      const grid = document.getElementById('gems-grid');
+      if (!list || list.length === 0) {
+        grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #64748b; padding: 40px;">Henüz kaydedilmiş Gem veya Custom GPT bulunmuyor. Sağ üstteki "+ Yeni Ekle" butonundan ilk ajanı oluşturabilirsiniz.</div>';
+        return;
+      }
+
+      grid.innerHTML = list.map(item => {
+        const pClass = 'badge-' + (item.platform || 'gemini');
+        const highlighted = (item.template || item.system_instructions || '')
+          .replace(/\{\{([^}]+)\}\}/g, '<span class="var-highlight">{{$1}}</span>');
+
+        return `
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">${escapeHtml(item.title)}</div>
+              <span class="platform-badge ${pClass}">${item.platform}</span>
+            </div>
+            <div class="card-body">${highlighted}</div>
+            <div class="card-footer">
+              <div class="card-meta">
+                <span>👤 ${escapeHtml(item.author || 'Ekip')}</span>
+                ${item.gdrive_file_id ? '<span title="Google Drive\'a eşitlendi" style="color: #10b981;">☁️ Eşitlendi</span>' : '<span style="color: #94a3b8;">⏳ Yerel</span>'}
+              </div>
+              <div class="card-actions">
+                <button class="btn-icon" onclick="copyText('${escapeQuotes(item.template || item.system_instructions)}')">📋 Kopyala</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Load Prompts
+    async function loadPrompts() {
+      try {
+        const res = await fetch('/api/team/prompts');
+        const data = await res.json();
+        promptsData = data.items || [];
+        renderPrompts(promptsData);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function renderPrompts(list) {
+      const grid = document.getElementById('prompts-grid');
+      if (!list || list.length === 0) {
+        grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #64748b; padding: 40px;">Henüz prompt kaydedilmemiş.</div>';
+        return;
+      }
+      grid.innerHTML = list.map(item => `
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">${escapeHtml(item.title)}</div>
+            <span class="platform-badge badge-${item.platform || 'chatgpt'}">${item.platform}</span>
+          </div>
+          <div class="card-body">${escapeHtml(item.prompt)}</div>
+          <div class="card-footer">
+            <div class="card-meta">
+              <span>👤 ${escapeHtml(item.author || 'Ekip')}</span>
+              ${item.gdrive_file_id ? '<span style="color: #10b981;">☁️ Eşitlendi</span>' : '<span style="color: #94a3b8;">⏳ Yerel</span>'}
+            </div>
+            <div class="card-actions">
+              <button class="btn-icon" onclick="copyText('${escapeQuotes(item.prompt)}')">📋 Kopyala</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Load Drive Status
+    async function loadDriveStatus() {
+      try {
+        const res = await fetch('/api/team/gdrive/status');
+        const s = await res.json();
+        document.getElementById('stat-conn-status').textContent = s.is_connected ? '✅ Bağlı & Aktif' : '⚠️ Yapılandırılmadı';
+        document.getElementById('stat-conn-status').style.color = s.is_connected ? '#10b981' : '#f59e0b';
+        document.getElementById('stat-drive-name').textContent = s.shared_drive_name || 'Standart Drive';
+        document.getElementById('stat-synced-count').textContent = s.synced_count || 0;
+        document.getElementById('stat-pending-count').textContent = s.queue_pending || 0;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // Modal Helpers
+    function openCreateModal() { document.getElementById('modal-create').classList.add('open'); }
+    function openDriveModal() { document.getElementById('modal-drive').classList.add('open'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+    // Submit New Entity
+    async function submitCreateEntity() {
+      const title = document.getElementById('new-entity-title').value.trim();
+      const platform = document.getElementById('new-entity-platform').value;
+      const entity_type = document.getElementById('new-entity-type').value;
+      const system_instructions = document.getElementById('new-entity-instructions').value.trim();
+      const template = document.getElementById('new-entity-template').value.trim();
+      const tags = document.getElementById('new-entity-tags').value.split(',').map(t => t.trim()).filter(Boolean);
+
+      if (!title || !system_instructions) {
+        alert('Lütfen başlık ve sistem yönergesi alanlarını doldurun.');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/team/entities', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, platform, entity_type, system_instructions, template, tags })
+        });
+        if (res.ok) {
+          closeModal('modal-create');
+          showToast('✅ Ajan başarıyla kasaya eklendi ve Google Drive kuyruğuna alındı!');
+          loadEntities();
+        } else {
+          alert('Hata oluştu!');
+        }
+      } catch (e) {
+        alert('Sunucu hatası: ' + e);
+      }
+    }
+
+    // Submit Drive Config
+    async function submitDriveConfig() {
+      const fileInput = document.getElementById('sa-file-input');
+      const sharedId = document.getElementById('drive-shared-id').value.trim();
+
+      if (sharedId) {
+        await fetch('/api/team/gdrive/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ shared_drive_id: sharedId })
+        });
+      }
+
+      if (fileInput.files.length > 0) {
+        const fd = new FormData();
+        fd.append('file', fileInput.files[0]);
+        const res = await fetch('/api/team/gdrive/upload-service-account', {
+          method: 'POST',
+          body: fd
+        });
+        if (res.ok) {
+          showToast('✅ Service Account yüklendi ve bağlantı doğrulandı!');
+          closeModal('modal-drive');
+          loadDriveStatus();
+        } else {
+          alert('Geçersiz JSON anahtarı!');
+        }
+      } else {
+        closeModal('modal-drive');
+        loadDriveStatus();
+      }
+    }
+
+    // Playground
+    async function initPlayground() {
+      if (entitiesData.length === 0) await loadEntities();
+      const sel = document.getElementById('play-entity-select');
+      sel.innerHTML = '<option value="">-- Seçiniz --</option>' + entitiesData.map(e => `
+        <option value="${e.id}">${e.title} (${e.platform})</option>
+      `).join('');
+    }
+
+    function onPlaygroundEntityChange() {
+      const id = parseInt(document.getElementById('play-entity-select').value);
+      const ent = entitiesData.find(e => e.id === id);
+      if (!ent) return;
+      document.getElementById('play-system-text').value = ent.system_instructions;
+      document.getElementById('play-prompt-template').value = ent.template || '';
+      renderPlaygroundVariables(ent.variables || []);
+    }
+
+    function renderPlaygroundVariables(vars) {
+      const c = document.getElementById('play-variables-container');
+      if (!vars || vars.length === 0) {
+        c.innerHTML = '';
+        return;
+      }
+      c.innerHTML = '<label class="form-label">Şablon Değişkenlerini Doldurun:</label>' + vars.map(v => `
+        <div style="margin-bottom: 8px;">
+          <input type="text" class="form-input var-input" data-var="${v}" placeholder="{{${v}}} değerini girin...">
+        </div>
+      `).join('');
+    }
+
+    async function testPreviewPayload() {
+      const entId = parseInt(document.getElementById('play-entity-select').value) || null;
+      const prompt = document.getElementById('play-prompt-template').value;
+      const vars = {};
+      document.querySelectorAll('.var-input').forEach(inp => {
+        vars[inp.dataset.var] = inp.value;
+      });
+
+      const res = await fetch('/api/team/execute/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ system_entity_id: entId, prompt, variables: vars })
+      });
+      const data = await res.json();
+      document.getElementById('play-result-json').textContent = JSON.stringify(data.assembled_payload, null, 2);
+      showToast('🚀 API istek paketi hazırlandı!');
+    }
+
+    function copyText(str) {
+      navigator.clipboard.writeText(str).then(() => showToast('📋 Panoya kopyalandı!'));
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function escapeQuotes(text) {
+      return (text || '').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '');
+    }
+
+    // Initial load
+    loadEntities();
+  </script>
+</body>
+</html>

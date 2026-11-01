@@ -5,7 +5,8 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from .api import (
     create_entities_router,
@@ -21,6 +22,7 @@ from .gdrive_service import CorporateGDriveSync
 def create_team_app(data_dir: str | Path | None = None) -> FastAPI:
     lib = TeamLibrary(data_dir=data_dir)
     gdrive_sync = CorporateGDriveSync(lib=lib)
+    static_dir = Path(__file__).parent / "static"
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -52,25 +54,19 @@ def create_team_app(data_dir: str | Path | None = None) -> FastAPI:
     app.include_router(create_gdrive_router(gdrive_sync))
     app.include_router(create_execution_router(lib))
 
+    # Mount static files and serve index.html
+    if static_dir.exists():
+        app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
     @app.get("/")
     def root():
+        index_file = static_dir / "index.html"
+        if index_file.exists():
+            return FileResponse(str(index_file))
         return {
             "name": "PromptVault Team Edition",
             "version": "2.0.0-team",
             "status": "online",
-            "features": [
-                "ChatGPT, Gemini, Claude, Reasoning prompt vault",
-                "Gemini Gems, Custom GPTs, Claude Skills management",
-                "Real-time Google Workspace Shared Drive sync",
-                "API Execution groundwork (Chat & Image generation)",
-            ],
-            "endpoints": {
-                "entities": "/api/team/entities",
-                "prompts": "/api/team/prompts",
-                "workspaces": "/api/team/workspaces",
-                "gdrive": "/api/team/gdrive/status",
-                "execute": "/api/team/execute/preview",
-            },
         }
 
     return app
