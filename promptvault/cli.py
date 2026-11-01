@@ -292,6 +292,36 @@ def cmd_serve(args, lib: Library) -> int:
     return 0
 
 
+def cmd_team(args, lib: Library) -> int:
+    try:
+        import uvicorn
+        from promptvault_team.app import create_team_app
+    except ImportError:
+        print("Web arayüzü için: pip install promptvault[web]", file=sys.stderr)
+        return 1
+
+    url = f"http://{'127.0.0.1' if args.host == '0.0.0.0' else args.host}:{args.port}"
+    print(f"🚀 PromptVault Team Sunucusu: {url}")
+    print("◈ ChatGPT, Gemini, Claude, Gems/Skills & Real-time Google Drive Sync hazır.")
+    if args.open:
+        import threading
+        import time
+        import webbrowser
+
+        def _delayed_open():
+            time.sleep(0.4)
+            webbrowser.open(url)
+
+        threading.Thread(target=_delayed_open, daemon=True).start()
+
+    try:
+        uvicorn.run(create_team_app(), host=args.host, port=args.port, log_level="info")
+    except Exception as e:
+        print(f"Sunucu hatası: {e}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="promptvault", description="Yapay zeka prompt ve PNG metadata yöneticisi")
     p.add_argument("--db", default=None, help=f"veritabanı yolu (varsayılan {default_db_path()})")
@@ -372,6 +402,11 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--port", type=int, default=7860)
     s.add_argument("--open", action="store_true", help="tarayıcıda aç")
     s.add_argument("--wildcards", help="*.txt wildcard klasörü")
+
+    s = sub.add_parser("team", help="PromptVault Team sunucusunu başlat (ChatGPT, Gemini, Claude, Gems & Drive Sync)")
+    s.add_argument("--host", default="127.0.0.1")
+    s.add_argument("--port", type=int, default=7861)
+    s.add_argument("--open", action="store_true", help="tarayıcıda aç")
     return p
 
 

@@ -48,6 +48,8 @@ vault/
 client_secret*.json
 token*.json
 gdrive_client*.json
+service_account*.json
+None/
 gdrive_token*.json
 credentials.json
 

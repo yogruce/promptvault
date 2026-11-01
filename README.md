@@ -216,3 +216,21 @@ promptvault serve --open --port 7860
 - **Etiketler Sekmesi**: En sık kullanılan prompt kelimelerini, LoRA'ları ve modelleri frekans çubuklarıyla görün; tek tıkla arama filtresine dönüştürün veya wildcard listesi yapın.
 - **Prompt Matrisi Sekmesi**: Şablonunuzu yazarken canlı olarak toplam kombinasyon sayısını ve önizleme satırlarını görün. TXT, A1111 formatı veya CSV/JSON olarak dışa aktarın.
 - **Wildcards Sekmesi**: `__stil__`, `__karakterler__` gibi kelime listelerini oluşturun, içe/dışa aktarın ve yönetin.
+
+---
+
+## 👥 PromptVault Team Edition (ChatGPT, Gemini, Claude & Ortak Drive)
+
+PromptVault Team; ekipler, ajanslar ve stüdyolar için geliştirilmiş çoklu çalışma alanı destekli prompt kasasıdır:
+- **Odak LLM Aileleri**: `ChatGPT`, `Gemini`, `Claude`, `Reasoning`, `Açık Kaynak` (model versiyonlarına kilitlenmez).
+- **Gems, Custom GPTs & Claude Skills**: Sistem yönergelerini, dinamik değişkenli `{{sablon}}` şablonlarını ve rollerini tek bir ortak kasada saklayın.
+- **Anında Google Drive Senkronizasyonu**: Kasaya yeni bir kayıt eklendiği anda arka planda şirket Ortak Drive'ına otomatik işlenir.
+- **Hızlı Başlatma**: `start_team.bat` dosyasına çift tıklayarak veya `promptvault team --port 7861 --open` ile başlatılabilir.
+
+### 🔑 Google Cloud Service Account JSON Dosyası Nasıl Alınır? (%100 Ücretsiz)
+1. **[console.cloud.google.com](https://console.cloud.google.com)** adresine gidin ve yeni bir proje oluşturun.
+2. **"API'ler ve Hizmetler" -> "Kitaplık"** sekmesinden **"Google Drive API"**yi bulup **"Etkinleştir"**e tıklayın.
+3. **"Kimlik Bilgileri" -> "+ Kimlik Bilgileri Oluştur" -> "Hizmet Hesabı" (Service Account)** deyin ve bir bot hesabı açın.
+4. Oluşan hesabın detaylarına girip **"Anahtarlar" (Keys) -> "Yeni anahtar ekle" -> "JSON"** seçeneğini seçin. İnen `.json` anahtarını PromptVault Team'e yükleyin.
+5. Google Drive'ınızdaki **Ortak Drive'ı (Shared Drive)** indirdiğiniz JSON içindeki bot e-posta adresiyle paylaşın ("İçerik Yöneticisi" yetkisi verin).
+> **Not:** Bu işlem tamamen **ücretsizdir** ve kredi kartı tanımlama zorunluluğu yoktur.
