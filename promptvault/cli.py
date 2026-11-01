@@ -300,25 +300,34 @@ def cmd_team(args, lib: Library) -> int:
         print("Web arayüzü için: pip install promptvault[web]", file=sys.stderr)
         return 1
 
+    if _is_port_in_use(args.host, args.port):
+        _try_free_port(args.port)
+
     url = f"http://{'127.0.0.1' if args.host == '0.0.0.0' else args.host}:{args.port}"
+    print(f"\n========================================================")
     print(f"🚀 PromptVault Team Sunucusu: {url}")
-    print("◈ ChatGPT, Gemini, Claude, Gems/Skills & Real-time Google Drive Sync hazır.")
+    print(f"◈ ChatGPT, Gemini, Claude, Gems/Skills & Kurumsal Drive")
+    print(f"========================================================\n")
+
     if args.open:
         import threading
         import time
         import webbrowser
 
         def _delayed_open():
-            time.sleep(0.4)
+            time.sleep(0.5)
             webbrowser.open(url)
 
         threading.Thread(target=_delayed_open, daemon=True).start()
 
     try:
-        uvicorn.run(create_team_app(), host=args.host, port=args.port, log_level="info")
-    except Exception as e:
-        print(f"Sunucu hatası: {e}", file=sys.stderr)
-        return 1
+        uvicorn.run(create_team_app(), host=args.host, port=args.port, log_level="warning")
+    except OSError as e:
+        if "10048" in str(e) or getattr(e, "winerror", None) == 10048 or getattr(e, "errno", None) == 98:
+            print(f"\n[BİLGİ] Port {args.port} zaten kullanımda (PromptVault Team arka planda açık olabilir).")
+            print(f"Tarayıcınızdan doğrudan erişebilirsiniz: {url}\n")
+            return 0
+        raise
     return 0
 
 
