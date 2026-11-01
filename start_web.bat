@@ -38,15 +38,16 @@ echo.
 
 :run
 :: 7860 portunu mesgul eden eski bir surec varsa sonlandir
-for /f "tokens=5" %%p in ('netstat -aon 2^>nul ^| findstr ":7860" ^| findstr "LISTENING"') do (
-    echo [BILGI] 7860 portunu tutan eski surec PID %%p kapatiliyor...
-    taskkill /F /PID %%p >nul 2>&1
-)
+powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 7860 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }" >nul 2>&1
 
 echo Sunucu adresi: http://127.0.0.1:7860
 echo Tarayici aciliyor...
-echo Kapatmak icin pencereyi kapatabilir veya Ctrl+C yapabilirsiniz.
+echo [BILGI] Tarayici kapatildiginda bu terminal otomatik olarak kapanacaktir.
 echo.
 
 .\.venv\Scripts\python.exe -m promptvault.cli serve --open --port 7860
-pause
+if %ERRORLEVEL% neq 0 (
+    echo.
+    echo [HATA] Bir sorun olustu, hata detaylari yukaridadir.
+    pause
+)

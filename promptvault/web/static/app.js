@@ -1822,3 +1822,17 @@ async function copyClipperScript() {
 $("#btnCopyClipperScript")?.addEventListener("click", copyClipperScript);
 $("#btnCopyClipperScriptModal")?.addEventListener("click", copyClipperScript);
 
+
+/* --------------------------------------------------- auto-close terminal when browser closes */
+(function() {
+  setInterval(function() {
+    fetch('/api/system/heartbeat', { method: 'POST', keepalive: true }).catch(function() {});
+  }, 2000);
+
+  window.addEventListener('pagehide', function() {
+    navigator.sendBeacon('/api/system/shutdown');
+  });
+  window.addEventListener('beforeunload', function() {
+    navigator.sendBeacon('/api/system/shutdown');
+  });
+})();

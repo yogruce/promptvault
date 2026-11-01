@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import base64
+import os
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -566,7 +568,38 @@ def create_app(
         except Exception as e:
             raise HTTPException(400, f"JSON yedeği geri yüklenemedi: {e}")
 
-    # ------------------------------------------------------------ static
+    # ------------------------------------------------------------ static & auto-close
+    app.state.last_heartbeat = time.time()
+    app.state.has_connected = False
+    app.state.shutdown_requested = False
+
+    def _auto_close_watcher():
+        time.sleep(12)
+        while True:
+            time.sleep(1)
+            if app.state.has_connected:
+                elapsed = time.time() - app.state.last_heartbeat
+                if app.state.shutdown_requested and elapsed > 1.5:
+                    print("\n[BİLGİ] Tarayıcı kapatıldı, terminal sonlandırılıyor...")
+                    os._exit(0)
+                elif elapsed > 6.0:
+                    print("\n[BİLGİ] Tarayıcı bağlantısı kesildi (zaman aşımı), terminal sonlandırılıyor...")
+                    os._exit(0)
+
+    threading.Thread(target=_auto_close_watcher, daemon=True, name="AutoCloseWatcher").start()
+
+    @app.post("/api/system/heartbeat")
+    def heartbeat():
+        app.state.last_heartbeat = time.time()
+        app.state.has_connected = True
+        app.state.shutdown_requested = False
+        return {"status": "alive"}
+
+    @app.post("/api/system/shutdown")
+    def shutdown_signal():
+        app.state.shutdown_requested = True
+        return {"status": "shutting_down"}
+
     @app.middleware("http")
     async def add_no_cache_for_static(request: Request, call_next):
         response = await call_next(request)
