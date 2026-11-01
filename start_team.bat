@@ -9,6 +9,9 @@ echo   Gems, Custom GPTs, Skills ^& Kurumsal Drive Sync
 echo ========================================================
 echo.
 
+:: 7861 portunu mesgul eden eski surec varsa kesinlikle kapat
+powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 7861 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }" >nul 2>&1
+
 if exist .venv\Scripts\python.exe goto :run
 
 echo [BILGI] .venv sanal ortami bulunamadi, otomatik kuruluyor...
@@ -38,12 +41,6 @@ echo [BASARILI] Kurulum tamamlandi!
 echo.
 
 :run
-:: 7861 portunu mesgul eden eski bir surec varsa sonlandir
-for /f "tokens=5" %%p in ('netstat -aon 2^>nul ^| findstr ":7861" ^| findstr "LISTENING"') do (
-    echo [BILGI] 7861 portunu tutan eski surec PID %%p kapatiliyor...
-    taskkill /F /PID %%p >nul 2>&1
-)
-
 echo Sunucu baslatiliyor (Port 7861)...
 echo Tarayici aciliyor: http://127.0.0.1:7861
 echo.
