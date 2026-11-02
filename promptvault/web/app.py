@@ -21,6 +21,7 @@ from ..integrations import create_quick_import_router
 from ..matrix import Matrix, MatrixError, MatrixSpec
 from ..music import MusicLibrary, create_music_router
 from ..pngmeta import make_blank_png
+from ..system_prompts import SystemPromptLibrary, create_system_prompts_router
 
 STATIC = Path(__file__).parent / "static"
 THUMB_SIZE = 384
@@ -148,13 +149,16 @@ def create_app(
     library: Library | None = None,
     wildcard_dir: str | Path | None = None,
     music_library: MusicLibrary | None = None,
+    system_prompts_library: SystemPromptLibrary | None = None,
 ) -> FastAPI:
     lib = library or Library()
     music_lib = music_library or MusicLibrary(lib.db_path, lib.data_dir / "music_vault")
+    sys_prompts_lib = system_prompts_library or SystemPromptLibrary(lib.db_path)
     gdrive = GDriveManager(lib.data_dir)
     app = FastAPI(title="PromptVault", version="1.0")
     app.state.library = lib
     app.state.music_library = music_lib
+    app.state.system_prompts_library = sys_prompts_lib
     app.state.gdrive = gdrive
 
     # Enable CORS for browser extension and userscript quick import
@@ -168,6 +172,7 @@ def create_app(
 
     app.include_router(create_music_router(music_lib))
     app.include_router(create_quick_import_router(lib, music_lib))
+    app.include_router(create_system_prompts_router(sys_prompts_lib))
     scan_state: dict[str, Any] = {"running": False, "stats": None, "error": None, "path": None}
     scan_lock = threading.Lock()
     thumb_dir = lib.data_dir / "thumbs"

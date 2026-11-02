@@ -90,20 +90,27 @@
   }
 
   // ===================================================================
-  // DOMAIN SWITCHER (Görseller vs Müzik)
+  // DOMAIN SWITCHER (Görseller vs Müzik vs Sistem Promptları)
   // ===================================================================
   function initDomainSwitcher() {
     const btnImages = $('#btnDomainImages');
     const btnMusic = $('#btnDomainMusic');
+    const btnSysPrompts = $('#btnDomainSysPrompts');
     const viewImages = $('#view-images');
     const viewMusic = $('#view-music');
+    const viewSysPrompts = $('#view-sysprompts');
     const navImages = $('#tabs');
     const navMusic = $('#tabs-music');
+    const navSysPrompts = $('#tabs-sysprompts');
+    const statsImages = $('#stats');
+    const statsMusic = $('#musicStatsText');
+    const statsSys = $('#sysStatsText');
 
     if (!btnImages || !btnMusic) return;
 
     btnImages.addEventListener('click', () => switchDomain('images'));
     btnMusic.addEventListener('click', () => switchDomain('music'));
+    btnSysPrompts?.addEventListener('click', () => switchDomain('sysprompts'));
 
     function switchDomain(domain) {
       state.domain = domain;
@@ -115,27 +122,70 @@
       if (domain === 'images') {
         btnImages.classList.add('active');
         btnMusic.classList.remove('active');
-        viewImages.classList.remove('hidden');
-        viewMusic.classList.add('hidden');
-        navImages.classList.remove('hidden');
-        navMusic.classList.add('hidden');
+        btnSysPrompts?.classList.remove('active');
+
+        viewImages?.classList.remove('hidden');
+        viewMusic?.classList.add('hidden');
+        viewSysPrompts?.classList.add('hidden');
+
+        navImages?.classList.remove('hidden');
+        navMusic?.classList.add('hidden');
+        navSysPrompts?.classList.add('hidden');
+
+        statsImages?.classList.remove('hidden');
+        statsMusic?.classList.add('hidden');
+        statsSys?.classList.add('hidden');
+
         if (window.G && window.G.items.length === 0 && window.loadGallery) {
           window.loadGallery();
         }
-      } else {
+      } else if (domain === 'music') {
         btnMusic.classList.add('active');
         btnImages.classList.remove('active');
-        viewMusic.classList.remove('hidden');
-        viewImages.classList.add('hidden');
-        navMusic.classList.remove('hidden');
-        navImages.classList.add('hidden');
+        btnSysPrompts?.classList.remove('active');
+
+        viewMusic?.classList.remove('hidden');
+        viewImages?.classList.add('hidden');
+        viewSysPrompts?.classList.add('hidden');
+
+        navMusic?.classList.remove('hidden');
+        navImages?.classList.add('hidden');
+        navSysPrompts?.classList.add('hidden');
+
+        statsMusic?.classList.remove('hidden');
+        statsImages?.classList.add('hidden');
+        statsSys?.classList.add('hidden');
 
         // Initial load for music
         loadWorkspaces();
         loadSongs();
         loadMusicStats();
+      } else if (domain === 'sysprompts') {
+        btnSysPrompts?.classList.add('active');
+        btnImages.classList.remove('active');
+        btnMusic.classList.remove('active');
+
+        viewSysPrompts?.classList.remove('hidden');
+        viewImages?.classList.add('hidden');
+        viewMusic?.classList.add('hidden');
+
+        navSysPrompts?.classList.remove('hidden');
+        navImages?.classList.add('hidden');
+        navMusic?.classList.add('hidden');
+
+        statsSys?.classList.remove('hidden');
+        statsImages?.classList.add('hidden');
+        statsMusic?.classList.add('hidden');
+
+        if (window.loadSystemPrompts) {
+          window.loadSystemPrompts();
+        }
+        if (window.loadSystemPromptStats) {
+          window.loadSystemPromptStats();
+        }
       }
     }
+    window.switchDomain = switchDomain;
 
     // Music Tabs
     $$('#tabs-music button').forEach(btn => {

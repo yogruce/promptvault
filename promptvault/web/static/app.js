@@ -53,16 +53,22 @@ function showTab(name) {
   const vSettings = $("#view-settings");
   const vImages = $("#view-images");
   const vMusic = $("#view-music");
+  const vSysPrompts = $("#view-sysprompts");
   const btnSettings = $("#btnGlobalSettings");
   if (vSettings && !vSettings.classList.contains("hidden")) {
     vSettings.classList.add("hidden");
     vImages?.classList.remove("hidden");
     vMusic?.classList.add("hidden");
+  vSysPrompts?.classList.add("hidden");
     btnSettings?.classList.remove("active");
     $("#btnDomainImages")?.classList.add("active");
     $("#btnDomainMusic")?.classList.remove("active");
+  $("#btnDomainSysPrompts")?.classList.remove("active");
+    $("#btnDomainSysPrompts")?.classList.remove("active");
     $("#tabs")?.classList.remove("hidden");
     $("#tabs-music")?.classList.add("hidden");
+    $("#tabs-sysprompts")?.classList.add("hidden");
+    vSysPrompts?.classList.add("hidden");
   }
   $$("#tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
   $$(".tab").forEach((t) => t.classList.toggle("active", t.id === "tab-" + name));
@@ -81,18 +87,23 @@ function showSettingsView() {
   const vSettings = $("#view-settings");
   const vImages = $("#view-images");
   const vMusic = $("#view-music");
+  const vSysPrompts = $("#view-sysprompts");
   const btnSettings = $("#btnGlobalSettings");
   const navImages = $("#tabs");
   const navMusic = $("#tabs-music");
+  const navSysPrompts = $("#tabs-sysprompts");
 
   vImages?.classList.add("hidden");
   vMusic?.classList.add("hidden");
+  vSysPrompts?.classList.add("hidden");
   vSettings?.classList.remove("hidden");
   btnSettings?.classList.add("active");
   $("#btnDomainImages")?.classList.remove("active");
   $("#btnDomainMusic")?.classList.remove("active");
+  $("#btnDomainSysPrompts")?.classList.remove("active");
   navImages?.classList.add("hidden");
   navMusic?.classList.add("hidden");
+  navSysPrompts?.classList.add("hidden");
 
   loadLibStats();
   loadGDriveStatus();

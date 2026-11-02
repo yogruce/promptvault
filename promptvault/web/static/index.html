@@ -4,20 +4,23 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PromptVault ◈ AI Prompt, Metadata & Suno AI Müzik Yöneticisi</title>
-<link rel="stylesheet" href="/static/style.css?v=2.4">
-<script src="/static/i18n.js?v=2.4"></script>
+<link rel="stylesheet" href="/static/style.css?v=2.5">
+<script src="/static/i18n.js?v=2.5"></script>
 </head>
 <body>
 <header>
   <div class="brand">◈ PromptVault</div>
 
-  <!-- DOMAIN SWITCHER (Görseller vs Müzik) -->
+  <!-- DOMAIN SWITCHER (Görseller vs Müzik vs Sistem Promptları) -->
   <div class="domain-switcher">
     <button id="btnDomainImages" class="domain-btn active" title="Görsel Prompt ve PNG Metadata Kasası">
       <span class="icon">🎨</span> <span data-i18n="domain_images">Görseller</span>
     </button>
     <button id="btnDomainMusic" class="domain-btn" title="Suno AI Şarkıları, Sözler, Tam Stil Promptları ve Workspaces">
       <span class="icon">🎵</span> <span data-i18n="domain_music">Müzik (Suno AI)</span>
+    </button>
+    <button id="btnDomainSysPrompts" class="domain-btn" title="Gemini Gems, ChatGPT Artifacts, Custom GPTs ve Sistem Promptları">
+      <span class="icon">🧠</span> <span data-i18n="domain_sysprompts">Sistem Promptları</span>
     </button>
   </div>
 
@@ -39,6 +42,16 @@
     <button data-music-tab="music-scan" data-i18n="tab_music_scan">📂 Müzik Tara & Ekle</button>
   </nav>
 
+  <!-- SYSTEM PROMPT TABS -->
+  <nav id="tabs-sysprompts" class="hidden">
+    <button data-sys-category="all" class="active" data-i18n="sys_tab_all">📋 Tümü</button>
+    <button data-sys-category="gemini_gems" data-i18n="sys_tab_gems">💎 Gemini Gems</button>
+    <button data-sys-category="chatgpt_artifacts" data-i18n="sys_tab_artifacts">📦 ChatGPT Artifacts</button>
+    <button data-sys-category="chatgpt_gpts" data-i18n="sys_tab_gpts">🤖 ChatGPT GPTs</button>
+    <button data-sys-category="custom" data-i18n="sys_tab_custom">🛠️ Özel (Custom)</button>
+    <button data-sys-category="favorite" data-i18n="sys_tab_fav">⭐ Favoriler</button>
+  </nav>
+
   <!-- GLOBAL SETTINGS, QUICK IMPORT & LANGUAGE SWITCHER -->
   <div style="display:inline-flex; align-items:center; gap:8px;">
     <button id="btnQuickImportModal" class="primary" type="button" title="Tek Tuşla Aktar (Quick Import)" data-i18n-title="btn_quick_import_title" style="background: linear-gradient(135deg, #7c3aed, #4f46e5); font-weight:600; display:inline-flex; align-items:center; gap:6px; box-shadow: 0 2px 10px rgba(124,58,237,0.35);">
@@ -55,6 +68,7 @@
 
   <div id="stats" class="muted"></div>
   <div id="musicStatsText" class="muted hidden"></div>
+  <div id="sysStatsText" class="muted hidden"></div>
 </header>
 
 <main>
@@ -356,6 +370,39 @@
         <div id="mScanLog" class="small muted" style="margin-top:10px"></div>
       </div>
     </section>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- 🧠 SİSTEM PROMPTLARI (GEMINI GEMS, ARTIFACTS, GPTS, CUSTOM)       -->
+  <!-- ================================================================= -->
+  <div id="view-sysprompts" class="hidden">
+    <!-- Action Bar: Search, Filter, New Button -->
+    <div class="sys-action-bar" style="display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; margin-bottom:18px;">
+      <div style="display:flex; gap:10px; align-items:center; flex:1; max-width:540px;">
+        <div style="position:relative; flex:1;">
+          <input id="sysSearch" type="search" placeholder="Sistem promptlarında, rollerde veya etiketlerde ara..." data-i18n-placeholder="sys_search_placeholder" style="width:100%; padding-left:36px;">
+          <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); opacity:0.6; pointer-events:none;">🔍</span>
+        </div>
+        <button id="sysClearSearch" class="ghost small" type="button" data-i18n="sys_clear_search">Temizle</button>
+      </div>
+
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button id="btnNewSysPrompt" class="primary" type="button" style="display:inline-flex; align-items:center; gap:6px;">
+          <span>➕</span> <span data-i18n="sys_btn_new">Yeni Sistem Promptu</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Prompts Grid -->
+    <div id="sysPromptsGrid" class="sys-prompts-grid"></div>
+
+    <!-- Empty State -->
+    <div id="sysEmptyState" class="sys-empty-state hidden" style="padding:60px 20px; text-align:center; background:var(--panel); border:1px dashed var(--line); border-radius:12px; margin-top:20px;">
+      <div style="font-size:42px; margin-bottom:12px;">🧠</div>
+      <h3 style="margin:0 0 6px 0;" data-i18n="sys_empty_title">Henüz bu kategoride sistem promptu yok</h3>
+      <p class="muted small" style="margin:0 0 16px 0;" data-i18n="sys_empty_desc">Gemini Gems, ChatGPT Artifacts, Custom GPTs veya özel yapay zeka sistem talimatlarınızı ekleyerek kasanızı genişletin.</p>
+      <button id="btnNewSysPromptEmpty" class="primary" type="button" data-i18n="sys_btn_new">➕ Yeni Sistem Promptu Ekle</button>
+    </div>
   </div>
 
   <!-- ================================================================= -->
@@ -1031,8 +1078,113 @@
   </div>
 </div>
 
+<!-- SYSTEM PROMPT CREATE / EDIT MODAL -->
+<div id="sysPromptModal" class="modal hidden">
+  <div class="modal-box" style="max-width:760px; width:92%;">
+    <button class="close" id="sysModalClose">✕</button>
+    <div class="ucontent">
+      <h3 id="sysModalTitle" style="margin-top:0" data-i18n="sys_modal_new_title">➕ Yeni Sistem Promptu Ekle</h3>
+      
+      <div style="display:flex; gap:12px; margin-top:14px; flex-wrap:wrap;">
+        <div style="flex:2; min-width:240px;">
+          <label style="font-weight:600; display:block; margin-bottom:4px;" data-i18n="sys_field_title">Başlık *</label>
+          <input id="sysTitleInput" type="text" placeholder="ör. Python & FastAPI Kıdemli Yazılım Mimarı" style="width:100%;">
+        </div>
+        <div style="flex:1; min-width:180px;">
+          <label style="font-weight:600; display:block; margin-bottom:4px;" data-i18n="sys_field_category">Kategori *</label>
+          <select id="sysCategoryInput" style="width:100%;">
+            <option value="gemini_gems">💎 Gemini Gems</option>
+            <option value="chatgpt_artifacts">📦 ChatGPT Artifacts</option>
+            <option value="chatgpt_gpts">🤖 ChatGPT GPTs</option>
+            <option value="custom" selected>🛠️ Özel (Custom)</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:12px; margin-top:12px; flex-wrap:wrap;">
+        <div style="width:90px;">
+          <label style="font-weight:600; display:block; margin-bottom:4px;" data-i18n="sys_field_icon">İkon</label>
+          <input id="sysIconInput" type="text" placeholder="💎" maxlength="8" style="width:100%; text-align:center;">
+        </div>
+        <div style="flex:1; min-width:180px;">
+          <label style="font-weight:600; display:block; margin-bottom:4px;" data-i18n="sys_field_model">Hedef Model / Platform</label>
+          <input id="sysModelInput" type="text" placeholder="ör. Gemini 1.5 Pro, GPT-4o, Claude 3.5" style="width:100%;">
+        </div>
+        <div style="flex:1; min-width:180px;">
+          <label style="font-weight:600; display:block; margin-bottom:4px;" data-i18n="sys_field_tags">Etiketler (Virgülle)</label>
+          <input id="sysTagsInput" type="text" placeholder="ör. python, api, backend, refactor" style="width:100%;">
+        </div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <label style="font-weight:600; display:block; margin-bottom:4px;" data-i18n="sys_field_desc">Kısa Açıklama & Amaç</label>
+        <input id="sysDescInput" type="text" placeholder="Bu sistem promptunun ne amaçla hazırlandığı..." style="width:100%;">
+      </div>
+
+      <div style="margin-top:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:8px;">
+          <label style="font-weight:600; margin:0;" data-i18n="sys_field_content">Sistem Promptu / Talimatlar (System Instructions) *</label>
+          <div style="display:inline-flex; gap:6px;">
+            <button type="button" id="btnInsertRoleTemplate" class="ghost small" title="Standart rol tanımı bloğu ekler">+ Rol Bloğu</button>
+            <button type="button" id="btnInsertConstraintsTemplate" class="ghost small" title="Standart kural & kısıt bloğu ekler">+ Kural Bloğu</button>
+          </div>
+        </div>
+        <textarea id="sysContentInput" class="sys-code-editor" placeholder="Sen dünyanın en yetkin yapay zeka asistanısın..." style="width:100%;" rows="12"></textarea>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+          <span id="sysWordCounter" class="muted small">0 kelime · 0 karakter</span>
+          <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; font-size:13px; user-select:none;">
+            <input type="checkbox" id="sysFavInput">
+            <span data-i18n="sys_field_favorite">⭐ Favorilere Ekle</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:20px; justify-content:flex-end; gap:8px;">
+        <button type="button" id="sysCancelBtn" class="ghost" data-i18n="btn_cancel">İptal</button>
+        <button type="button" id="sysSaveBtn" class="primary" data-i18n="sys_save_btn">💾 Kaydet</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SYSTEM PROMPT DETAIL / INSPECT MODAL -->
+<div id="sysPromptDetailModal" class="modal hidden">
+  <div class="modal-box" style="max-width:820px; width:92%;">
+    <button class="close" id="sysDetailClose">✕</button>
+    <div class="ucontent">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap;">
+        <span id="sysDetailCatBadge" class="sys-cat-badge"></span>
+        <span id="sysDetailModel" class="sys-model-badge"></span>
+      </div>
+
+      <h2 id="sysDetailTitle" style="margin:0 0 6px 0; font-size:20px;"></h2>
+      <p id="sysDetailDesc" class="muted small" style="margin:0 0 12px 0;"></p>
+
+      <div id="sysDetailTags" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;"></div>
+
+      <div style="position:relative;">
+        <pre class="sys-detail-pre"><code id="sysDetailContent"></code></pre>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px; flex-wrap:wrap; gap:10px;">
+        <span id="sysDetailCounts" class="muted small"></span>
+
+        <div style="display:inline-flex; gap:8px; align-items:center;">
+          <button id="sysDetailExportMd" class="ghost small" type="button" title="Markdown dosyası olarak indir">📥 .MD</button>
+          <button id="sysDetailExportTxt" class="ghost small" type="button" title="Düz metin dosyası olarak indir">📥 .TXT</button>
+          <button id="sysDetailEditBtn" class="ghost small" type="button">✏️ Düzenle</button>
+          <button id="sysDetailCopyBtn" class="primary small" type="button" style="display:inline-flex; align-items:center; gap:6px;">
+            <span>📋</span> <span data-i18n="sys_copy_prompt">Promptu Kopyala</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast hidden"></div>
-<script src="/static/app.js?v=2.4"></script>
-<script src="/static/music.js?v=2.4"></script>
+<script src="/static/app.js?v=2.5"></script>
+<script src="/static/music.js?v=2.5"></script>
+<script src="/static/sysprompts.js?v=2.5"></script>
 </body>
 </html>

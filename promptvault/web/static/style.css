@@ -1006,4 +1006,194 @@ a.button.ghost, .btn.ghost {
   gap: 6px;
 }
 
+/* =================================================================== */
+/* 🧠 SİSTEM PROMPTLARI STYLES                                          */
+/* =================================================================== */
+.sys-prompts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 16px;
+  margin-top: 14px;
+}
+.sys-prompt-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.sys-prompt-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(139, 92, 246, 0.45);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.sys-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sys-cat-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.cat-gemini {
+  background: rgba(59, 130, 246, 0.16);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+}
+.cat-artifacts {
+  background: rgba(16, 185, 129, 0.16);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+.cat-gpts {
+  background: rgba(245, 158, 11, 0.16);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+.cat-custom {
+  background: rgba(148, 163, 184, 0.16);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+.sys-model-badge {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--panel2);
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+.sys-btn-fav {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  transition: color .15s ease, transform .15s ease;
+}
+.sys-btn-fav:hover {
+  transform: scale(1.15);
+  color: #facc15;
+}
+.sys-btn-fav.active {
+  color: #eab308;
+}
+.sys-card-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text);
+}
+.sys-card-desc {
+  margin: 4px 0 8px 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sys-content-box {
+  position: relative;
+  background: rgba(0, 0, 0, 0.38);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  overflow: hidden;
+  max-height: 125px;
+  transition: border-color .15s ease;
+}
+.sys-content-box:hover {
+  border-color: var(--accent);
+}
+.sys-preview-pre {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #cbd5e1;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.sys-preview-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: linear-gradient(to bottom, transparent, var(--panel));
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 4px;
+}
+.sys-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+.sys-tag-chip {
+  font-size: 10.5px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(139, 92, 246, 0.12);
+  color: var(--accent);
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.sys-tag-chip:hover {
+  background: var(--accent);
+  color: #fff;
+}
+.sys-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.sys-code-editor {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+  background: #0b0f19 !important;
+  border: 1px solid var(--line) !important;
+  color: #f1f5f9 !important;
+  tab-size: 2;
+  min-height: 240px;
+  resize: vertical;
+}
+.sys-detail-pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.55;
+  background: #0b0f19;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px 16px;
+  max-height: 480px;
+  overflow-y: auto;
+  color: #f1f5f9;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+
 
