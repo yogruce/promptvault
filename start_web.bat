@@ -15,7 +15,7 @@ echo Lutfen bekleyin, ilk kurulum 1-2 dakika surebilir...
 echo.
 
 where python >nul 2>&1
-if %ERRORLEVEL% neq 0 (
+if errorlevel 1 (
     echo [HATA] Bilgisayarinizda Python kurulu degil!
     echo Lutfen https://www.python.org/downloads/ adresinden Python'i indirin
     echo ve kurarken "Add Python to PATH" kutucugunu isaretleyin.
@@ -37,32 +37,31 @@ echo [BASARILI] Kurulum tamamlandi!
 echo.
 
 :run
-:: GitHub Otomatik Guncelleme Kontrolu (Git varsa)
+:: GitHub Otomatik Guncelleme Kontrolu
 where git >nul 2>&1
-if %ERRORLEVEL% equ 0 (
-    if exist .git (
-        echo [KONTROL] GitHub guncellemeleri denetleniyor...
-        git fetch origin main >nul 2>&1
-        set PV_LOCAL=
-        set PV_REMOTE=
-        for /f "tokens=*" %%i in ('git rev-parse HEAD 2^>nul') do set PV_LOCAL=%%i
-        for /f "tokens=*" %%i in ('git rev-parse origin/main 2^>nul') do set PV_REMOTE=%%i
-        if not "%PV_LOCAL%"=="" if not "%PV_REMOTE%"=="" (
-            if not "%PV_LOCAL%"=="%PV_REMOTE%" (
-                echo.
-                echo ========================================================
-                echo   [GUNCELLEME] GitHub'da yeni bir surum tespit edildi!
-                echo   Guncel dosyalar indiriliyor (git pull)...
-                echo ========================================================
-                git pull origin main
-                .\.venv\Scripts\pip install -e ".[web]" --no-deps --quiet
-                echo   [BASARILI] PromptVault en son surume guncellendi.
-                echo.
-            )
-        )
-    )
-)
+if errorlevel 1 goto :AFTER_UPDATE_CHECK
+if not exist .git goto :AFTER_UPDATE_CHECK
 
+echo [KONTROL] GitHub guncellemeleri denetleniyor...
+git fetch origin main >nul 2>&1
+git rev-parse HEAD > "%TEMP%\pv_local.txt" 2>nul
+git rev-parse origin/main > "%TEMP%\pv_remote.txt" 2>nul
+
+fc "%TEMP%\pv_local.txt" "%TEMP%\pv_remote.txt" >nul 2>&1
+if errorlevel 1 (
+    echo.
+    echo ========================================================
+    echo   [GUNCELLEME] GitHub'da yeni bir surum tespit edildi!
+    echo   Guncel dosyalar indiriliyor...
+    echo ========================================================
+    git pull origin main
+    .\.venv\Scripts\pip install -e ".[web]" --no-deps --quiet
+    echo   [BASARILI] PromptVault en son surume guncellendi.
+    echo.
+)
+del "%TEMP%\pv_local.txt" "%TEMP%\pv_remote.txt" >nul 2>&1
+
+:AFTER_UPDATE_CHECK
 :: 7860 portunu mesgul eden eski bir surec varsa sonlandir
 powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 7860 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }" >nul 2>&1
 
