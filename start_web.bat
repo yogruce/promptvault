@@ -37,6 +37,32 @@ echo [BASARILI] Kurulum tamamlandi!
 echo.
 
 :run
+:: GitHub Otomatik Guncelleme Kontrolu (Git varsa)
+where git >nul 2>&1
+if %ERRORLEVEL% equ 0 (
+    if exist .git (
+        echo [KONTROL] GitHub guncellemeleri denetleniyor...
+        git fetch origin main >nul 2>&1
+        set PV_LOCAL=
+        set PV_REMOTE=
+        for /f "tokens=*" %%i in ('git rev-parse HEAD 2^>nul') do set PV_LOCAL=%%i
+        for /f "tokens=*" %%i in ('git rev-parse origin/main 2^>nul') do set PV_REMOTE=%%i
+        if not "%PV_LOCAL%"=="" if not "%PV_REMOTE%"=="" (
+            if not "%PV_LOCAL%"=="%PV_REMOTE%" (
+                echo.
+                echo ========================================================
+                echo   [GUNCELLEME] GitHub'da yeni bir surum tespit edildi!
+                echo   Guncel dosyalar indiriliyor (git pull)...
+                echo ========================================================
+                git pull origin main
+                .\.venv\Scripts\pip install -e ".[web]" --no-deps --quiet
+                echo   [BASARILI] PromptVault en son surume guncellendi.
+                echo.
+            )
+        )
+    )
+)
+
 :: 7860 portunu mesgul eden eski bir surec varsa sonlandir
 powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 7860 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }" >nul 2>&1
 
