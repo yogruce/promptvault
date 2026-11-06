@@ -8,33 +8,14 @@ echo   PromptVault Web Arayuzu Baslatiliyor...
 echo ========================================================
 echo.
 
-if exist .venv\Scripts\python.exe goto :run
-
-echo [BILGI] .venv sanal ortami bulunamadi, otomatik kuruluyor...
-echo Lutfen bekleyin, ilk kurulum 1-2 dakika surebilir...
-echo.
-
-where python >nul 2>&1
-if errorlevel 1 (
-    echo [HATA] Bilgisayarinizda Python kurulu degil!
-    echo Lutfen https://www.python.org/downloads/ adresinden Python'i indirin
-    echo ve kurarken "Add Python to PATH" kutucugunu isaretleyin.
+:: Python surumu, .venv sanal ortami ve paketlerin eksiksiz oldugunu dogrula / kur
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\setup_env.ps1"
+if %ERRORLEVEL% neq 0 (
+    echo.
+    echo [HATA] Kurulum veya ortam hazirlama sirasinda bir sorun olustu.
     pause
     exit /b 1
 )
-
-python -m venv .venv
-if not exist .venv\Scripts\python.exe (
-    echo [HATA] .venv olusturulamadi!
-    pause
-    exit /b 1
-)
-
-echo [BILGI] Gerekli paketler yukleniyor...
-.\.venv\Scripts\python.exe -m pip install --upgrade pip
-.\.venv\Scripts\pip install -e ".[web]"
-echo [BASARILI] Kurulum tamamlandi!
-echo.
 
 :run
 :: GitHub Otomatik Guncelleme Kontrolu
@@ -55,7 +36,7 @@ if errorlevel 1 (
     echo   Guncel dosyalar indiriliyor...
     echo ========================================================
     git pull origin main
-    .\.venv\Scripts\pip install -e ".[web]" --no-deps --quiet
+    .\.venv\Scripts\python.exe -m pip install -e ".[web]" --quiet
     echo   [BASARILI] PromptVault en son surume guncellendi.
     echo.
 )
