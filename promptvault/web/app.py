@@ -584,8 +584,8 @@ def create_app(
             time.sleep(1)
             if app.state.has_connected:
                 elapsed = time.time() - app.state.last_heartbeat
-                if app.state.shutdown_requested and elapsed > 1.5:
-                    print("\n[BİLGİ] Tarayıcı kapatıldı, terminal sonlandırılıyor...")
+                if app.state.shutdown_requested and elapsed > 3.5:
+                    print("\n[BİLGİ] Tüm tarayıcı sekmeleri kapatıldı, terminal sonlandırılıyor...")
                     os._exit(0)
                 elif elapsed > 6.0:
                     print("\n[BİLGİ] Tarayıcı bağlantısı kesildi (zaman aşımı), terminal sonlandırılıyor...")

@@ -2120,32 +2120,44 @@
         return false;
       };
 
-      canvas.addEventListener('mousedown', (e) => {
-        if (e.button !== 0 || !cs.duration) return;
-        const pos = getCanvasTime(e);
-        if (!pos) return;
-        if (cs.tool === 'move' && !e.shiftKey && !e.altKey) {
-          const cutIdx = findNearestCutIndex(pos.cx, 10);
-          if (cutIdx !== -1) {
-            cs.isDraggingCut = true;
-            cs.dragCutIdx = cutIdx;
-            cs.didDrag = false;
-            e.preventDefault();
-          }
-        }
-      });
+      canvas.style.touchAction = 'pan-y';
 
-      window.addEventListener('mouseup', () => {
+      const finishDrag = () => {
         if (!cs.isDraggingCut) return;
         const idx = cs.dragCutIdx;
         cs.isDraggingCut = false;
         cs.dragCutIdx = -1;
+        canvas.style.touchAction = 'pan-y';
         if (cs.didDrag && idx >= 0) {
           recalculateBlocksAndReport();
           drawSpectrogram();
           drawAnimatedSpectrogram();
         }
+      };
+
+      canvas.addEventListener('pointerdown', (e) => {
+        if ((e.pointerType === 'mouse' && e.button !== 0) || !cs.duration) return;
+        const pos = getCanvasTime(e);
+        if (!pos) return;
+        const hitPx = e.pointerType === 'touch' ? 20 : 10;
+        if (cs.tool === 'move' && !e.shiftKey && !e.altKey) {
+          const cutIdx = findNearestCutIndex(pos.cx, hitPx);
+          if (cutIdx !== -1) {
+            cs.isDraggingCut = true;
+            cs.dragCutIdx = cutIdx;
+            cs.didDrag = false;
+            canvas.style.touchAction = 'none';
+            if (canvas.setPointerCapture) {
+              try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+            }
+            e.preventDefault();
+          }
+        }
       });
+
+      canvas.addEventListener('pointerup', finishDrag);
+      canvas.addEventListener('pointercancel', finishDrag);
+      window.addEventListener('pointerup', finishDrag);
 
       canvas.addEventListener('click', (e) => {
         if (cs.didDrag) {
@@ -2186,7 +2198,7 @@
         tryDeleteAt(pos.cx);
       });
 
-      canvas.addEventListener('mousemove', (e) => {
+      canvas.addEventListener('pointermove', (e) => {
         if (!cs.duration) return;
         const pos = getCanvasTime(e);
         if (!pos) {
@@ -2211,7 +2223,7 @@
           return;
         }
 
-        if (cs.tool === 'move') {
+        if (cs.tool === 'move' && e.pointerType !== 'touch') {
           canvas.style.cursor = findNearestCutIndex(pos.cx, 10) !== -1 ? 'ew-resize' : 'pointer';
         }
 
@@ -2230,8 +2242,8 @@
         }
       });
 
-      canvas.addEventListener('mouseleave', () => {
-        tooltip?.classList.add('hidden');
+      canvas.addEventListener('pointerleave', () => {
+        if (!cs.isDraggingCut) tooltip?.classList.add('hidden');
       });
     }
 

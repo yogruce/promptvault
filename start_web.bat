@@ -46,12 +46,12 @@ del "%TEMP%\pv_local.txt" "%TEMP%\pv_remote.txt" >nul 2>&1
 :: 7860 portunu mesgul eden eski bir surec varsa sonlandir
 powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 7860 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }" >nul 2>&1
 
-echo Sunucu adresi: http://127.0.0.1:7860
+echo Sunucu adresi (Offline / Yerel): http://127.0.0.1:7860
 echo Tarayici aciliyor...
 echo [BILGI] Tarayici kapatildiginda bu terminal otomatik olarak kapanacaktir.
 echo.
 
-.\.venv\Scripts\python.exe -m promptvault.cli serve --open --port 7860
+.\.venv\Scripts\python.exe -m promptvault.cli serve --host 127.0.0.1 --open --port 7860
 if %ERRORLEVEL% neq 0 (
     echo.
     echo [HATA] Bir sorun olustu, hata detaylari yukaridadir.
