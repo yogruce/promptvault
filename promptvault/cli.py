@@ -252,6 +252,9 @@ def _try_free_port(port: int) -> bool:
 
 
 def cmd_serve(args, lib: Library) -> int:
+    import os
+    if getattr(args, "online", False):
+        os.environ["PROMPTVAULT_ONLINE"] = "1"
     try:
         import uvicorn
         from .web.app import create_app
@@ -410,6 +413,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--host", default="127.0.0.1")
     s.add_argument("--port", type=int, default=7860)
     s.add_argument("--open", action="store_true", help="tarayıcıda aç")
+    s.add_argument("--online", action="store_true", help="mobil/tablet uyumlu online modu etkinleştir")
     s.add_argument("--wildcards", help="*.txt wildcard klasörü")
 
     s = sub.add_parser("team", help="PromptVault Team sunucusunu başlat (ChatGPT, Gemini, Claude, Gems & Drive Sync)")

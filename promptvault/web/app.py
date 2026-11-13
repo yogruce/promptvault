@@ -593,6 +593,10 @@ def create_app(
 
     threading.Thread(target=_auto_close_watcher, daemon=True, name="AutoCloseWatcher").start()
 
+    @app.get("/api/system/mode")
+    def system_mode():
+        return {"online": os.environ.get("PROMPTVAULT_ONLINE") == "1"}
+
     @app.post("/api/system/heartbeat")
     def heartbeat():
         app.state.last_heartbeat = time.time()

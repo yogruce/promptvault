@@ -1552,5 +1552,236 @@ a.button.ghost, .btn.ghost {
   max-height: 540px;
 }
 
+/* =====================================================================
+   ONLINE MODE (MOBİL TELEFON & TABLET UYUMLU GÖRÜNÜM — YALNIZCA ONLINE MODDA AKTİF)
+   ===================================================================== */
+.brand-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.online-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.16);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+
+/* Tablet & Mobil Ortak Online Kuralları (<= 1024px) */
+@media (max-width: 1024px) {
+  body.online-mode {
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: rgba(124, 108, 255, 0.2);
+  }
+  body.online-mode header {
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    padding: calc(10px + env(safe-area-inset-top)) 12px 10px 12px;
+  }
+  body.online-mode .brand-wrap {
+    order: 1;
+  }
+  body.online-mode .header-actions {
+    order: 2;
+    margin-left: auto;
+    gap: 6px;
+  }
+  body.online-mode .domain-switcher {
+    order: 3;
+    flex: 1 1 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  body.online-mode .domain-switcher::-webkit-scrollbar { display: none; }
+  body.online-mode .domain-btn {
+    flex: 1 0 auto;
+    justify-content: center;
+    padding: 8px 12px;
+    white-space: nowrap;
+  }
+  body.online-mode header nav {
+    order: 4;
+    flex: 1 1 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  body.online-mode header nav::-webkit-scrollbar { display: none; }
+  body.online-mode header nav button {
+    white-space: nowrap;
+    flex-shrink: 0;
+    padding: 8px 12px;
+  }
+  body.online-mode #stats,
+  body.online-mode #musicStatsText,
+  body.online-mode #sysStatsText {
+    order: 5;
+    margin-left: 0;
+    font-size: 11.5px;
+  }
+  body.online-mode main {
+    padding: 12px 12px calc(28px + env(safe-area-inset-bottom)) 12px;
+  }
+  body.online-mode .music-grid {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 12px;
+  }
+  body.online-mode .cs-topbar,
+  body.online-mode .cs-spec-controls,
+  body.online-mode .cs-editor-bar {
+    gap: 8px;
+    padding: 10px;
+  }
+  body.online-mode .cs-actions-group {
+    margin-left: 0;
+    width: 100%;
+  }
+  body.online-mode .cs-scenes-grid {
+    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  }
+  body.online-mode .modal-box,
+  body.online-mode .modal-box.modal-song-detail,
+  body.online-mode .modal-box.modal-sync {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+  body.online-mode .detail,
+  body.online-mode .song-detail-grid {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 100%;
+    overflow-y: auto;
+  }
+  body.online-mode .dimg img {
+    max-height: 48dvh;
+  }
+  body.online-mode .song-detail-left {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 16px;
+  }
+  body.online-mode .song-detail-right {
+    height: auto;
+    overflow: visible;
+    padding: 16px;
+  }
+  body.online-mode .song-detail-lyrics-scroll {
+    max-height: 50dvh;
+  }
+}
+
+/* Telefon (iPhone / Küçük Ekran) Online Kuralları (<= 640px) */
+@media (max-width: 640px) {
+  body.online-mode .brand {
+    font-size: 16px;
+  }
+  body.online-mode #btnQuickImportModal span[data-i18n],
+  body.online-mode #btnGlobalSettings span[data-i18n] {
+    display: none;
+  }
+  body.online-mode .lang-switcher button {
+    padding: 5px 7px;
+    font-size: 11.5px;
+  }
+  body.online-mode #stats,
+  body.online-mode #musicStatsText,
+  body.online-mode #sysStatsText {
+    display: none !important;
+  }
+  body.online-mode button,
+  body.online-mode select {
+    min-height: 40px;
+  }
+  body.online-mode input[type="search"],
+  body.online-mode input[type="text"],
+  body.online-mode input[type="number"],
+  body.online-mode select,
+  body.online-mode textarea {
+    font-size: 16px; /* iOS Safari otomatik zoom'u engeller */
+  }
+  body.online-mode .toolbar input[type="search"] {
+    min-width: 100%;
+    flex: 1 1 100%;
+  }
+  body.online-mode .toolbar > select,
+  body.online-mode .toolbar > button {
+    flex: 1 1 calc(50% - 6px);
+  }
+  body.online-mode .grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+  }
+  body.online-mode .music-grid,
+  body.online-mode .cs-scenes-grid,
+  body.online-mode .taglist {
+    grid-template-columns: 1fr;
+  }
+  body.online-mode .cs-source-group,
+  body.online-mode .cs-params-group {
+    width: 100%;
+  }
+  body.online-mode #csSongSelect {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+  body.online-mode .cs-metrics-strip {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  body.online-mode .cs-metric-wide {
+    grid-column: span 2;
+  }
+  body.online-mode .cs-subtabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+  body.online-mode .cs-subtab-btn {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  body.online-mode .cs-tool-btn {
+    flex: 1 1 calc(50% - 6px);
+    text-align: center;
+  }
+  body.online-mode .cs-phase {
+    grid-template-columns: 64px 1fr 34px;
+    font-size: 11px;
+  }
+  body.online-mode .cs-vc-textarea {
+    min-height: 280px;
+  }
+  body.online-mode .modal-box.modal-small {
+    width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+    padding: 18px 14px calc(24px + env(safe-area-inset-bottom)) 14px;
+  }
+  body.online-mode .help > div {
+    width: min(320px, 90vw);
+  }
+  body.online-mode .bulkbar {
+    top: 4px;
+    padding: 8px 10px;
+    flex-wrap: wrap;
+  }
+}
+
 
 

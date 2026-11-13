@@ -56,7 +56,7 @@ echo [NOT] Eger iPhone'dan baglanacaksaniz PC tarayicisindaki sekmeyi acik tutun
 echo       iPhone'dan hemen baglanip PC sekmesini oyle kapatin.
 echo.
 
-.\.venv\Scripts\python.exe -m promptvault.cli serve --host 0.0.0.0 --open --port 7860
+.\.venv\Scripts\python.exe -m promptvault.cli serve --host 0.0.0.0 --online --open --port 7860
 if %ERRORLEVEL% neq 0 (
     echo.
     echo [HATA] Bir sorun olustu, hata detaylari yukaridadir.
