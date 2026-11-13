@@ -55,6 +55,9 @@ CREATE TABLE IF NOT EXISTS songs (
     favorite INTEGER DEFAULT 0,
     notes TEXT DEFAULT '',
     duration REAL,
+    bpm REAL,
+    analysis_json TEXT DEFAULT '',
+    has_analysis INTEGER DEFAULT 0,
     sha1 TEXT DEFAULT '',
     added_at TEXT,
     updated_at TEXT
@@ -172,6 +175,12 @@ class MusicLibrary:
                     c.execute("ALTER TABLE songs ADD COLUMN vault_lrc_path TEXT DEFAULT ''")
                 if "vault_srt_path" not in cols:
                     c.execute("ALTER TABLE songs ADD COLUMN vault_srt_path TEXT DEFAULT ''")
+                if "bpm" not in cols:
+                    c.execute("ALTER TABLE songs ADD COLUMN bpm REAL")
+                if "analysis_json" not in cols:
+                    c.execute("ALTER TABLE songs ADD COLUMN analysis_json TEXT DEFAULT ''")
+                if "has_analysis" not in cols:
+                    c.execute("ALTER TABLE songs ADD COLUMN has_analysis INTEGER DEFAULT 0")
             c.execute("CREATE INDEX IF NOT EXISTS ix_songs_persona ON songs(persona)")
 
             # Check if songs_fts needs migration (e.g. persona column)
@@ -349,6 +358,15 @@ class MusicLibrary:
         data = dict(row)
         data["has_audio"] = bool(data.get("vault_audio_path") or data.get("audio_path"))
         data["has_synced_lyrics"] = bool(data.get("has_synced_lyrics") or data.get("synced_lyrics"))
+        data["has_analysis"] = bool(data.get("has_analysis") or data.get("analysis_json"))
+        raw_analysis = data.get("analysis_json") or ""
+        if raw_analysis:
+            try:
+                data["analysis"] = json.loads(raw_analysis)
+            except Exception:
+                data["analysis"] = None
+        else:
+            data["analysis"] = None
         data["tags"] = self.get_song_tags(song_id)
         return data
 
@@ -678,6 +696,70 @@ class MusicLibrary:
 
         return self.get_song(song_id)
 
+    def save_song_analysis(
+        self,
+        song_id: int,
+        analysis_data: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        """Persists Klip Analiz Stüdyosu acoustic analysis and Visualizer Composer report for a song."""
+        song = self.get_song(song_id)
+        if not song:
+            return None
+
+        bpm_val = analysis_data.get("bpm")
+        dur_val = analysis_data.get("duration")
+        payload = {
+            "bpm": round(float(bpm_val), 2) if bpm_val is not None else None,
+            "duration": round(float(dur_val), 2) if dur_val is not None else None,
+            "block_duration": int(analysis_data.get("block_duration") or 15),
+            "fps": int(analysis_data.get("fps") or 24),
+            "peak_count": int(analysis_data.get("peak_count") or len(analysis_data.get("peaks") or [])),
+            "avg_energy": round(float(analysis_data.get("avg_energy") or 0.0), 1),
+            "bass_pct": round(float(analysis_data.get("bass_pct") or 0.0), 1),
+            "mid_pct": round(float(analysis_data.get("mid_pct") or 0.0), 1),
+            "high_pct": round(float(analysis_data.get("high_pct") or 0.0), 1),
+            "dominant_band": str(analysis_data.get("dominant_band") or ""),
+            "peaks": [round(float(p), 3) for p in (analysis_data.get("peaks") or [])],
+            "beats": [round(float(b), 3) for b in (analysis_data.get("beats") or [])],
+            "blocks": analysis_data.get("blocks") or [],
+            "vc_report": str(analysis_data.get("vc_report") or ""),
+            "analyzed_at": _now(),
+        }
+        analysis_json = json.dumps(payload, ensure_ascii=False)
+
+        # Archive VC report and Premiere markers to vault directory
+        sub_dir = self.vault_dir / f"analysis_{song_id}"
+        sub_dir.mkdir(parents=True, exist_ok=True)
+        if payload["vc_report"]:
+            (sub_dir / f"{song_id}_vc_report.txt").write_text(payload["vc_report"], encoding="utf-8")
+
+        from .clip_studio import generate_premiere_markers_csv
+        if payload["duration"]:
+            csv_text = generate_premiere_markers_csv(
+                duration=payload["duration"],
+                peak_times=payload["peaks"],
+                step=payload["block_duration"],
+                fps=payload["fps"],
+            )
+            (sub_dir / f"{song_id}_premiere_markers.csv").write_text("\ufeff" + csv_text, encoding="utf-8")
+
+        now = _now()
+        with self.conn as c:
+            c.execute(
+                """
+                UPDATE songs SET
+                    bpm = COALESCE(?, bpm),
+                    duration = COALESCE(?, duration),
+                    analysis_json = ?,
+                    has_analysis = 1,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (payload["bpm"], payload["duration"], analysis_json, now, song_id)
+            )
+
+        return self.get_song(song_id)
+
     def delete_song(self, song_id: int, delete_vault_files: bool = True) -> bool:
         song = self.get_song(song_id)
         if not song:
@@ -793,6 +875,8 @@ class MusicLibrary:
                     where_clauses.append("(s.vault_audio_path != '' OR s.audio_path != '')")
                 elif tok == "is:synced":
                     where_clauses.append("s.has_synced_lyrics = 1")
+                elif tok == "is:analyzed":
+                    where_clauses.append("s.has_analysis = 1")
                 elif tok.startswith("rating:>="):
                     try:
                         where_clauses.append("s.rating >= ?")
@@ -847,6 +931,27 @@ class MusicLibrary:
             d = dict(r)
             d["has_audio"] = bool(d.get("vault_audio_path") or d.get("audio_path"))
             d["has_synced_lyrics"] = bool(d.get("has_synced_lyrics") or d.get("synced_lyrics"))
+            d["has_analysis"] = bool(d.get("has_analysis") or d.get("analysis_json"))
+            raw_analysis = d.pop("analysis_json", "") or ""
+            if raw_analysis:
+                try:
+                    parsed_a = json.loads(raw_analysis)
+                    d["analysis_summary"] = {
+                        "bpm": parsed_a.get("bpm"),
+                        "duration": parsed_a.get("duration"),
+                        "peak_count": parsed_a.get("peak_count", 0),
+                        "avg_energy": parsed_a.get("avg_energy", 0),
+                        "bass_pct": parsed_a.get("bass_pct", 0),
+                        "mid_pct": parsed_a.get("mid_pct", 0),
+                        "high_pct": parsed_a.get("high_pct", 0),
+                        "dominant_band": parsed_a.get("dominant_band", ""),
+                        "block_duration": parsed_a.get("block_duration", 15),
+                        "block_count": len(parsed_a.get("blocks") or []),
+                    }
+                except Exception:
+                    d["analysis_summary"] = None
+            else:
+                d["analysis_summary"] = None
             items.append(d)
 
         return total, items

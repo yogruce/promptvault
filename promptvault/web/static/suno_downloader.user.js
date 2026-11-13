@@ -1,225 +1,419 @@
 // ==UserScript==
 // @name         Suno AI Clean Metadata & Lyrics Downloader
 // @namespace    http://tampermonkey.net/
-// @version      1.5
-// @description  Suno AI şarkılarının TAM stil promptunu ve sözlerini JSON çöpü olmadan tertemiz .txt olarak indirir.
+// @version      2.0
+// @description  Suno AI şarkılarının TAM stil promptunu ve sözlerini JSON çöpü olmadan tertemiz .txt olarak indirir veya PromptVault'a aktarır.
 // @author       CustomScript
 // @match        https://suno.com/*
+// @match        https://*.suno.com/*
+// @match        https://app.suno.ai/*
+// @grant        GM_xmlhttpRequest
+// @grant        unsafeWindow
+// @connect      127.0.0.1
+// @connect      localhost
+// @connect      suno.com
+// @connect      studio-api.prod.suno.com
 // @run-at       document-start
-// @grant        none
 // ==/UserScript==
 
 (function() {
     'use strict';
 
+    const VAULT_URL = 'http://127.0.0.1:7860';
     const songCache = {};
 
-    // 1. AŞAMA: Arka plan API trafiğinden sadece ilgili şarkıyı yakala
-    const originalFetch = window.fetch;
-    window.fetch = async function(...args) {
-        const response = await originalFetch.apply(this, args);
-        try {
-            const url = args[0] ? args[0].toString() : '';
-            if (url.includes('/api/') || url.includes('clip') || url.includes('feed') || url.includes('song')) {
-                const clone = response.clone();
-                clone.json().then(data => {
-                    extractSongsFromData(data);
-                }).catch(() => {});
+    function extractRequestUrl(input) {
+        if (!input) return '';
+        if (typeof input === 'string') return input;
+        if (typeof input.url === 'string') return input.url;
+        try { return String(input); } catch (e) { return ''; }
+    }
+
+    function pickValidAudioUrl(obj) {
+        const candidates = [obj.audio_url, obj.source_audio_url];
+        if (Array.isArray(obj.media_urls)) {
+            for (const m of obj.media_urls) {
+                if (m && typeof m.url === 'string') candidates.push(m.url);
             }
-        } catch (e) {}
-        return response;
-    };
+        }
+        return candidates.find(u =>
+            typeof u === 'string' &&
+            /^https?:\/\//i.test(u) &&
+            !u.includes('/api/forbidden')
+        ) || '';
+    }
 
-    function extractSongsFromData(obj) {
+    function extractSongsFromData(obj, seen = new WeakSet()) {
         if (!obj || typeof obj !== 'object') return;
+        if (seen.has(obj)) return;
+        seen.add(obj);
 
-        if (obj.id && obj.metadata && typeof obj.metadata === 'object') {
-            const meta = obj.metadata;
-            const fullStyle = meta.tags || meta.gpt_description_prompt || obj.display_tags || '';
-            const lyricsText = (meta.prompt && !meta.prompt.startsWith('$')) ? meta.prompt : '';
+        if (Array.isArray(obj)) {
+            for (const item of obj) extractSongsFromData(item, seen);
+            return;
+        }
 
-            // Model adını bul (Örn: V6 veya v5)
-            let modelName = obj.major_model_version || '';
+        if (typeof obj.id === 'string' && obj.id.length >= 8 &&
+            (obj.metadata || obj.title || obj.major_model_version || obj.audio_url || obj.media_urls)) {
+            const meta = (obj.metadata && typeof obj.metadata === 'object') ? obj.metadata : {};
+            const rawTags = meta.tags || obj.display_tags || meta.display_tags || obj.tags || '';
+            const rawGptPrompt = meta.gpt_description_prompt || '';
+            const fullStyle = (typeof rawTags === 'string' && rawTags.trim())
+                ? rawTags.trim()
+                : (typeof rawGptPrompt === 'string' ? rawGptPrompt.trim() : '');
+
+            const rawPrompt = (typeof meta.prompt === 'string' && !meta.prompt.startsWith('$'))
+                ? meta.prompt
+                : ((typeof obj.prompt === 'string' && !obj.prompt.startsWith('$')) ? obj.prompt : '');
+
+            let modelName = obj.major_model_version || obj.model_name || '';
             if (meta.model_badges && meta.model_badges.songcard && meta.model_badges.songcard.display_name) {
                 modelName = meta.model_badges.songcard.display_name;
             }
 
-            const personaName = (obj.persona && obj.persona.name) ? obj.persona.name : '';
+            const personaName = (obj.persona && typeof obj.persona.name === 'string') ? obj.persona.name.trim() : '';
+            const creatorName = (typeof obj.display_name === 'string' && obj.display_name.trim())
+                ? obj.display_name.trim()
+                : ((typeof obj.handle === 'string') ? obj.handle.trim() : '');
+            const audioUrl = pickValidAudioUrl(obj);
+            const titleVal = (typeof obj.title === 'string' && !obj.title.startsWith('$')) ? obj.title.trim() : '';
 
-            if (fullStyle || lyricsText) {
+            if (titleVal || fullStyle || rawPrompt || modelName || audioUrl) {
                 const existing = songCache[obj.id] || {};
                 songCache[obj.id] = {
                     id: obj.id,
-                    title: obj.title || existing.title || '',
+                    title: titleVal || existing.title || '',
                     style: fullStyle || existing.style || '',
-                    lyrics: lyricsText || existing.lyrics || '',
-                    model: modelName || existing.model || 'Suno AI',
+                    lyrics: rawPrompt || existing.lyrics || '',
+                    model: modelName || existing.model || '',
                     persona: personaName || existing.persona || '',
-                    created_at: obj.created_at || existing.created_at || ''
+                    artist: creatorName || existing.artist || '',
+                    created_at: obj.created_at || existing.created_at || '',
+                    audio_url: audioUrl || existing.audio_url || '',
+                    make_instrumental: Boolean(meta.make_instrumental ?? existing.make_instrumental)
                 };
             }
         }
 
-        for (const key in obj) {
-            // Persona içindeki eski root_clip şarkısının verilerini ana şarkıyla karıştırmamak için atla
-            if (key === 'persona') continue;
-            if (typeof obj[key] === 'object') {
-                extractSongsFromData(obj[key]);
+        for (const key of Object.keys(obj)) {
+            if (key === 'persona' || key === 'root_clip') continue;
+            const val = obj[key];
+            if (val && typeof val === 'object') {
+                extractSongsFromData(val, seen);
             }
         }
     }
 
-    // 2. AŞAMA: Sayfa kaynağından ve DOM'dan TERTEMİZ veriyi çekme
-    async function getSongData(songId) {
-        let scriptStyle = '';
-        let scriptModel = '';
-        let scriptPersona = '';
-        let scriptCreatedAt = '';
+    // 1. AŞAMA: Arka plan API trafiğini hem sandbox hem sayfa ana dünyasından yakala
+    function isSunoApiUrl(url) {
+        return Boolean(url && (
+            url.includes('/a/api/') ||
+            url.includes('/api/') ||
+            url.includes('studio-api') ||
+            url.includes('clip') ||
+            url.includes('feed') ||
+            url.includes('song')
+        ));
+    }
 
-        // A) Next.js script verilerinden SADECE bu songId'ye ait olan bloğu cımbızla çek
+    const win = (typeof unsafeWindow !== 'undefined') ? unsafeWindow : window;
+    if (win && typeof win.fetch === 'function') {
+        try {
+            const originalFetch = win.fetch;
+            win.fetch = async function(...args) {
+                const response = await originalFetch.apply(this, args);
+                try {
+                    const url = extractRequestUrl(args[0]);
+                    if (isSunoApiUrl(url)) {
+                        response.clone().json().then(data => extractSongsFromData(data)).catch(() => {});
+                    }
+                } catch (e) {}
+                return response;
+            };
+        } catch (e) {}
+    }
+
+    try {
+        const injectScript = document.createElement('script');
+        injectScript.textContent = `
+            (function() {
+                if (window.__pvSunoFetchHooked) return;
+                window.__pvSunoFetchHooked = true;
+                const orig = window.fetch;
+                window.fetch = async function(...args) {
+                    const r = await orig.apply(this, args);
+                    try {
+                        const req = args[0];
+                        const u = typeof req === 'string' ? req : (req && req.url ? req.url : '');
+                        if (u && (u.includes('/a/api/') || u.includes('/api/') || u.includes('studio-api') || u.includes('clip') || u.includes('feed') || u.includes('song'))) {
+                            r.clone().json().then(d => {
+                                window.postMessage({ type: 'PV_SUNO_DATA', data: d }, '*');
+                            }).catch(() => {});
+                        }
+                    } catch (e) {}
+                    return r;
+                };
+            })();
+        `;
+        (document.head || document.documentElement).appendChild(injectScript);
+        injectScript.remove();
+    } catch (e) {}
+
+    window.addEventListener('message', (e) => {
+        if (e.data && e.data.type === 'PV_SUNO_DATA' && e.data.data) {
+            extractSongsFromData(e.data.data);
+        }
+    });
+
+    // 2. AŞAMA: Doğrudan Suno API + Next.js RSC Script + Modern DOM Çıkarımı
+    async function fetchSongFromApi(songId) {
+        const fetchFn = (typeof unsafeWindow !== 'undefined' && unsafeWindow.fetch)
+            ? unsafeWindow.fetch.bind(unsafeWindow)
+            : window.fetch.bind(window);
+        const origin = window.location.origin || 'https://suno.com';
+        const endpoints = [
+            { url: `${origin}/a/api/clip/${songId}`, credentials: 'include' },
+            { url: `https://studio-api.prod.suno.com/api/clip/${songId}`, credentials: 'omit' },
+            { url: `${origin}/a/api/feed/v2?ids=${songId}`, credentials: 'include' },
+            { url: `${origin}/a/api/feed/?ids=${songId}`, credentials: 'include' }
+        ];
+
+        for (const ep of endpoints) {
+            try {
+                const res = await fetchFn(ep.url, { credentials: ep.credentials });
+                if (res && res.ok) {
+                    const data = await res.json();
+                    extractSongsFromData(data);
+                    const c = songCache[songId];
+                    if (c && (c.style || c.lyrics)) return;
+                }
+            } catch (e) {}
+        }
+    }
+
+    function decodeJsonStringLiteral(raw) {
+        if (!raw) return '';
+        try {
+            return JSON.parse(`"${raw}"`);
+        } catch (e) {
+            return raw.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+        }
+    }
+
+    function extractJsonField(chunk, fieldName) {
+        const re = new RegExp(`"${fieldName}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"`);
+        const m = chunk.match(re);
+        return (m && m[1]) ? decodeJsonStringLiteral(m[1]) : '';
+    }
+
+    function extractFromNextScripts(songId) {
+        const result = { title: '', style: '', lyrics: '', model: '', persona: '', artist: '', created_at: '' };
         try {
             const scripts = Array.from(document.querySelectorAll('script'));
             for (const s of scripts) {
                 const rawText = s.textContent || '';
                 if (!rawText.includes(songId)) continue;
 
-                // Kaçış karakterlerini (\" -> ") normale çevir ki JSON çöpü oluşmasın
-                const unescaped = rawText.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
-
-                // Sadece bu şarkının ID'sinin geçtiği yerden başlayarak 3500 karakterlik alanı tara (Persona şarkısına taşmasın)
-                const idIndex = unescaped.indexOf(`"id":"${songId}"`);
-                const targetChunk = idIndex !== -1
-                    ? unescaped.substring(Math.max(0, idIndex - 500), idIndex + 3500)
-                    : unescaped;
-
-                // Tam stili ("tags":"...") tırnak içinde güvenle yakala
-                const tagsMatch = targetChunk.match(/"tags"\s*:\s*"([^"]+)"/);
-                if (tagsMatch && tagsMatch[1]) {
-                    scriptStyle = tagsMatch[1].trim();
+                const payloads = [];
+                if (rawText.includes(`"id":"${songId}"`)) {
+                    payloads.push(rawText);
+                }
+                const strLitRegex = /"((?:[^"\\]|\\.)*)"/g;
+                let match;
+                while ((match = strLitRegex.exec(rawText)) !== null) {
+                    if (match[1].length > 100 && match[1].includes(songId)) {
+                        try {
+                            const decoded = JSON.parse(`"${match[1]}"`);
+                            if (typeof decoded === 'string' && decoded.includes(songId)) {
+                                payloads.push(decoded);
+                            }
+                        } catch (e) {}
+                    }
+                }
+                if (payloads.length === 0) {
+                    payloads.push(rawText.replace(/\\"/g, '"').replace(/\\\\/g, '\\'));
                 }
 
-                // Model sürümünü yakala (Örn: "display_name":"V6" veya "major_model_version":"v6")
-                const badgeMatch = targetChunk.match(/"display_name"\s*:\s*"(V\d+[^"]*)"/i) || targetChunk.match(/"major_model_version"\s*:\s*"([^"]+)"/i);
-                if (badgeMatch && badgeMatch[1]) {
-                    scriptModel = badgeMatch[1].toUpperCase();
-                }
+                for (const text of payloads) {
+                    const idIndex = text.indexOf(`"id":"${songId}"`);
+                    const idx = idIndex !== -1 ? idIndex : text.indexOf(songId);
+                    const chunk = idx !== -1
+                        ? text.substring(Math.max(0, idx - 2000), idx + 12000)
+                        : text;
 
-                // Persona adını yakala
-                const personaMatch = targetChunk.match(/"persona"\s*:\s*\{[^}]*"name"\s*:\s*"([^"]+)"/);
-                if (personaMatch && personaMatch[1]) {
-                    scriptPersona = personaMatch[1].trim();
-                }
+                    const title = extractJsonField(chunk, 'title');
+                    if (title && !title.startsWith('$') && !result.title) result.title = title.trim();
 
-                // Oluşturulma tarihini yakala
-                const dateMatch = targetChunk.match(/"created_at"\s*:\s*"([^"]+)"/);
-                if (dateMatch && dateMatch[1]) {
-                    scriptCreatedAt = new Date(dateMatch[1]).toLocaleString('tr-TR');
+                    const tags = extractJsonField(chunk, 'tags') ||
+                                 extractJsonField(chunk, 'display_tags') ||
+                                 extractJsonField(chunk, 'gpt_description_prompt');
+                    if (tags && !tags.startsWith('$') && !result.style) result.style = tags.trim();
+
+                    const prompt = extractJsonField(chunk, 'prompt');
+                    if (prompt && !prompt.startsWith('$') && !result.lyrics) result.lyrics = prompt.trim();
+
+                    const model = extractJsonField(chunk, 'major_model_version') ||
+                                  extractJsonField(chunk, 'model_name');
+                    if (model && !result.model) result.model = model;
+
+                    const badgeMatch = chunk.match(/"display_name"\s*:\s*"(V\d+[^"]*)"/i);
+                    if (badgeMatch && badgeMatch[1]) result.model = badgeMatch[1];
+
+                    const personaMatch = chunk.match(/"persona"\s*:\s*\{[^}]*"name"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+                    if (personaMatch && personaMatch[1] && !result.persona) {
+                        result.persona = decodeJsonStringLiteral(personaMatch[1]).trim();
+                    }
+
+                    const handle = extractJsonField(chunk, 'display_name') || extractJsonField(chunk, 'handle');
+                    if (handle && !/^v\d+/i.test(handle) && !result.artist) result.artist = handle.trim();
+
+                    const createdAt = extractJsonField(chunk, 'created_at');
+                    if (createdAt && !result.created_at) result.created_at = createdAt;
                 }
             }
         } catch (e) {}
+        return result;
+    }
 
-        // B) DOM (Ekran) üzerinden Tam Stil Yakalama (Yedek ve Doğrulayıcı)
-        const allElements = Array.from(document.querySelectorAll('div, p, span, a, button, pre, textarea'));
+    function extractFromDom() {
+        let domTitle = '';
+        let domArtist = '';
         let domStyle = '';
+        let domLyrics = '';
 
-        const summaryToggleEl = allElements.find(el =>
-            el.children.length === 0 &&
-            el.innerText &&
-            (el.innerText.includes('Show Summary') || el.innerText.includes('Hide Summary'))
-        );
+        // Başlık
+        const h1 = document.querySelector('h1') || document.querySelector('[role="heading"][aria-level="1"]');
+        if (h1 && (h1.innerText || h1.textContent)) {
+            domTitle = (h1.innerText || h1.textContent).trim();
+        } else {
+            const rawDocTitle = document.querySelector('meta[property="og:title"]')?.content || document.title || '';
+            domTitle = rawDocTitle
+                .replace(/\s*\|\s*Suno.*$/i, '')
+                .replace(/\s+by\s+[a-zA-Z0-9_.-]+$/i, '')
+                .trim();
+        }
 
-        if (summaryToggleEl) {
-            if (summaryToggleEl.innerText.includes('Hide Summary')) {
-                summaryToggleEl.click();
-                await new Promise(r => setTimeout(r, 150));
+        // Sanatçı / Kullanıcı Adı
+        const userLink = Array.from(document.querySelectorAll('a[href^="/@"], a[href*="suno.com/@"]'))
+            .find(a => (a.innerText || a.textContent || '').trim().length > 0);
+        if (userLink) {
+            domArtist = (userLink.innerText || userLink.textContent || '').replace(/^@/, '').trim();
+        }
+
+        // Stil Etiketleri (Copy styles butonunun yanındaki /style/ linkleri)
+        const copyStylesBtn = document.querySelector('button[aria-label="Copy styles to clipboard"]');
+        let styleScope = document;
+        if (copyStylesBtn) {
+            let p = copyStylesBtn.parentElement;
+            for (let i = 0; i < 4 && p; i++) {
+                if (p.querySelector('a[href^="/style/"]')) {
+                    styleScope = p;
+                    break;
+                }
+                p = p.parentElement;
             }
+        }
+        const styleLinks = Array.from(styleScope.querySelectorAll('a[href^="/style/"]'));
+        if (styleLinks.length > 0) {
+            const seen = new Set();
+            const tags = [];
+            for (const a of styleLinks) {
+                const t = (a.getAttribute('title') || a.innerText || a.textContent || '').trim();
+                if (t && !seen.has(t.toLowerCase())) {
+                    seen.add(t.toLowerCase());
+                    tags.push(t);
+                }
+            }
+            if (tags.length > 0) domStyle = tags.join(', ');
+        }
 
-            let current = summaryToggleEl;
-            for (let i = 0; i < 6; i++) {
-                if (!current.parentElement) break;
-                current = current.parentElement;
+        // Eski Show/Hide Summary veya meta description yedeği
+        if (!domStyle) {
+            const ogDesc = document.querySelector('meta[property="og:description"]')?.content || '';
+            if (ogDesc && !/Listen and make your own on Suno/i.test(ogDesc) && ogDesc.length > 5) {
+                domStyle = ogDesc.trim();
+            }
+        }
 
-                const fullText = current.innerText || '';
-                if (fullText.includes('Show Summary') || fullText.includes('Hide Summary')) {
-                    const lines = fullText.split('\n').map(l => l.trim()).filter(l =>
-                        l.length > 0 &&
-                        !l.includes('Show Summary') &&
-                        !l.includes('Hide Summary') &&
-                        !l.includes('Add a Caption') &&
-                        !l.includes('{"') // JSON kalıntılarını kesin olarak reddet
-                    );
-                    lines.sort((a, b) => b.length - a.length);
-                    if (lines.length > 0 && lines[0].length > domStyle.length && lines[0].length < 1000) {
-                        domStyle = lines[0];
-                    }
+        // Sözler: Lyrics sekmesi veya panel içeriği
+        const lyricsCandidates = Array.from(document.querySelectorAll(
+            '[role="tabpanel"] div.relative.font-sans, ' +
+            '[data-testid*="lyrics"], [class*="lyrics"], [class*="Lyrics"], ' +
+            'div.relative.font-sans.text-foreground-primary, pre'
+        ));
+        for (const el of lyricsCandidates) {
+            const txt = (el.innerText || el.textContent || '').trim();
+            if (txt && txt.length > 10 && txt.length < 15000 &&
+                (txt.includes('[Verse') || txt.includes('[Chorus') || txt.includes('[Intro') ||
+                 txt.includes('[Bridge') || txt.includes('[Outro') || txt.split('\n').length >= 3)) {
+                domLyrics = txt;
+                break;
+            }
+        }
+
+        if (!domLyrics) {
+            const containers = Array.from(document.querySelectorAll('main div, [role="tabpanel"] div, section div'));
+            let bestLen = 0;
+            for (const el of containers) {
+                if (el.closest('nav, header, footer, [role="tablist"]')) continue;
+                const txt = (el.innerText || '').trim();
+                const lines = txt.split('\n').length;
+                if ((txt.includes('[Verse') || txt.includes('[Chorus') || txt.includes('[Intro')) &&
+                    lines >= 3 && txt.length < 8000 && txt.length > bestLen) {
+                    bestLen = txt.length;
+                    domLyrics = txt;
                 }
             }
         }
 
-        // Stil adaylarından JSON içermeyen temiz ve tam olanı seç
-        const cached = songCache[songId] || {};
-        const cleanCandidates = [cached.style, scriptStyle, domStyle]
-            .filter(Boolean)
-            .map(s => s.split('","')[0].trim()) // Her ihtimale karşı JSON sızıntısı varsa kes
-            .filter(s => s.length > 5 && !s.includes('{"'));
+        return { title: domTitle, artist: domArtist, style: domStyle, lyrics: domLyrics };
+    }
 
-        cleanCandidates.sort((a, b) => b.length - a.length);
-        const finalStyle = cleanCandidates[0] || 'Bulunamadı';
+    async function getSongData(songId) {
+        let cached = songCache[songId] || {};
 
-        // C) Şarkı Adını Temizle ("by kullanıcı_adı" ve "| Suno" kısımlarını at)
-        const titleEl = document.querySelector('h1') || document.querySelector('title');
-        let rawTitle = cached.title || (titleEl ? titleEl.innerText : 'Suno_Sarki');
-        rawTitle = rawTitle
-            .replace(/\s*\|\s*Suno.*$/i, '')
-            .replace(/\s+by\s+[a-zA-Z0-9_.-]+$/i, '')
-            .trim();
-
-        // D) Şarkı Sözlerini (Lyrics) Yakala
-        let lyrics = cached.lyrics || 'Bulunamadı';
-        if (lyrics === 'Bulunamadı' || lyrics.startsWith('$')) {
-            let maxNewlines = 0;
-            allElements.forEach(el => {
-                if (el.children.length === 0 && el.innerText) {
-                    const txt = el.innerText.trim();
-                    const lines = txt.split('\n').length;
-                    if (lines > maxNewlines && lines > 3 && !txt.includes('Create') && !txt.includes('Library') && txt !== finalStyle && !txt.includes('{"')) {
-                        maxNewlines = lines;
-                        lyrics = txt;
-                    }
-                }
-            });
-
-            if (lyrics === 'Bulunamadı' || lyrics.startsWith('$')) {
-                const containers = Array.from(document.querySelectorAll('div, pre, textarea'));
-                containers.forEach(el => {
-                    const txt = (el.innerText || '').trim();
-                    const lines = txt.split('\n').length;
-                    if ((txt.includes('[Verse') || txt.includes('[Chorus') || txt.includes('[Intro')) && lines > maxNewlines && txt.length < 6000) {
-                        if (!txt.includes('Show Summary') && !txt.includes('Add a Caption') && !txt.includes('{"')) {
-                            maxNewlines = lines;
-                            lyrics = txt;
-                        }
-                    }
-                });
-            }
+        if (!cached.style || !cached.lyrics || !cached.title || !cached.model) {
+            await fetchSongFromApi(songId);
+            cached = songCache[songId] || {};
         }
+
+        const scriptData = (!cached.style || !cached.lyrics || !cached.title)
+            ? extractFromNextScripts(songId)
+            : { title: '', style: '', lyrics: '', model: '', persona: '', artist: '', created_at: '' };
+
+        const domData = (!cached.style || !cached.lyrics || !cached.title)
+            ? extractFromDom()
+            : { title: '', artist: '', style: '', lyrics: '' };
+
+        const finalStyle = (cached.style || scriptData.style || domData.style || '')
+            .split('","')[0]
+            .trim() || 'Bulunamadı';
+
+        let finalLyrics = cached.lyrics || scriptData.lyrics || domData.lyrics || '';
+        if (!finalLyrics) {
+            finalLyrics = cached.make_instrumental ? '[Instrumental]' : 'Bulunamadı';
+        }
+
+        const finalTitle = cached.title || scriptData.title || domData.title || 'Suno_Sarki';
+        const finalModel = cached.model || scriptData.model || 'Suno AI';
+        const finalPersona = cached.persona || scriptData.persona || 'Yok';
+        const finalArtist = cached.artist || scriptData.artist || domData.artist || '';
+        const rawCreatedAt = cached.created_at || scriptData.created_at || '';
 
         return {
             id: songId,
-            title: rawTitle,
+            title: finalTitle,
             style: finalStyle,
-            lyrics: lyrics,
-            model: cached.model || scriptModel || 'Suno AI',
-            persona: cached.persona || scriptPersona || 'Yok',
-            created_at: (cached.created_at ? new Date(cached.created_at).toLocaleString('tr-TR') : '') || scriptCreatedAt || new Date().toLocaleString('tr-TR')
+            lyrics: finalLyrics,
+            model: finalModel,
+            persona: finalPersona,
+            artist: finalArtist,
+            audio_url: cached.audio_url || '',
+            created_at: rawCreatedAt ? new Date(rawCreatedAt).toLocaleString('tr-TR') : new Date().toLocaleString('tr-TR')
         };
     }
 
-    // 3. AŞAMA: TXT Dosyası İndirme
-    function downloadTextFile(song) {
-        const safeTitle = song.title.replace(/[\\/:*?"<>|]/g, '_');
-        const filename = `${safeTitle} [${song.id.substring(0, 8)}]_metadata.txt`;
-
+    function buildMetadataText(song) {
         const headerLines = [
             `=========================================`,
             `ŞARKI ADI   : ${song.title}`,
@@ -229,6 +423,8 @@
 
         if (song.persona && song.persona !== 'Yok') {
             headerLines.push(`PERSONA     : ${song.persona}`);
+        } else if (song.artist) {
+            headerLines.push(`SANATÇI     : ${song.artist}`);
         }
 
         headerLines.push(
@@ -244,7 +440,14 @@
             `=========================================`
         );
 
-        const content = headerLines.join('\n');
+        return headerLines.join('\n');
+    }
+
+    // 3. AŞAMA: TXT Dosyası İndirme
+    function downloadTextFile(song) {
+        const safeTitle = song.title.replace(/[\\/:*?"<>|]/g, '_');
+        const filename = `${safeTitle} [${song.id.substring(0, 8)}]_metadata.txt`;
+        const content = buildMetadataText(song);
         const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -256,11 +459,72 @@
         URL.revokeObjectURL(url);
     }
 
+    function sendMusicToVault(payload) {
+        return new Promise((resolve, reject) => {
+            if (typeof GM_xmlhttpRequest !== 'undefined') {
+                GM_xmlhttpRequest({
+                    method: 'POST',
+                    url: `${VAULT_URL}/api/quick-import/music`,
+                    headers: { 'Content-Type': 'application/json' },
+                    data: JSON.stringify(payload),
+                    timeout: 25000,
+                    onload: (res) => {
+                        if (res.status >= 200 && res.status < 300) {
+                            resolve();
+                        } else {
+                            let msg = `Sunucu hatası (${res.status})`;
+                            try {
+                                const j = JSON.parse(res.responseText);
+                                if (j.detail) msg = j.detail;
+                            } catch (e) {}
+                            reject(new Error(msg));
+                        }
+                    },
+                    onerror: () => reject(new Error('PromptVault sunucusuna bağlanılamadı. PromptVault çalışıyor mu? (http://127.0.0.1:7860)')),
+                    ontimeout: () => reject(new Error('İstek zaman aşımına uğradı.'))
+                });
+            } else {
+                fetch(`${VAULT_URL}/api/quick-import/music`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                }).then(async (res) => {
+                    if (res.ok) {
+                        resolve();
+                    } else {
+                        const err = await res.json().catch(() => ({ detail: res.statusText }));
+                        reject(new Error(err.detail || 'Sunucu hatası'));
+                    }
+                }).catch(() => {
+                    reject(new Error('PromptVault sunucusuna bağlanılamadı. PromptVault çalışıyor mu? (http://127.0.0.1:7860)'));
+                });
+            }
+        });
+    }
+
+    function detectCurrentSongId() {
+        const match = window.location.pathname.match(/\/song\/([a-f0-9-]{8,})/i);
+        if (match && match[1]) return match[1];
+
+        const playerLink = document.querySelector(
+            'a[aria-label^="Playbar: Title for"][href*="/song/"], ' +
+            'a[aria-label^="Playbar:"][href*="/song/"], ' +
+            'footer a[href*="/song/"], ' +
+            '[data-testid="player"] a[href*="/song/"]'
+        );
+        if (playerLink) {
+            const href = playerLink.getAttribute('href') || playerLink.href || '';
+            const pm = href.match(/\/song\/([a-f0-9-]{8,})/i);
+            if (pm && pm[1]) return pm[1];
+        }
+        return '';
+    }
+
     // 4. AŞAMA: Arayüz Butonları (İndirici + PromptVault'a Aktarıcı)
     function createUI() {
-        if (document.getElementById('suno-meta-dl-btn')) return;
+        if (!document.body && !document.documentElement) return;
+        if (document.getElementById('pv-suno-buttons-bar')) return;
 
-        // Container
         const container = document.createElement('div');
         container.id = 'pv-suno-buttons-bar';
         container.style.cssText = `
@@ -273,7 +537,6 @@
             font-family: sans-serif;
         `;
 
-        // 1. Vault'a Aktar Butonu
         const vaultBtn = document.createElement('button');
         vaultBtn.id = 'suno-vault-quick-btn';
         vaultBtn.innerText = '⚡ Vault\'a Aktar';
@@ -289,19 +552,11 @@
             box-shadow: 0 4px 14px rgba(124,58,237,0.4);
             transition: transform 0.15s;
         `;
-        vaultBtn.onmouseover = () => vaultBtn.style.transform = 'scale(1.05)';
-        vaultBtn.onmouseout = () => vaultBtn.style.transform = 'scale(1)';
+        vaultBtn.onmouseover = () => { vaultBtn.style.transform = 'scale(1.05)'; };
+        vaultBtn.onmouseout = () => { vaultBtn.style.transform = 'scale(1)'; };
 
         vaultBtn.onclick = async () => {
-            const match = window.location.pathname.match(/\/song\/([a-f0-9-]+)/i);
-            let songId = match ? match[1] : '';
-            if (!songId) {
-                const playerLink = document.querySelector('footer a[href*="/song/"], [data-testid="player"] a[href*="/song/"]');
-                if (playerLink) {
-                    const pm = playerLink.href.match(/\/song\/([a-f0-9-]+)/i);
-                    if (pm) songId = pm[1];
-                }
-            }
+            const songId = detectCurrentSongId();
             if (!songId) {
                 alert('Lütfen bir şarkı sayfasına girin veya bir şarkı çalın!');
                 return;
@@ -310,35 +565,27 @@
             vaultBtn.disabled = true;
             try {
                 const song = await getSongData(songId);
-                const res = await fetch('http://127.0.0.1:7860/api/quick-import/music', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        title: song.title,
-                        artist: (song.persona && song.persona !== 'Yok') ? song.persona : 'Suno AI',
-                        style: song.style,
-                        lyrics: song.lyrics,
-                        model: song.model,
-                        source_url: `https://suno.com/song/${songId}`
-                    })
+                await sendMusicToVault({
+                    metadata_txt: buildMetadataText(song),
+                    title: song.title,
+                    artist: (song.persona && song.persona !== 'Yok') ? song.persona : (song.artist || 'Suno AI'),
+                    persona: (song.persona && song.persona !== 'Yok') ? song.persona : '',
+                    style: song.style,
+                    lyrics: song.lyrics,
+                    model: song.model,
+                    suno_id: song.id,
+                    suno_url: `https://suno.com/song/${song.id}`,
+                    audio_url: song.audio_url || ''
                 });
-                if (res.ok) {
-                    vaultBtn.innerText = '✓ Kasaya Aktarıldı!';
-                    setTimeout(() => { vaultBtn.innerText = '⚡ Vault\'a Aktar'; vaultBtn.disabled = false; }, 3000);
-                } else {
-                    const err = await res.json().catch(() => ({ detail: 'Sunucu hatası' }));
-                    alert('Hata: ' + (err.detail || res.statusText));
-                    vaultBtn.innerText = '❌ Hata';
-                    setTimeout(() => { vaultBtn.innerText = '⚡ Vault\'a Aktar'; vaultBtn.disabled = false; }, 3000);
-                }
+                vaultBtn.innerText = '✓ Kasaya Aktarıldı!';
+                setTimeout(() => { vaultBtn.innerText = '⚡ Vault\'a Aktar'; vaultBtn.disabled = false; }, 3000);
             } catch (e) {
-                alert('PromptVault sunucusuna bağlanılamadı. PromptVault çalışıyor mu? (http://127.0.0.1:7860)');
-                vaultBtn.innerText = '⚡ Vault\'a Aktar';
-                vaultBtn.disabled = false;
+                alert(e.message || 'Aktarım sırasında hata oluştu.');
+                vaultBtn.innerText = '❌ Hata';
+                setTimeout(() => { vaultBtn.innerText = '⚡ Vault\'a Aktar'; vaultBtn.disabled = false; }, 3000);
             }
         };
 
-        // 2. TXT İndir Butonu
         const dlBtn = document.createElement('button');
         dlBtn.id = 'suno-meta-dl-btn';
         dlBtn.innerText = '📥 Metadata (.txt)';
@@ -354,17 +601,23 @@
             box-shadow: 0 4px 14px rgba(221,36,118,0.4);
             transition: transform 0.15s;
         `;
-        dlBtn.onmouseover = () => dlBtn.style.transform = 'scale(1.05)';
-        dlBtn.onmouseout = () => dlBtn.style.transform = 'scale(1)';
+        dlBtn.onmouseover = () => { dlBtn.style.transform = 'scale(1.05)'; };
+        dlBtn.onmouseout = () => { dlBtn.style.transform = 'scale(1)'; };
 
         dlBtn.onclick = async () => {
-            const match = window.location.pathname.match(/\/song\/([a-f0-9-]+)/i);
-            if (match && match[1]) {
-                const songId = match[1];
+            const songId = detectCurrentSongId();
+            if (!songId) {
+                alert('Lütfen önce indirmek istediğiniz şarkının detay sayfasına (suno.com/song/...) girin veya bir şarkı çalın!');
+                return;
+            }
+            dlBtn.innerText = '⏳ Çekiliyor...';
+            dlBtn.disabled = true;
+            try {
                 const data = await getSongData(songId);
                 downloadTextFile(data);
-            } else {
-                alert('Lütfen önce indirmek istediğiniz şarkının detay sayfasına (suno.com/song/...) girin!');
+            } finally {
+                dlBtn.innerText = '📥 Metadata (.txt)';
+                dlBtn.disabled = false;
             }
         };
 
@@ -378,4 +631,5 @@
     } else {
         createUI();
     }
+    setInterval(createUI, 2500);
 })();

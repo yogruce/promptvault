@@ -201,6 +201,7 @@
         if (targetTab === 'songs') loadSongs();
         if (targetTab === 'workspaces') loadWorkspacesTab();
         if (targetTab === 'styles') loadStyleTags();
+        if (targetTab === 'clip-studio') window.ClipStudio?.onTabActivated();
       });
     });
   }
@@ -336,10 +337,12 @@
 
       if (emptyEl) emptyEl.classList.add('hidden');
       renderSongCards(data.items, listEl);
+      window.ClipStudio?.refreshSongDropdown(data.items);
     } catch (e) {
       toast('Şarkılar yüklenirken hata: ' + e.message, true);
     }
   }
+  window.loadMusicSongs = loadSongs;
 
   function renderSongCards(songs, container) {
     container.innerHTML = '';
@@ -364,6 +367,7 @@
             </span>
             ${song.persona ? `<span class="song-persona-badge" title="Suno Persona">🎭 ${escapeHtml(song.persona)}</span>` : ''}
             ${song.has_synced_lyrics ? `<span class="song-synced-badge" title="Senkronize LRC ve SRT hazır">🎙️ LRC/SRT</span>` : ''}
+            ${song.has_analysis ? `<span class="song-analysis-badge" title="Klip Analiz Stüdyosu özellikleri kaydedildi (${escapeHtml(song.analysis_summary?.dominant_band || '')})">🎬 ${song.bpm ? `${Math.round(song.bpm)} BPM` : 'Analizli'}</span>` : ''}
             <span class="song-model-badge">${escapeHtml(song.model || 'Suno AI')}</span>
           </div>
           <button class="song-fav-btn ${song.favorite ? 'on' : ''}" data-id="${song.id}" title="Favori">★</button>
@@ -408,7 +412,8 @@
         <div class="song-card-footer">
           <div class="song-stars">${ratingStars}</div>
           <div class="song-actions">
-            ${song.has_audio ? `<button class="btn-open-sync ghost small" data-id="${song.id}" title="DistroKid tarzı şarkı sözü senkronla">🎙️ Senkronla</button>` : ''}
+            ${song.has_audio ? `<button type="button" class="btn-open-clip-studio ghost small" data-id="${song.id}" title="Klip Analiz Stüdyosu (Spektrogram, BPM, 3 Evreli Sahne Analizi)">🎬 Klip Analiz</button>` : ''}
+            ${song.has_audio ? `<button type="button" class="btn-open-sync ghost small" data-id="${song.id}" title="DistroKid tarzı şarkı sözü senkronla">🎙️ Senkronla</button>` : ''}
             ${song.has_synced_lyrics ? `
               <a href="/api/music/songs/${song.id}/download/lrc" download="${escapeHtml(safeCardTitle)}.lrc" class="ghost small" title="LRC formatında indir">📥 LRC</a>
               <a href="/api/music/songs/${song.id}/download/srt" download="${escapeHtml(safeCardTitle)}.srt" class="ghost small" title="SRT altyazı indir">📥 SRT</a>
@@ -509,7 +514,19 @@
         openSongDetail(idx);
       });
 
-      // 5.1 Open Lyrics Synchronizer
+      // 5.1 Open Lyrics Synchronizer & Klip Analiz Stüdyosu
+      const btnClipStudio = card.querySelector('.btn-open-clip-studio');
+      if (btnClipStudio) {
+        btnClipStudio.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (!window.ClipStudio) {
+            toast('Klip Analiz Stüdyosu henüz yüklenmedi; lütfen sayfayı yenileyin (Ctrl+F5).', true);
+            return;
+          }
+          window.ClipStudio.openForSong(song);
+        });
+      }
+
       const btnSync = card.querySelector('.btn-open-sync');
       if (btnSync) {
         btnSync.addEventListener('click', (e) => {
@@ -731,6 +748,7 @@
       <span class="song-artist" style="font-size:13px; font-weight:600; color:var(--accent2); margin:0 4px;">👤 ${escapeHtml(artist)}</span>
       <span class="song-model-badge">${escapeHtml(song.model || 'Suno AI')}</span>
       ${song.has_synced_lyrics ? `<span class="song-synced-badge" title="Senkronize LRC ve SRT hazır">🎙️ LRC/SRT</span>` : ''}
+      ${song.has_analysis ? `<span class="song-analysis-badge" title="Klip Analiz Stüdyosu (${escapeHtml(song.analysis_summary?.dominant_band || '')})">🎬 ${song.bpm ? `${Number(song.bpm).toFixed(1)} BPM` : 'Analiz Hazır'}${song.duration ? ` · ${fmtClock(song.duration)}` : ''}</span>` : ''}
     `;
     const badgesEl = $('#mlBadges');
     if (badgesEl) badgesEl.innerHTML = badgesHtml;
@@ -848,6 +866,23 @@
     } else if (dlAudio) {
       dlAudio.classList.add('hidden');
     }
+    const dlVcTxt = $('#mlDlVcTxt');
+    const dlMarkersCsv = $('#mlDlMarkersCsv');
+    if (song.has_analysis) {
+      if (dlVcTxt) {
+        dlVcTxt.href = `/api/music/songs/${song.id}/download/vc_txt`;
+        dlVcTxt.setAttribute('download', `${safeTitle}_visualizer_composer.txt`);
+        dlVcTxt.classList.remove('hidden');
+      }
+      if (dlMarkersCsv) {
+        dlMarkersCsv.href = `/api/music/songs/${song.id}/download/markers_csv`;
+        dlMarkersCsv.setAttribute('download', `${safeTitle}_premiere_markers.csv`);
+        dlMarkersCsv.classList.remove('hidden');
+      }
+    } else {
+      dlVcTxt?.classList.add('hidden');
+      dlMarkersCsv?.classList.add('hidden');
+    }
 
     // Edit button inside detail modal
     const editBtn = $('#mlEditBtn');
@@ -886,7 +921,24 @@
       toast('Suno Tam Stil promptu panoya kopyalandı! 📋');
     };
 
-    // Synchronizer button
+    // Synchronizer & Clip Studio buttons
+    const clipBtn = $('#mlOpenClipStudioBtn');
+    if (clipBtn) {
+      if (song.has_audio) {
+        clipBtn.classList.remove('hidden');
+        clipBtn.onclick = () => {
+          if (!window.ClipStudio) {
+            toast('Klip Analiz Stüdyosu henüz yüklenmedi; lütfen sayfayı yenileyin (Ctrl+F5).', true);
+            return;
+          }
+          closeSongDetailModal();
+          window.ClipStudio.openForSong(song);
+        };
+      } else {
+        clipBtn.classList.add('hidden');
+      }
+    }
+
     const syncBtn = $('#mlOpenSyncBtn');
     if (syncBtn) {
       if (song.has_audio) {

@@ -608,7 +608,7 @@ def create_app(
     @app.middleware("http")
     async def add_no_cache_for_static(request: Request, call_next):
         response = await call_next(request)
-        if request.url.path.startswith("/static/"):
+        if request.url.path == "/" or request.url.path.startswith("/static/"):
             response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"

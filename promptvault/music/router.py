@@ -58,6 +58,23 @@ class SyncLyricsBody(BaseModel):
     latency_ms: int = 120
 
 
+class SongAnalysisBody(BaseModel):
+    bpm: float
+    duration: float
+    block_duration: int = 15
+    fps: int = 24
+    peak_count: int = 0
+    avg_energy: float = 0.0
+    bass_pct: float = 0.0
+    mid_pct: float = 0.0
+    high_pct: float = 0.0
+    dominant_band: str = ""
+    peaks: list[float] = []
+    beats: list[float] = []
+    blocks: list[dict[str, Any]] = []
+    vc_report: str = ""
+
+
 class MusicScanRequest(BaseModel):
     path: str
     workspace_id: int | None = None
@@ -223,6 +240,34 @@ def create_music_router(music_lib: MusicLibrary) -> APIRouter:
         except Exception:
             return []
 
+    # ------------------------------------------------------------- Klip Analiz Stüdyosu & Visualizer Composer
+    @router.post("/songs/{song_id}/analysis")
+    def save_song_analysis(song_id: int, body: SongAnalysisBody):
+        res = music_lib.save_song_analysis(song_id, body.model_dump())
+        if not res:
+            raise HTTPException(404, "Şarkı bulunamadı")
+        return res
+
+    @router.get("/songs/{song_id}/analysis")
+    def get_song_analysis(song_id: int):
+        song = music_lib.get_song(song_id)
+        if not song:
+            raise HTTPException(404, "Şarkı bulunamadı")
+        return song.get("analysis") or {}
+
+    @router.get("/visualizer-composer-prompt")
+    def get_vc_prompt():
+        from .clip_studio import get_visualizer_composer_prompt
+        return {
+            "title": "Visualizer Composer (Video Klip & Loop Yönetmeni)",
+            "category": "gemini_gems",
+            "target_model": "Gemini 2.5 Pro / Omni 1.2 Flash + Nano Banana 2",
+            "icon": "🎬",
+            "description": "Şarkı sözü, melodi ve Klip Analiz Stüdyosu spektrogram verilerini Nano Banana 2 ve Gemini Omni 1.2 Flash istemlerine dönüştüren profesyonel yönetmen Gem sistem promptu.",
+            "tags": ["visualizer", "video-klip", "omni-flash", "nano-banana-2", "spektrogram", "suno"],
+            "content": get_visualizer_composer_prompt(),
+        }
+
     @router.get("/songs/{song_id}/download/{fmt}")
     def download_lyrics_format(song_id: int, fmt: str):
         song = music_lib.get_song(song_id)
@@ -322,8 +367,38 @@ def create_music_router(music_lib: MusicLibrary) -> APIRouter:
                 headers={"Content-Disposition": make_content_disposition(filename)}
             )
 
+        elif fmt == "vc_txt":
+            analysis = song.get("analysis") or {}
+            content = analysis.get("vc_report") or ""
+            if not content:
+                raise HTTPException(400, "Bu şarkı için henüz Visualizer Composer analiz raporu yok")
+            filename = f"{safe_title}_visualizer_composer.txt"
+            return Response(
+                content=content,
+                media_type="text/plain; charset=utf-8",
+                headers={"Content-Disposition": make_content_disposition(filename)}
+            )
+
+        elif fmt == "markers_csv":
+            analysis = song.get("analysis") or {}
+            if not analysis or not analysis.get("duration"):
+                raise HTTPException(400, "Bu şarkı için henüz Klip Analiz Stüdyosu marker verisi yok")
+            from .clip_studio import generate_premiere_markers_csv
+            csv_text = generate_premiere_markers_csv(
+                duration=analysis["duration"],
+                peak_times=analysis.get("peaks") or [],
+                step=analysis.get("block_duration") or 15,
+                fps=analysis.get("fps") or 24,
+            )
+            filename = f"{safe_title}_premiere_markers.csv"
+            return Response(
+                content="\ufeff" + csv_text,
+                media_type="text/csv; charset=utf-8",
+                headers={"Content-Disposition": make_content_disposition(filename)}
+            )
+
         else:
-            raise HTTPException(400, f"Desteklenmeyen format: {fmt}. İzin verilenler: txt, audio, mp3, lrc, srt, json")
+            raise HTTPException(400, f"Desteklenmeyen format: {fmt}. İzin verilenler: txt, audio, mp3, lrc, srt, json, vc_txt, markers_csv")
 
     # ------------------------------------------------------------- Tags
     @router.get("/tags")

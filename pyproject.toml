@@ -38,6 +38,7 @@ include = ["promptvault*"]
 
 [tool.setuptools.package-data]
 "promptvault.web" = ["static/*"]
+"promptvault.music" = ["*.txt"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

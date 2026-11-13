@@ -179,16 +179,28 @@ def test_delete_endpoints(client):
 
 def test_userscript_and_extension_static(client):
     c, _ = client
-    # Verify .user.js is served with proper content
+    # Verify .user.js files are served with proper content
     res = c.get("/static/suno_downloader.user.js")
     assert res.status_code == 200
     assert "// ==UserScript==" in res.text
     assert "Suno AI" in res.text
+    assert "/a/api/clip/" in res.text
 
-    # Verify extension manifest is served
+    clipper_res = c.get("/static/promptvault_clipper.user.js")
+    assert clipper_res.status_code == 200
+    assert "// ==UserScript==" in clipper_res.text
+    assert "/a/api/clip/" in clipper_res.text
+
+    # Verify extension manifest and scripts are served
     ext_res = c.get("/static/suno_extension/manifest.json")
     assert ext_res.status_code == 200
     assert "manifest_version" in ext_res.text
+    assert "interceptor.js" in ext_res.text
+
+    assert c.get("/static/suno_extension/interceptor.js").status_code == 200
+    content_res = c.get("/static/suno_extension/content.js")
+    assert content_res.status_code == 200
+    assert "/a/api/clip/" in content_res.text
 
 
 def test_gdrive_restore_endpoints(client):

@@ -11,10 +11,13 @@ from promptvault.music import (
     fmt_lrc,
     fmt_srt,
     generate_lrc,
+    generate_premiere_markers_csv,
     generate_srt,
     generate_synced_txt,
+    get_visualizer_composer_prompt,
     parse_lrc,
     parse_suno_txt,
+    sec_to_timecode,
 )
 from promptvault.web.app import create_app
 
@@ -409,4 +412,94 @@ def test_music_download_turkish_characters_and_audio(tmp_path: Path):
     cd_stream = r_stream_dl.headers.get("content-disposition", "")
     assert "filename" in cd_stream
     assert "Ya" in cd_stream or "ark" in urllib.parse.unquote(cd_stream)
+
+
+def test_clip_studio_helpers_and_prompt():
+    assert sec_to_timecode(0.0, 24) == "00:00:00:00"
+    assert sec_to_timecode(65.5, 24) == "00:01:05:12"
+
+    csv_text = generate_premiere_markers_csv(duration=32.0, peak_times=[3.4, 18.2], step=15, fps=24)
+    assert "Marker Name,Description,In,Out,Duration,Marker Type,Seconds" in csv_text
+    assert "SAHNE_01 (15sn)" in csv_text
+    assert "SAHNE_03 (15sn)" in csv_text
+    assert "BEAT_PEAK_01" in csv_text
+    assert "Sahne 02 ici (at +3.2s) Akustik Vurus" in csv_text
+
+    vc_prompt = get_visualizer_composer_prompt()
+    assert "<core_directive>" in vc_prompt
+    assert "Visualizer Composer" in vc_prompt
+    assert "</task>" in vc_prompt
+
+
+def test_music_song_analysis_endpoints(tmp_path: Path):
+    db_file = tmp_path / "analysis_music.db"
+    vault = tmp_path / "vault"
+    vault.mkdir(parents=True)
+
+    music_lib = MusicLibrary(db_file, vault)
+    app = create_app(music_library=music_lib)
+    client = TestClient(app)
+
+    song = music_lib.add_song(
+        title="Neon Pulse",
+        artist="SynthWave",
+        style="synthwave, 128 bpm",
+        lyrics="[Verse 1]\nNeon lights",
+    )
+    song_id = song["id"]
+
+    # Initially no analysis
+    r_empty = client.get(f"/api/music/songs/{song_id}/analysis")
+    assert r_empty.status_code == 200
+    assert r_empty.json() == {}
+
+    r_missing_dl = client.get(f"/api/music/songs/{song_id}/download/vc_txt")
+    assert r_missing_dl.status_code == 400
+
+    # Save analysis
+    payload = {
+        "bpm": 128.0,
+        "duration": 42.5,
+        "block_duration": 15,
+        "fps": 24,
+        "peak_count": 3,
+        "avg_energy": 64.2,
+        "bass_pct": 72.0,
+        "mid_pct": 51.0,
+        "high_pct": 38.0,
+        "dominant_band": "Dip Bas / Davul Baskın",
+        "peaks": [3.4, 17.8, 33.1],
+        "beats": [0.47, 0.94],
+        "blocks": [{"scene": 1, "start": 0, "end": 15, "duration": 15, "e1": 60, "e2": 70, "e3": 75}],
+        "vc_report": "KLİP ANALİZ STÜDYOSU TEST RAPORU",
+    }
+    r_save = client.post(f"/api/music/songs/{song_id}/analysis", json=payload)
+    assert r_save.status_code == 200
+    saved = r_save.json()
+    assert saved["has_analysis"] is True
+    assert saved["bpm"] == 128.0
+    assert saved["duration"] == 42.5
+    assert saved["analysis"]["dominant_band"] == "Dip Bas / Davul Baskın"
+
+    # Search with is:analyzed
+    r_search = client.get("/api/music/songs", params={"q": "is:analyzed"})
+    assert r_search.status_code == 200
+    assert r_search.json()["total"] == 1
+    assert r_search.json()["items"][0]["analysis_summary"]["bpm"] == 128.0
+
+    # Download VC report and Premiere markers CSV
+    r_vc = client.get(f"/api/music/songs/{song_id}/download/vc_txt")
+    assert r_vc.status_code == 200
+    assert "KLİP ANALİZ STÜDYOSU TEST RAPORU" in r_vc.text
+
+    r_csv = client.get(f"/api/music/songs/{song_id}/download/markers_csv")
+    assert r_csv.status_code == 200
+    assert "BEAT_PEAK_01" in r_csv.text
+    assert "SAHNE_01 (15sn)" in r_csv.text
+
+    # Fetch Visualizer Composer system prompt endpoint
+    r_gem = client.get("/api/music/visualizer-composer-prompt")
+    assert r_gem.status_code == 200
+    assert "Visualizer Composer" in r_gem.json()["content"]
+
 

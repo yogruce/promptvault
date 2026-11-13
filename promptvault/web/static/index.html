@@ -40,6 +40,7 @@
     <button data-music-tab="workspaces" data-i18n="tab_music_workspaces">🏢 Workspaces & Sanatçılar</button>
     <button data-music-tab="styles" data-i18n="tab_music_styles">🏷️ Müzik Stilleri</button>
     <button data-music-tab="music-scan" data-i18n="tab_music_scan">📂 Müzik Tara & Ekle</button>
+    <button data-music-tab="clip-studio" data-i18n="tab_music_clip_studio">🎬 Klip Analiz Stüdyosu</button>
   </nav>
 
   <!-- SYSTEM PROMPT TABS -->
@@ -280,7 +281,7 @@
             <code>style:synthwave</code> stildeki anahtar kelimeler<br>
             <code>lyrics:nakarat</code> şarkı sözlerinde arama<br>
             <code>model:v4</code> model versiyonu<br>
-            <code>is:fav</code> favoriler · <code>is:audio</code> ses dosyası olanlar<br>
+            <code>is:fav</code> favoriler · <code>is:audio</code> ses dosyası olanlar · <code>is:analyzed</code> klip analizi yapılanlar<br>
             <code>rating:>=4</code> yıldız puanı
           </div>
         </details>
@@ -331,7 +332,7 @@
     <section id="tab-music-music-scan" class="music-tab">
       <!-- SUNO BROWSER EXTENSION / USERSCRIPT PANEL -->
       <div class="panel narrow" style="margin-bottom: 20px;">
-        <h3>🧩 Suno AI Tarayıcı İndiricisi (v1.5)</h3>
+        <h3>🧩 Suno AI Tarayıcı İndiricisi (v2.0)</h3>
         <p class="muted small">Suno.com üzerindeki şarkıların <b>TAM stil promptunu</b>, <b>şarkı sözlerini</b> ve <b>üst verilerini</b> (Persona, Model, ID, Link) tek tıkla <code>.txt</code> olarak indiren aracı tarayıcınıza ekleyin.</p>
         
         <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
@@ -368,6 +369,150 @@
         </div>
 
         <div id="mScanLog" class="small muted" style="margin-top:10px"></div>
+      </div>
+    </section>
+
+    <!-- KLİP ANALİZ STÜDYOSU & VISUALIZER COMPOSER TAB -->
+    <section id="tab-music-clip-studio" class="music-tab">
+      <div class="cs-topbar">
+        <div class="cs-source-group">
+          <select id="csSongSelect" style="min-width:250px; max-width:340px;">
+            <option value="">🎵 Kasadan Sesli Şarkı Seç...</option>
+          </select>
+          <button id="csBtnAnalyzeSong" type="button" class="primary">⚡ Seçili Şarkıyı Analiz Et</button>
+          <label class="button ghost cs-file-btn" title="Bilgisayardan yerel bir ses dosyası analiz et">
+            📁 Yerel Ses Dosyası Seç
+            <input id="csFileInput" type="file" accept=".mp3,.wav,.flac,.ogg,.m4a,.aac,audio/*" hidden>
+          </label>
+        </div>
+
+        <div class="cs-params-group">
+          <label class="small muted">Bölümleme:
+            <select id="csSegMode" style="width:170px" title="Omni Flash max 15 sn sınırı her zaman korunur">
+              <option value="snap" selected>⚡ Vuruşa Kilitle (≤15sn)</option>
+              <option value="fixed">📏 Sabit Blok</option>
+            </select>
+          </label>
+          <label class="small muted">Maks Blok:
+            <select id="csSegmentSelect" style="width:105px">
+              <option value="5">5 Saniye</option>
+              <option value="8">8 Saniye</option>
+              <option value="10">10 Saniye</option>
+              <option value="12">12 Saniye</option>
+              <option value="15" selected>15 Saniye</option>
+            </select>
+          </label>
+          <label class="small muted">FPS:
+            <select id="csFpsSelect" style="width:68px">
+              <option value="24" selected>24</option>
+              <option value="25">25</option>
+              <option value="30">30</option>
+              <option value="60">60</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="cs-actions-group">
+          <button id="csBtnSaveDb" type="button" class="primary hidden" disabled style="background:#2b8a3e;" title="BPM, süre, frekans profili ve sahne analizini şarkının kasasına kaydet">💾 Özellikleri Kasaya Kaydet</button>
+          <button id="csBtnSavePng" type="button" class="ghost" disabled style="border-color:#2b8a3e; color:#69db7c;" title="300 DPI çözünürlükte PNG spektrogram kaydet">🖼️ Spektrogram Kaydet (PNG)</button>
+          <button id="csBtnRecordWebm" type="button" class="ghost" disabled style="border-color:#0ea5e9; color:#38bdf8;" title="Canlı animasyonlu spektrogramı oynatırken WebM video olarak kaydet">🎥 Animasyon Video (.webm)</button>
+          <button id="csBtnCopyVc" type="button" class="primary" disabled style="background:#d9480f;" title="Visualizer Composer Gem için zaman kodlu veri paketini kopyala">📋 Visualizer Composer Kopyala</button>
+          <button id="csBtnPremiere" type="button" class="ghost" disabled style="border-color:#6741d9; color:#b197fc;" title="Premiere Pro / DaVinci Resolve Marker CSV indir">🎬 Premiere Marker (.csv)</button>
+        </div>
+      </div>
+
+      <div id="csStatus" class="cs-status cs-status-muted">
+        Başlamak için kasadan sesli bir şarkı seçin veya yerel bir ses dosyası (.mp3, .wav, .flac) yükleyin.
+      </div>
+      <div id="csProgressWrap" class="cs-progress-wrap hidden">
+        <div id="csProgressFill" class="cs-progress-fill"></div>
+      </div>
+
+      <div id="csMetricsStrip" class="cs-metrics-strip hidden"></div>
+
+      <div id="csPlayerBar" class="cs-player-bar hidden">
+        <audio id="csAudio" controls style="width:100%; height:38px;"></audio>
+      </div>
+
+      <div class="cs-subtabs">
+        <button type="button" class="cs-subtab-btn active" data-cs-tab="spec">📊 Spektrogram & Sahne Izgarası</button>
+        <button type="button" class="cs-subtab-btn" data-cs-tab="vc">🤖 Visualizer Composer Veri Paketi</button>
+        <button type="button" class="cs-subtab-btn" data-cs-tab="gem">💎 Visualizer Composer Gem Sistem Promptu</button>
+      </div>
+
+      <!-- SUB-PANE 1: SPECTROGRAM & SCENES -->
+      <div id="cs-pane-spec" class="cs-subpane">
+        <div class="cs-spec-controls">
+          <label class="small">Ölçek:
+            <select id="csScaleSelect" style="width:130px">
+              <option value="mel" selected>Mel</option>
+              <option value="log">Logaritmik (Hz)</option>
+              <option value="linear">Lineer</option>
+            </select>
+          </label>
+          <label class="small">Palet:
+            <select id="csCmapSelect" style="width:110px">
+              <option value="magma" selected>magma</option>
+              <option value="inferno">inferno</option>
+              <option value="viridis">viridis</option>
+              <option value="plasma">plasma</option>
+              <option value="coolwarm">coolwarm</option>
+            </select>
+          </label>
+          <label class="small">Görünüm:
+            <select id="csViewMode" style="width:185px">
+              <option value="both" selected>✨ Izgara + Canlı Animasyon</option>
+              <option value="grid">📊 Sadece Tam Izgara</option>
+              <option value="anim">🎞️ Sadece Canlı Animasyon</option>
+            </select>
+          </label>
+          <label class="inline small"><input type="checkbox" id="csShowPeaks" checked> Vuruşlar (Turkuaz)</label>
+          <label class="inline small"><input type="checkbox" id="csShowGrid" checked> Sahne Sınırları (Sarı)</label>
+          <div style="flex:1"></div>
+          <span id="csCanvasTooltip" class="cs-tooltip hidden"></span>
+        </div>
+
+        <div class="cs-editor-bar">
+          <span class="small muted"><b>Düzenleyici:</b></span>
+          <button type="button" class="cs-tool-btn active" data-tool="move" title="Sarı sahne çizgilerini sürükleyerek taşı (3-15 sn sınırı korunur) veya tıklayarak şarkıda atla">🖱️ Atla / Sınır Sürükle</button>
+          <button type="button" class="cs-tool-btn" data-tool="split" title="Spektrograma tıklayarak yeni sahne sınırı ekle (veya Shift+Tık)">✂️ Sahne Böl (Shift+Tık)</button>
+          <button type="button" class="cs-tool-btn" data-tool="peak" title="Spektrograma tıklayarak özel vuruş/efekt tetikleyicisi ekle (veya Alt+Tık)">⚡ Vuruş Ekle (Alt+Tık)</button>
+          <button type="button" class="cs-tool-btn" data-tool="erase" title="Turkuaz vuruş çizgisini veya sarı sahne sınırını kaldır (15sn sınırını aşmayanlar)">🗑️ Çizgi Sil (Sağ Tık)</button>
+          <div style="flex:1"></div>
+          <button type="button" id="csBtnResetEdits" class="ghost small" title="Manuel değişiklikleri sıfırlayıp otomatik analize dön">🔄 Otomatiğe Sıfırla</button>
+        </div>
+
+        <div id="csGridWrap" class="cs-canvas-wrap">
+          <canvas id="csSpecCanvas"></canvas>
+        </div>
+
+        <div id="csAnimWrap" class="cs-canvas-wrap cs-anim-wrap">
+          <canvas id="csAnimCanvas"></canvas>
+        </div>
+
+        <h4 class="cs-scenes-title">🎞️ 3 Evreli Sahne Blokları, Söz Eşleşmesi & Akustik Tetikleyiciler (Maks 15 sn Kilitli)</h4>
+        <div id="csScenesGrid" class="cs-scenes-grid"></div>
+      </div>
+
+      <!-- SUB-PANE 2: VISUALIZER COMPOSER DATA REPORT -->
+      <div id="cs-pane-vc" class="cs-subpane hidden">
+        <div class="cs-vc-toolbar">
+          <label class="inline small"><input type="checkbox" id="csIncludeLyrics" checked> PromptVault Şarkı Sözleri & Stil Promptunu Rapora Dahil Et</label>
+          <div style="flex:1"></div>
+          <button type="button" class="primary small" onclick="$('#csBtnCopyVc').click()">📋 Raporu Panoya Kopyala</button>
+        </div>
+        <textarea id="csVcReport" class="cs-vc-textarea" readonly placeholder="Şarkı analiz edildiğinde Visualizer Composer veri paketi burada oluşturulacak..."></textarea>
+      </div>
+
+      <!-- SUB-PANE 3: VISUALIZER COMPOSER GEM SYSTEM PROMPT -->
+      <div id="cs-pane-gem" class="cs-subpane hidden">
+        <div class="cs-vc-toolbar">
+          <span class="muted small">Gemini üzerinde özel Gem oluştururken veya sohbet başlatırken kullanabileceğiniz tam Visualizer Composer sistem yönergesi.</span>
+          <div style="flex:1"></div>
+          <button id="csBtnSaveGemToSys" type="button" class="ghost small">🧠 Sistem Promptlarıma Ekle</button>
+          <button id="csBtnCopyGem" type="button" class="primary small">📋 Gem Promptunu Kopyala</button>
+        </div>
+        <pre class="sys-detail-pre cs-gem-pre"><code id="csGemPromptContent">Yükleniyor...</code></pre>
       </div>
     </section>
   </div>
@@ -805,12 +950,13 @@
           <audio id="mlAudio" controls preload="none" style="width:100%; height:40px;"></audio>
         </div>
 
-        <!-- ACTION BAR: STARS, FAV, SUNO LINK, SYNC -->
+        <!-- ACTION BAR: STARS, FAV, SUNO LINK, SYNC, CLIP STUDIO -->
         <div class="song-detail-action-bar">
           <div class="stars" id="mlStars"></div>
           <button id="mlFavBtn" class="favbtn">★ Favori</button>
           <div style="flex:1"></div>
           <a id="mlSunoLink" href="#" target="_blank" class="ghost small" title="Suno sayfasında aç">🔗 Suno</a>
+          <button id="mlOpenClipStudioBtn" class="ghost small" title="Klip Analiz Stüdyosu ile spektrogram, BPM ve sahne analizi yap" data-i18n="btn_clip_studio">🎬 Klip Analiz</button>
           <button id="mlOpenSyncBtn" class="primary small" title="DistroKid tarzı senkronlayıcıyı aç" data-i18n="btn_sync_music">🎙️ Senkronla</button>
         </div>
 
@@ -821,6 +967,8 @@
           <a id="mlDlLrc" class="ghost small hidden" download title="Senkronlu .lrc indir">🎙️ LRC</a>
           <a id="mlDlSrt" class="ghost small hidden" download title="Altyazı .srt indir">🎬 SRT</a>
           <a id="mlDlAudio" class="ghost small hidden" download title="Ses dosyasını (.mp3) indir">🎵 Ses İndir</a>
+          <a id="mlDlVcTxt" class="ghost small hidden" download title="Visualizer Composer veri paketi (.txt) indir">🤖 VC Rapor</a>
+          <a id="mlDlMarkersCsv" class="ghost small hidden" download title="Premiere Pro / DaVinci Marker (.csv) indir">🎞️ Marker CSV</a>
           <div style="flex:1"></div>
           <button id="mlEditBtn" class="ghost small" title="Şarkıyı düzenle" data-i18n="btn_edit">✏️ Düzenle</button>
           <button id="mlDeleteBtn" class="ghost small danger" title="Şarkıyı kasadan sil" data-i18n="btn_delete">🗑️ Sil</button>
@@ -1183,8 +1331,9 @@
 </div>
 
 <div id="toast" class="toast hidden"></div>
-<script src="/static/app.js?v=2.5"></script>
-<script src="/static/music.js?v=2.5"></script>
-<script src="/static/sysprompts.js?v=2.5"></script>
+<script src="/static/app.js?v=2.6"></script>
+<script src="/static/music.js?v=2.6"></script>
+<script src="/static/clip_studio.js?v=2.6"></script>
+<script src="/static/sysprompts.js?v=2.6"></script>
 </body>
 </html>

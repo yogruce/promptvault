@@ -64,6 +64,9 @@ class Song:
     favorite: bool = False
     notes: str = ""
     duration: float | None = None
+    bpm: float | None = None
+    has_analysis: bool = False
+    analysis: dict[str, Any] | None = None
     synced_lyrics: str = ""
     lrc_content: str = ""
     srt_content: str = ""
@@ -95,6 +98,9 @@ class Song:
             "favorite": self.favorite,
             "notes": self.notes,
             "duration": self.duration,
+            "bpm": self.bpm,
+            "has_analysis": self.has_analysis,
+            "analysis": self.analysis,
             "synced_lyrics": self.synced_lyrics,
             "lrc_content": self.lrc_content,
             "srt_content": self.srt_content,

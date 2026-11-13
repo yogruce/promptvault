@@ -30,6 +30,7 @@ const TRANSLATIONS = {
     tab_music_workspaces: "🏢 Workspaces & Sanatçılar",
     tab_music_styles: "🏷️ Müzik Stilleri",
     tab_music_scan: "📂 Müzik Tara & Ekle",
+    tab_music_clip_studio: "🎬 Klip Analiz Stüdyosu",
 
     // System Prompts Domain & Tabs
     domain_sysprompts: "Sistem Promptları",
@@ -237,6 +238,7 @@ const TRANSLATIONS = {
     btn_expand: "📖 Genişlet",
     btn_collapse: "📕 Daralt",
     btn_sync_music: "Senkronla",
+    btn_clip_studio: "🎬 Klip Analiz",
     btn_edit: "Düzenle",
     btn_delete: "Sil",
     no_audio_hint: "📄 Sadece Söz ve Stil Promptu",
@@ -281,6 +283,7 @@ const TRANSLATIONS = {
     tab_music_workspaces: "🏢 Workspaces & Artists",
     tab_music_styles: "🏷️ Music Styles",
     tab_music_scan: "📂 Scan & Add Music",
+    tab_music_clip_studio: "🎬 Clip Analysis Studio",
 
     // System Prompts Domain & Tabs
     domain_sysprompts: "System Prompts",
@@ -488,6 +491,7 @@ const TRANSLATIONS = {
     btn_expand: "📖 Expand",
     btn_collapse: "📕 Collapse",
     btn_sync_music: "Sync",
+    btn_clip_studio: "🎬 Clip Analysis",
     btn_edit: "Edit",
     btn_delete: "Delete",
     no_audio_hint: "📄 Lyrics and Style Prompt Only",
