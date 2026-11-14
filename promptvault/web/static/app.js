@@ -1382,18 +1382,27 @@ async function loadGDriveStatus() {
     const badge = $("#gdStatusBadge");
     const userEl = $("#gdUserEmail");
     const syncRow = $("#gdSyncRow");
+    const folderCfg = $("#gdFolderConfig");
+    const folderInput = $("#gdFolderInput");
     const setup = $("#gdSetup");
     const link = $("#gdFolderLink");
+    const syncBtn = $("#btnGdSync");
+
+    if (syncBtn) syncBtn.disabled = !s.authenticated;
 
     if (s.authenticated) {
       badge.textContent = "✓ Google Drive Bağlı";
       badge.className = "vault-badge";
       userEl.textContent = s.user ? `${s.user.name} (${s.user.email})` : "";
       syncRow.classList.remove("hidden");
+      folderCfg?.classList.remove("hidden");
       setup.classList.add("hidden");
       if (s.folder && s.folder.url) {
         link.href = s.folder.url;
         link.classList.remove("hidden");
+        if (folderInput && document.activeElement !== folderInput) {
+          folderInput.value = s.folder.id || "";
+        }
       } else {
         link.classList.add("hidden");
       }
@@ -1403,6 +1412,7 @@ async function loadGDriveStatus() {
       }
     } else {
       syncRow.classList.add("hidden");
+      folderCfg?.classList.add("hidden");
       setup.classList.remove("hidden");
       userEl.textContent = "";
       if (s.configured) {
@@ -1457,13 +1467,79 @@ $("#btnGdLogin")?.addEventListener("click", async () => {
   }
 });
 
-$("#btnGdLogout")?.addEventListener("click", async () => {
+async function handleGDriveLogout() {
   if (confirm("Google Drive oturumunu kapatmak istiyor musunuz?")) {
     await api("/api/gdrive/logout", { method: "POST" });
     toast("Oturum kapatıldı");
     loadGDriveStatus();
   }
+}
+
+$("#btnGdLogout")?.addEventListener("click", handleGDriveLogout);
+$("#btnGdLogoutConnected")?.addEventListener("click", handleGDriveLogout);
+
+$("#btnGdSetFolder")?.addEventListener("click", async () => {
+  const folder = $("#gdFolderInput")?.value.trim() || "";
+  if (!folder) return toast("Klasör ID veya Google Drive klasör linki girin");
+  try {
+    await api("/api/gdrive/folder", { method: "POST", body: { folder } });
+    toast("Hedef Google Drive klasörü güncellendi!");
+    loadGDriveStatus();
+  } catch (e) {
+    toast("Hata: " + e.message);
+  }
 });
+
+/* ----------------------------------------------------------- github updater */
+async function checkGitHubUpdate(silent = true) {
+  const badge = $("#updateStatusBadge");
+  const info = $("#updateInfoText");
+  const applyBtn = $("#btnApplyUpdate");
+  try {
+    const res = await api("/api/update/check");
+    if (!res.ok) {
+      if (!silent && badge) {
+        badge.textContent = "Bağlantı Hatası";
+        badge.className = "kind";
+        if (info) info.textContent = res.error || "GitHub'a ulaşılamadı";
+      }
+      return;
+    }
+    const cur = res.current_sha ? res.current_sha.slice(0, 7) : "bilinmiyor";
+    const rem = res.remote_sha ? res.remote_sha.slice(0, 7) : "";
+    if (res.update_available) {
+      if (badge) { badge.textContent = "Güncelleme Var"; badge.className = "vault-badge"; }
+      if (info) info.textContent = `Mevcut: ${cur} → Yeni: ${rem} (${res.commit_message || ""})`;
+      applyBtn?.classList.remove("hidden");
+      if (silent) toast(`🔄 Yeni PromptVault güncellemesi mevcut (${rem})! Ayarlar'dan güncelleyebilirsiniz.`);
+    } else {
+      if (badge) { badge.textContent = "✓ Güncel"; badge.className = "vault-badge"; }
+      if (info) info.textContent = `Sürüm: ${rem || cur}`;
+      applyBtn?.classList.add("hidden");
+      if (!silent) toast("✓ Uygulama en güncel sürümde!");
+    }
+  } catch (e) {
+    if (!silent) toast("Güncelleme kontrolü hatası: " + e.message);
+  }
+}
+
+$("#btnCheckUpdate")?.addEventListener("click", () => checkGitHubUpdate(false));
+$("#btnApplyUpdate")?.addEventListener("click", async () => {
+  const btn = $("#btnApplyUpdate");
+  if (btn) btn.disabled = true;
+  try {
+    toast("GitHub'dan güncelleme indiriliyor...");
+    const res = await api("/api/update/apply", { method: "POST" });
+    toast(res.message || "Güncelleme tamamlandı! Uygulamayı yeniden başlatın.");
+    checkGitHubUpdate(true);
+  } catch (e) {
+    toast("Güncelleme hatası: " + e.message);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+});
+
+setTimeout(() => checkGitHubUpdate(true), 2500);
 
 async function startGDriveSync() {
   const s = await loadGDriveStatus();
@@ -1591,8 +1667,17 @@ async function pollGDriveRestore() {
       if (p.result) {
         bar.style.width = "100%";
         const r = p.result;
-        statusEl.innerHTML = `✓ <b>Geri yükleme tamamlandı!</b> Toplam: ${r.total} kayıt | Yeni: ${r.restored} | Güncellenen: ${r.updated} | İndirilen Görsel: ${r.images_downloaded}`;
-        toast(`✓ ${r.restored} kayıt geri yüklendi!`);
+        const extras = [];
+        if (r.workspaces_restored) extras.push(`Workspace: ${r.workspaces_restored}`);
+        if (r.songs_restored) extras.push(`Müzik: ${r.songs_restored}`);
+        if (r.system_prompts_restored) extras.push(`Sistem Promptu: ${r.system_prompts_restored}`);
+        if (r.drive_files_found !== undefined) extras.push(`Drive Dosyası: ${r.drive_files_found}`);
+        const extraStr = extras.length ? ` | ${extras.join(" | ")}` : "";
+        const errStr = (r.download_errors && r.download_errors.length)
+          ? `<div style="color:var(--danger); margin-top:4px;">İndirme hatası: ${esc(r.download_errors.join("; "))}</div>`
+          : "";
+        statusEl.innerHTML = `✓ <b>Geri yükleme tamamlandı!</b> Toplam: ${r.total} kayıt | Yeni: ${r.restored} | Güncellenen: ${r.updated} | İndirilen Görsel: ${r.images_downloaded}${extraStr}${errStr}`;
+        toast(`✓ ${r.restored} yeni, ${r.updated} güncellenen kayıt!`);
         loadLibStats();
         loadStats();
         loadGallery(false);

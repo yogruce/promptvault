@@ -16,7 +16,7 @@ from pydantic import BaseModel
 
 from ..db import TAG_KINDS, Library
 from ..export import FORMATS, export_rows
-from ..gdrive import GDriveManager
+from ..gdrive import GDriveManager, SCOPES as GDRIVE_SCOPES
 from ..integrations import create_quick_import_router
 from ..matrix import Matrix, MatrixError, MatrixSpec
 from ..music import MusicLibrary, create_music_router
@@ -118,6 +118,14 @@ class ManualAddBody(BaseModel):
 class GDriveConfigBody(BaseModel):
     client_id: str
     client_secret: str
+
+
+class GDriveFolderBody(BaseModel):
+    folder: str
+
+
+class GDriveRestoreBody(BaseModel):
+    download_images: bool = False
 
 
 def pick_folder_dialog(title: str = "Taranacak Klasörü Seçin") -> str | None:
@@ -512,7 +520,7 @@ def create_app(
                 from google_auth_oauthlib.flow import InstalledAppFlow
                 flow = InstalledAppFlow.from_client_secrets_file(
                     str(gdrive.client_file),
-                    scopes=["https://www.googleapis.com/auth/drive.file"],
+                    scopes=GDRIVE_SCOPES,
                 )
                 creds = flow.run_local_server(port=0, open_browser=True)
                 gdrive.token_file.write_text(creds.to_json(), encoding="utf-8")
@@ -523,6 +531,14 @@ def create_app(
 
         threading.Thread(target=run_oauth, daemon=True).start()
         return {"status": "login_started", "message": "Tarayıcıda Google giriş penceresi açılıyor..."}
+
+    @app.post("/api/gdrive/folder")
+    def gdrive_set_folder(body: GDriveFolderBody):
+        try:
+            res = gdrive.set_folder_id(body.folder)
+        except Exception as e:
+            raise HTTPException(400, str(e))
+        return {"ok": True, "folder": res, "status": gdrive.get_status()}
 
     @app.post("/api/gdrive/logout")
     def gdrive_logout():
@@ -542,9 +558,6 @@ def create_app(
 
         threading.Thread(target=run_sync, daemon=True).start()
         return gdrive.get_status()
-
-    class GDriveRestoreBody(BaseModel):
-        download_images: bool = False
 
     @app.post("/api/gdrive/restore")
     def gdrive_restore(body: GDriveRestoreBody = GDriveRestoreBody()):
@@ -572,6 +585,20 @@ def create_app(
             return {"ok": True, "result": res}
         except Exception as e:
             raise HTTPException(400, f"JSON yedeği geri yüklenemedi: {e}")
+
+    # ------------------------------------------------------------ github updater
+    @app.get("/api/update/check")
+    def update_check():
+        from ..updater import check_for_updates
+        return check_for_updates()
+
+    @app.post("/api/update/apply")
+    def update_apply():
+        from ..updater import apply_update
+        try:
+            return apply_update()
+        except Exception as e:
+            raise HTTPException(500, f"Güncelleme başarısız: {e}")
 
     # ------------------------------------------------------------ static & auto-close
     app.state.last_heartbeat = time.time()

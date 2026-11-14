@@ -18,29 +18,10 @@ if %ERRORLEVEL% neq 0 (
 )
 
 :run
-:: GitHub Otomatik Guncelleme Kontrolu
-where git >nul 2>&1
-if errorlevel 1 goto :AFTER_UPDATE_CHECK
-if not exist .git goto :AFTER_UPDATE_CHECK
-
+:: GitHub Otomatik Guncelleme Kontrolu (git olsun veya olmasin tum PC'lerde calisir)
 echo [KONTROL] GitHub guncellemeleri denetleniyor...
-git fetch origin main >nul 2>&1
-git rev-parse HEAD > "%TEMP%\pv_local.txt" 2>nul
-git rev-parse origin/main > "%TEMP%\pv_remote.txt" 2>nul
-
-fc "%TEMP%\pv_local.txt" "%TEMP%\pv_remote.txt" >nul 2>&1
-if errorlevel 1 (
-    echo.
-    echo ========================================================
-    echo   [GUNCELLEME] GitHub'da yeni bir surum tespit edildi!
-    echo   Guncel dosyalar indiriliyor...
-    echo ========================================================
-    git pull origin main
-    .\.venv\Scripts\python.exe -m pip install -e ".[web]" --quiet
-    echo   [BASARILI] PromptVault en son surume guncellendi.
-    echo.
-)
-del "%TEMP%\pv_local.txt" "%TEMP%\pv_remote.txt" >nul 2>&1
+.\.venv\Scripts\python.exe -m promptvault.updater --apply
+echo.
 
 :AFTER_UPDATE_CHECK
 :: 7860 portunu mesgul eden eski bir surec varsa sonlandir

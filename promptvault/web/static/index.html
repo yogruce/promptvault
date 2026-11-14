@@ -628,6 +628,14 @@
           <div id="gdSyncRow" class="row hidden" style="margin:8px 0;">
             <div class="progress" id="gdProgress" style="flex:1; margin:0;"><div id="gdBar"></div></div>
           </div>
+          <div id="gdFolderConfig" class="hidden" style="margin:10px 0; padding:10px; border-radius:8px; background:var(--panel2); border:1px solid var(--line);">
+            <label class="small" style="display:block; margin-bottom:6px;">Hedef Google Drive Klasörü (ID veya URL)</label>
+            <div class="row" style="gap:8px; margin:0;">
+              <input id="gdFolderInput" placeholder="https://drive.google.com/drive/folders/... veya Klasör ID" style="flex:1">
+              <button id="btnGdSetFolder" class="ghost small">Klasörü Bağla</button>
+              <button id="btnGdLogoutConnected" class="ghost danger small">Çıkış Yap</button>
+            </div>
+          </div>
           <div id="gdInfo" class="small muted" style="margin-bottom:8px"></div>
 
           <div id="gdSetup">
@@ -693,7 +701,19 @@
         </div>
       </div>
 
-      <!-- 5. KASA BAKIMI & KÜTÜPHANE DURUMU -->
+      <!-- 5. GITHUB GÜNCELLEME DENETİMİ -->
+      <div class="settings-box">
+        <h3>🔄 GitHub Güncelleme Denetimi</h3>
+        <p class="desc">Uygulamayı GitHub (<code>yogruce/promptvault</code>) üzerinden denetleyin ve tek tıkla güncelleyin. Veritabanınız, görsel kasanız ve Drive ayarlarınız korunur.</p>
+        <div class="row" style="gap:10px; align-items:center;">
+          <span id="updateStatusBadge" class="kind">Kontrol edilmedi</span>
+          <span id="updateInfoText" class="small muted" style="flex:1"></span>
+          <button id="btnCheckUpdate" class="ghost small">🔍 Güncellemeleri Denetle</button>
+          <button id="btnApplyUpdate" class="primary small hidden">⬇ GitHub'dan Güncelle</button>
+        </div>
+      </div>
+
+      <!-- 6. KASA BAKIMI & KÜTÜPHANE DURUMU -->
       <div class="settings-box">
         <h3 data-i18n="maint_title">🧹 Kasa Temizliği & Bakım</h3>
         <p class="desc" data-i18n="maint_desc">Eğer orijinal diskteki dosya silinmişse veritabanındaki disk yolunu temizler; kasa kopyanız silinmez.</p>
